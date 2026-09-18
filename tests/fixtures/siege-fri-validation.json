@@ -1,0 +1,33 @@
+{
+  "note": "SPEC v0.2 5장 검증 픽스처. settings = 전투 스탯(마을+버프+반지, 상한 적용 전). results = 캐릭터별 실측 피해.",
+  "settings": {
+    "setting1": {
+      "ryan": { "attack": 5325, "crit": 100, "critDmg": 258, "weakRate": 101, "ring": "damage" },
+      "taka": { "attack": 4915, "crit": 99, "critDmg": 270, "weakRate": 101, "ring": "damage" },
+      "rachel": { "attack": 4252, "crit": 103, "critDmg": 246, "weakRate": 72, "ring": "crit" },
+      "sieg": { "attack": 3859, "crit": 99, "critDmg": 270, "weakRate": 32, "ring": "survival" },
+      "biscuit": { "attack": 2411, "crit": 5, "critDmg": 150, "weakRate": 42, "ring": "survival" }
+    },
+    "setting2": {
+      "ryan": { "attack": 5225, "crit": 59, "critDmg": 312, "weakRate": 101, "ring": "damage" },
+      "taka": { "attack": 4965, "crit": 55, "critDmg": 330, "weakRate": 101, "ring": "damage" },
+      "rachel": { "attack": 4252, "crit": 103, "critDmg": 246, "weakRate": 72, "ring": "crit" },
+      "sieg": { "attack": 3859, "crit": 99, "critDmg": 270, "weakRate": 32, "ring": "survival" },
+      "biscuit": { "attack": 2411, "crit": 5, "critDmg": 150, "weakRate": 42, "ring": "survival" }
+    }
+  },
+  "results": {
+    "setting1": [
+      { "rachel": 1070309, "sieg": 171896, "biscuit": 4180, "ryan": 8491764, "taka": 7897649 },
+      { "rachel": 1165667, "sieg": 166830, "biscuit": 4207, "ryan": 8490034, "taka": 7910047 },
+      { "rachel": 1133834, "sieg": 161671, "biscuit": 4180, "ryan": 8491764, "taka": 7788597 }
+    ],
+    "setting2": [
+      { "rachel": 1152754, "sieg": 162104, "biscuit": 4180, "ryan": 6127872, "taka": 6741081 },
+      { "rachel": 1063638, "sieg": 185311, "biscuit": 4207, "ryan": 8242383, "taka": 6773105 },
+      { "rachel": 1071444, "sieg": 183379, "biscuit": 4180, "ryan": 8862923, "taka": 7188984 },
+      { "rachel": 1042705, "sieg": 158037, "biscuit": 4180, "ryan": 7330511, "taka": 5894139 },
+      { "rachel": 1111795, "sieg": null, "biscuit": 4180, "ryan": 6682581, "taka": 6629208 }
+    ]
+  }
+}

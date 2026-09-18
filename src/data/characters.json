@@ -4,7 +4,7 @@
     "name": "타카",
     "skills": {
       "upper": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
-      "lower": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "lower": { "kind": "damage", "targets": "all", "hitsPerTarget": 1, "critDmgBonus": 46 },
       "basic": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 }
     },
     "effects": []

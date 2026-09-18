@@ -31,5 +31,10 @@
     "biscuit_lower_weak": ["taka", "ryan"]
   },
   "scoring": { "type": "bestOf", "runs": 5 },
-  "mechanic": "standard"
+  "mechanic": "standard",
+  "hitWeights": {
+    "ryan": { "upper": 213240, "lower": 32591, "basic": 17473 },
+    "taka": { "upper": 152506, "lower": 49030, "basic": 28120 },
+    "rachel": { "upper": 24239, "lower": 18475, "basic": 9382 }
+  }
 }
