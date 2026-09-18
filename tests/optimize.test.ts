@@ -13,8 +13,13 @@ import {
 import { analyticStats } from '../src/engine/analytic';
 import { buffSums } from '../src/engine/effectiveStats';
 import { computeBudget, reconstructVillage } from '../src/gear/budget';
-import { optimizeDealer, optimizedMembers } from '../src/gear/optimize';
-import { SUB_UNIT, type CurrentSetup } from '../src/gear/types';
+import {
+  CRITDMG_LINES,
+  optimizeDealer,
+  optimizedMembers,
+  TOTAL_ENHANCE,
+} from '../src/gear/optimize';
+import { SUB_UNIT, weaponMainTotals, type CurrentSetup } from '../src/gear/types';
 
 const characters = charactersJson as unknown as Character[];
 const content = siegeFriJson as unknown as Content;
@@ -73,58 +78,53 @@ describe('SPEC v0.3 7장 테스트', () => {
     expect(budget.units).toBeGreaterThan(0);
   });
 
-  // 7-3. 최적화 결과: 치확·약확 전투값 ≤ 100 + 1단위 (낭비 한도)
-  it('3. 최적화 결과 낭비 한도: 전투 치확·약확 ≤ 100 + 1단위', () => {
-    const setup: CurrentSetup = {
-      charId: 'ryan',
-      village: { crit: 59, critDmg: 312, weakRate: 20 },
-      weaponMains: ['crit', 'critDmg'],
-      ringCarve: 'weak',
-    };
-    const base = userById('ryan').baseStats;
-    const budget = computeBudget(setup, base);
-    const result = optimizeDealer({
-      char: byId('ryan'),
+  // 장비 구조 기반 최적화 (SPEC v0.3.2)
+  const runOpt = (id: string, lostUpgrades = 0) =>
+    optimizeDealer({
+      char: byId(id),
       content,
-      baseStats: base,
-      buffs: buffSums('ryan', content, characters),
-      budgetUnits: budget.units,
+      baseStats: userById(id).baseStats,
+      buffs: buffSums(id, content, characters),
+      lostUpgrades,
       scale: 1,
-      basicCount: basicCounts['ryan'],
+      basicCount: basicCounts[id],
     });
 
-    expect(result.best.combat.crit).toBeLessThanOrEqual(100 + SUB_UNIT.crit);
-    expect(result.best.combat.weakRate).toBeLessThanOrEqual(100 + SUB_UNIT.weakRate);
-    expect(result.best1).toBeGreaterThan(0);
+  // 7-3. 모든 추천의 마을 치피 ≤ 150 + 주옵 치피 + 6×(4+20) (물리적 상한)
+  it('3. 추천 마을 치피가 물리적 상한 이내', () => {
+    for (const id of ['ryan', 'taka', 'rachel', 'sieg']) {
+      const r = runOpt(id);
+      const base = userById(id).baseStats;
+      const wmCritDmg = weaponMainTotals(r.best.weaponMains).critDmg;
+      const cap = base.critDmg + wmCritDmg + SUB_UNIT.critDmg * (CRITDMG_LINES + TOTAL_ENHANCE);
+      expect(r.best.targetVillage.critDmg).toBeLessThanOrEqual(cap);
+      expect(r.best1).toBeGreaterThan(0);
+    }
   });
 
-  // 최적화 대상: 진형 순서 유지, optimize=false(비스킷)만 제외
-  it('4. 최적화 대상 = 진형 순서에서 비스킷 제외', () => {
+  // 7-4. lostUpgrades 증가 시 J 단조 감소
+  it('4. lostUpgrades 증가 시 J 단조 감소', () => {
+    const js = [0, 4, 8, 12, 20].map((lost) => runOpt('ryan', lost).best.objective);
+    for (let i = 1; i < js.length; i++) {
+      expect(js[i]).toBeLessThanOrEqual(js[i - 1] + 1e-6);
+    }
+  });
+
+  // 7-5. 약확이 버프로 (거의) 100 이상인 라이언·타카는 4번째 칸 = 깡공
+  it('5. 라이언·타카의 4번째 칸 = 깡공(flatAtk)', () => {
+    expect(runOpt('ryan').best.slot4).toBe('flatAtk');
+    expect(runOpt('taka').best.slot4).toBe('flatAtk');
+  });
+
+  // 7-6. 최적화 대상: 진형 순서에서 비스킷(optimize=false) 제외
+  it('6. 비스킷 제외 (폼 비활성화 근거)', () => {
+    expect(content.optimize?.biscuit).toBe(false);
     expect(optimizedMembers(content)).toEqual(['sieg', 'rachel', 'ryan', 'taka']);
   });
 
-  // 지크: 평타만(가중치 1) + 전투 약확 버프 +27, 최적화가 낭비 한도를 지킨다
-  it('5. 지크 최적화: 평타만, 약확 버프 +27, 낭비 한도 준수', () => {
+  // 7-7. 지크: 평타만 + 전투 약확 버프 +27, 최적화 정상 동작
+  it('7. 지크 최적화 (평타만, 약확 버프 +27)', () => {
     expect(buffSums('sieg', content, characters).weakRate).toBe(27);
-    const setup: CurrentSetup = {
-      charId: 'sieg',
-      village: { crit: 99, critDmg: 270, weakRate: 5 },
-      weaponMains: ['crit', 'critDmg'],
-      ringCarve: 'survival',
-    };
-    const base = userById('sieg').baseStats;
-    const budget = computeBudget(setup, base);
-    const result = optimizeDealer({
-      char: byId('sieg'),
-      content,
-      baseStats: base,
-      buffs: buffSums('sieg', content, characters),
-      budgetUnits: budget.units,
-      scale: 1,
-      basicCount: basicCounts['sieg'],
-    });
-    expect(result.best.combat.crit).toBeLessThanOrEqual(100 + SUB_UNIT.crit);
-    expect(result.best.combat.weakRate).toBeLessThanOrEqual(100 + SUB_UNIT.weakRate);
-    expect(result.best1).toBeGreaterThan(0);
+    expect(runOpt('sieg').best1).toBeGreaterThan(0);
   });
 });

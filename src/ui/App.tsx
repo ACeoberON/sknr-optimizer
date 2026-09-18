@@ -26,18 +26,25 @@ const RING_KO: Record<RingCarve, string> = {
   survival: '생존(효과 없음)',
 };
 
-// 실제 현재 세팅 기본값
+// 실제 현재 세팅 기본값 (SPEC v0.3.2 5장)
 const DEFAULTS: Record<string, CurrentSetup> = {
-  sieg: { charId: 'sieg', village: { crit: 99, critDmg: 270, weakRate: 5 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'survival' },
-  rachel: { charId: 'rachel', village: { crit: 93, critDmg: 246, weakRate: 45 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'crit' },
-  ryan: { charId: 'ryan', village: { crit: 100, critDmg: 258, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege' },
-  taka: { charId: 'taka', village: { crit: 99, critDmg: 270, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege' },
+  sieg: { charId: 'sieg', village: { crit: 99, critDmg: 270, weakRate: 5 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'survival', lostUpgrades: 0 },
+  rachel: { charId: 'rachel', village: { crit: 93, critDmg: 246, weakRate: 45 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'crit', lostUpgrades: 0 },
+  ryan: { charId: 'ryan', village: { crit: 100, critDmg: 258, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege', lostUpgrades: 0 },
+  taka: { charId: 'taka', village: { crit: 99, critDmg: 270, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege', lostUpgrades: 0 },
 };
+
+const SLOT4_KO: Record<'weak' | 'flatAtk', string> = { weak: '약확', flatAtk: '깡공' };
 
 const findChar = (id: string) => characters.find((c) => c.id === id)!;
 const findUser = (id: string) => users.find((u) => u.charId === id)!;
 const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR');
 const pct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+const lineDiff = (n: number) => {
+  const v = Math.round(n * 10) / 10;
+  if (Math.abs(v) < 0.05) return '목표와 동일';
+  return v > 0 ? `현재 +${v.toFixed(1)}줄 (초과)` : `현재 ${v.toFixed(1)}줄 (부족)`;
+};
 
 /** 팀 목적함수 J = Σμ + 1.163√(Σσ²). */
 function teamObjective(means: number[], stds: number[]): number {
@@ -129,6 +136,17 @@ export function App() {
                   ))}
                 </select>
               </label>
+              <label style={lbl}>
+                손실 강화
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={s.lostUpgrades ?? 0}
+                  onChange={(e) => update(id, { lostUpgrades: Math.max(0, Math.min(20, Number(e.target.value))) })}
+                  style={inp}
+                />
+              </label>
             </div>
           </fieldset>
         );
@@ -159,18 +177,37 @@ export function App() {
               <table style={table}>
                 <tbody>
                   <tr>
-                    <td style={th}>목표 마을 스탯</td>
-                    <td style={td}>
-                      치확 {fmt(r.target.targetVillage.crit)} / 치피 {fmt(r.target.targetVillage.critDmg)} / 약확 {fmt(r.target.targetVillage.weakRate)}
-                    </td>
-                  </tr>
-                  <tr>
                     <td style={th}>무기 주옵</td>
                     <td style={td}>{r.target.weaponMains.map((m) => STAT_KO[m]).join(' + ')}</td>
                   </tr>
                   <tr>
+                    <td style={th}>4번째 칸</td>
+                    <td style={td}>{SLOT4_KO[r.target.slot4]}</td>
+                  </tr>
+                  <tr>
+                    <td style={th}>강화 합계</td>
+                    <td style={td}>
+                      치확 {r.target.enhance.crit}회 / 치피 {r.target.enhance.critDmg}회
+                      {r.target.enhance.weakRate > 0 && ` / 약확 ${r.target.enhance.weakRate}회`}
+                      <span style={muted}> (장비별 배분은 예시, 합계가 핵심)</span>
+                    </td>
+                  </tr>
+                  <tr>
                     <td style={th}>장신구 세공</td>
                     <td style={td}>{RING_KO[r.target.ringCarve]}</td>
+                  </tr>
+                  <tr>
+                    <td style={th}>목표 마을 스탯</td>
+                    <td style={td}>
+                      치확 {fmt(r.target.targetVillage.crit)} / 치피 {fmt(r.target.targetVillage.critDmg)} / 약확 {fmt(r.target.targetVillage.weakRate)}
+                      <span style={muted}> · 전투 치확 {fmt(Math.min(100, r.target.combat.crit))} / 약확 {fmt(Math.min(100, r.target.combat.weakRate))}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={th}>현재 대비 줄 수</td>
+                    <td style={td}>
+                      치확 {lineDiff(r.critLineDiff)} · 약확 {lineDiff(r.weakLineDiff)}
+                    </td>
                   </tr>
                   <tr>
                     <td style={th}>줄당 가치</td>
