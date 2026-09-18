@@ -32,6 +32,7 @@
   },
   "scoring": { "type": "bestOf", "runs": 5 },
   "mechanic": "standard",
+  "optimize": { "sieg": true, "rachel": true, "biscuit": false, "ryan": true, "taka": true },
   "hitWeights": {
     "ryan": { "upper": 213240, "lower": 32591, "basic": 17473 },
     "taka": { "upper": 152506, "lower": 49030, "basic": 28120 },

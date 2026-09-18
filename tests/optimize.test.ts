@@ -13,7 +13,7 @@ import {
 import { analyticStats } from '../src/engine/analytic';
 import { buffSums } from '../src/engine/effectiveStats';
 import { computeBudget, reconstructVillage } from '../src/gear/budget';
-import { optimizeDealer } from '../src/gear/optimize';
+import { optimizeDealer, optimizedMembers } from '../src/gear/optimize';
 import { SUB_UNIT, type CurrentSetup } from '../src/gear/types';
 
 const characters = charactersJson as unknown as Character[];
@@ -93,6 +93,36 @@ describe('SPEC v0.3 7장 테스트', () => {
       basicCount: basicCounts['ryan'],
     });
 
+    expect(result.best.combat.crit).toBeLessThanOrEqual(100 + SUB_UNIT.crit);
+    expect(result.best.combat.weakRate).toBeLessThanOrEqual(100 + SUB_UNIT.weakRate);
+    expect(result.best1).toBeGreaterThan(0);
+  });
+
+  // 최적화 대상: 진형 순서 유지, optimize=false(비스킷)만 제외
+  it('4. 최적화 대상 = 진형 순서에서 비스킷 제외', () => {
+    expect(optimizedMembers(content)).toEqual(['sieg', 'rachel', 'ryan', 'taka']);
+  });
+
+  // 지크: 평타만(가중치 1) + 전투 약확 버프 +27, 최적화가 낭비 한도를 지킨다
+  it('5. 지크 최적화: 평타만, 약확 버프 +27, 낭비 한도 준수', () => {
+    expect(buffSums('sieg', content, characters).weakRate).toBe(27);
+    const setup: CurrentSetup = {
+      charId: 'sieg',
+      village: { crit: 99, critDmg: 270, weakRate: 5 },
+      weaponMains: ['crit', 'critDmg'],
+      ringCarve: 'survival',
+    };
+    const base = userById('sieg').baseStats;
+    const budget = computeBudget(setup, base);
+    const result = optimizeDealer({
+      char: byId('sieg'),
+      content,
+      baseStats: base,
+      buffs: buffSums('sieg', content, characters),
+      budgetUnits: budget.units,
+      scale: 1,
+      basicCount: basicCounts['sieg'],
+    });
     expect(result.best.combat.crit).toBeLessThanOrEqual(100 + SUB_UNIT.crit);
     expect(result.best.combat.weakRate).toBeLessThanOrEqual(100 + SUB_UNIT.weakRate);
     expect(result.best1).toBeGreaterThan(0);

@@ -4,6 +4,7 @@ import siegeFriJson from '../data/contents/siege-fri.json';
 import usersJson from '../data/users.json';
 import type { Character, Content, UserCharacter } from '../data/types';
 import { computeBasicCounts } from '../engine/simulate';
+import { BEST1_Z, optimizedMembers } from '../gear/optimize';
 import type { MainStat, RingCarve, CurrentSetup } from '../gear/types';
 import { analyzeDealer, type DealerReport } from './analyze';
 
@@ -13,24 +14,37 @@ const users = usersJson as unknown as UserCharacter[];
 
 const allySpeeds = Object.fromEntries(users.map((u) => [u.charId, u.speed]));
 const basicCounts = computeBasicCounts(content, allySpeeds);
+const OPTIMIZED = optimizedMembers(content); // 진형 순서, 최적화 대상만
 
-const DEALERS = ['ryan', 'taka', 'rachel'];
 const MAIN_OPTS: MainStat[] = ['crit', 'critDmg', 'weakRate'];
-const RING_OPTS: RingCarve[] = ['crit', 'weak', 'siege'];
+const RING_OPTS: RingCarve[] = ['crit', 'weak', 'siege', 'survival'];
 const STAT_KO: Record<MainStat, string> = { crit: '치확', critDmg: '치피', weakRate: '약확' };
-const RING_KO: Record<RingCarve, string> = { crit: '치확+10', weak: '약확+12', siege: '공성×1.04' };
+const RING_KO: Record<RingCarve, string> = {
+  crit: '치확+10',
+  weak: '약확+12',
+  siege: '공성×1.04',
+  survival: '생존(효과 없음)',
+};
 
-// 기본 입력값 (세팅2 근사)
+// 실제 현재 세팅 기본값
 const DEFAULTS: Record<string, CurrentSetup> = {
-  ryan: { charId: 'ryan', village: { crit: 59, critDmg: 312, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'weak' },
-  taka: { charId: 'taka', village: { crit: 55, critDmg: 330, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'weak' },
-  rachel: { charId: 'rachel', village: { crit: 93, critDmg: 246, weakRate: 45 }, weaponMains: ['critDmg', 'weakRate'], ringCarve: 'crit' },
+  sieg: { charId: 'sieg', village: { crit: 99, critDmg: 270, weakRate: 5 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'survival' },
+  rachel: { charId: 'rachel', village: { crit: 93, critDmg: 246, weakRate: 45 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'crit' },
+  ryan: { charId: 'ryan', village: { crit: 100, critDmg: 258, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege' },
+  taka: { charId: 'taka', village: { crit: 99, critDmg: 270, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege' },
 };
 
 const findChar = (id: string) => characters.find((c) => c.id === id)!;
 const findUser = (id: string) => users.find((u) => u.charId === id)!;
 const fmt = (n: number) => Math.round(n).toLocaleString('ko-KR');
 const pct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+
+/** 팀 목적함수 J = Σμ + 1.163√(Σσ²). */
+function teamObjective(means: number[], stds: number[]): number {
+  const sumMean = means.reduce((a, b) => a + b, 0);
+  const sumVar = stds.reduce((a, b) => a + b * b, 0);
+  return sumMean + BEST1_Z * Math.sqrt(sumVar);
+}
 
 export function App() {
   const [setups, setSetups] = useState<Record<string, CurrentSetup>>(() => structuredClone(DEFAULTS));
@@ -44,9 +58,8 @@ export function App() {
 
   const run = () => {
     setBusy(true);
-    // 무거운 계산 전에 로딩 표시를 그리도록 한 틱 양보
     setTimeout(() => {
-      const out = DEALERS.map((id) =>
+      const out = OPTIMIZED.map((id) =>
         analyzeDealer(setups[id], findChar(id), findUser(id), content, characters, basicCounts[id]),
       );
       setReports(out);
@@ -54,16 +67,30 @@ export function App() {
     }, 20);
   };
 
+  const teamCurrent = reports && teamObjective(reports.map((r) => r.currentMean), reports.map((r) => r.currentStd));
+  const teamTarget = reports && teamObjective(reports.map((r) => r.target.mean), reports.map((r) => r.target.std));
+  const teamDelta = teamCurrent && teamTarget ? ((teamTarget - teamCurrent) / teamCurrent) * 100 : 0;
+
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', padding: 24, maxWidth: 860, margin: '0 auto' }}>
       <h1>sknr-optimizer</h1>
       <p>{content.name} · v0.3 세팅 최적화기 (현재 스탯 기준)</p>
 
-      {DEALERS.map((id) => {
+      {content.lineup.map((id) => {
+        const char = findChar(id);
+        const optimized = content.optimize?.[id] !== false;
+        if (!optimized) {
+          return (
+            <fieldset key={id} style={{ ...fs, background: '#f2f2f2', color: '#999' }} disabled>
+              <legend style={{ fontWeight: 600, color: '#999' }}>{char.name}</legend>
+              <span style={{ fontSize: 13 }}>생존 세팅 (최적화 제외)</span>
+            </fieldset>
+          );
+        }
         const s = setups[id];
         return (
           <fieldset key={id} style={fs}>
-            <legend style={{ fontWeight: 600 }}>{findChar(id).name}</legend>
+            <legend style={{ fontWeight: 600 }}>{char.name}</legend>
             <div style={row}>
               {(['crit', 'critDmg', 'weakRate'] as const).map((k) => (
                 <label key={k} style={lbl}>
@@ -113,6 +140,12 @@ export function App() {
 
       {reports && (
         <div style={{ marginTop: 20 }}>
+          <section style={{ ...card, background: '#f0f6ff' }}>
+            <strong>팀 목적함수</strong>{' '}
+            <span style={{ color: teamDelta >= 0 ? '#137333' : '#c5221f' }}>({pct(teamDelta)})</span>
+            <span style={muted}> · J = Σμ + 1.163√Σσ² (최적화 대상 {reports.length}명, 지크 포함)</span>
+          </section>
+
           {reports.map((r) => (
             <section key={r.charId} style={card}>
               <h2 style={{ margin: '0 0 8px' }}>
@@ -150,7 +183,7 @@ export function App() {
 
               {(r.wasteCritUnits > 0.05 || r.wasteWeakUnits > 0.05) && (
                 <p style={warn}>
-                  ⚠ 상한 초과 낭비:
+                  ⚠ 상한 초과 낭비(장비로 감축 가능):
                   {r.wasteCritUnits > 0.05 && ` 치확 약 ${r.wasteCritUnits.toFixed(1)}줄`}
                   {r.wasteWeakUnits > 0.05 && ` 약확 약 ${r.wasteWeakUnits.toFixed(1)}줄`}
                 </p>

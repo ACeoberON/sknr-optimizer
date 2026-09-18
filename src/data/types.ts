@@ -58,6 +58,7 @@ export interface Content {
   mechanic: 'standard'; // 추후: "missZero" | "multiHitWeighted" | "threshold"
   hitWeights?: HitWeights; // 스킬별 히트 크기 (SPEC v0.2 2.1)
   enemySpeeds?: number[]; // 적 속공 (평타 배분용, SPEC v0.3 6장). 없으면 아군 뒤로 가정
+  optimize?: Record<string, boolean>; // lineup 멤버별 최적화 대상 여부 (없으면 true)
 }
 
 // ── 사용자 데이터 ──

@@ -1,7 +1,7 @@
 // 장비 도메인 타입·상수 (SPEC v0.3 1장).
 
 export type MainStat = 'crit' | 'critDmg' | 'weakRate';
-export type RingCarve = 'crit' | 'weak' | 'siege';
+export type RingCarve = 'crit' | 'weak' | 'siege' | 'survival';
 
 /** 딜러별 현재 세팅 입력 (SPEC v0.3 2장). */
 export interface CurrentSetup {

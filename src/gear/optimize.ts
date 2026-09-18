@@ -15,6 +15,11 @@ import {
 /** best1/5 정규 근사 계수 (5개 표본 최대의 기대값). */
 export const BEST1_Z = 1.163;
 
+/** 콘텐츠 편성에서 최적화 대상 멤버(진형 순서). optimize=false는 제외. */
+export function optimizedMembers(content: Content): string[] {
+  return content.lineup.filter((id) => content.optimize?.[id] !== false);
+}
+
 const MAIN_COMBOS: [MainStat, MainStat][] = [
   ['crit', 'crit'],
   ['crit', 'critDmg'],
