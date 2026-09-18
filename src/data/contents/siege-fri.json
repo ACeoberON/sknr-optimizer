@@ -1,0 +1,35 @@
+{
+  "id": "siege-fri",
+  "name": "공성전 금요일",
+  "enemies": ["제이브", "룩", "챈슬러"],
+  "lineup": ["sieg", "rachel", "biscuit", "ryan", "taka"],
+  "skillOrder": [
+    { "char": "biscuit", "skill": "lower", "turn": "R1" },
+    { "char": "taka", "skill": "lower", "turn": "R1(4)" },
+    { "char": "rachel", "skill": "lower", "turn": "R2" },
+    { "char": "ryan", "skill": "lower", "turn": "4" },
+    { "char": "rachel", "skill": "upper", "turn": "8" },
+    { "char": "taka", "skill": "upper", "turn": "12" },
+    { "char": "ryan", "skill": "upper", "turn": "16" },
+    { "char": "taka", "skill": "lower", "turn": "20" },
+    { "char": "ryan", "skill": "lower", "turn": "24" },
+    { "char": "taka", "skill": "upper", "turn": "28" },
+    { "char": "biscuit", "skill": "lower", "turn": "32" },
+    { "char": "rachel", "skill": "upper", "turn": "36" },
+    { "char": "ryan", "skill": "upper", "turn": "40" },
+    { "char": "taka", "skill": "upper", "turn": "44" },
+    { "char": "ryan", "skill": "lower", "turn": "48" },
+    { "char": "rachel", "skill": "lower", "turn": "52" },
+    { "char": "taka", "skill": "lower", "turn": "56" },
+    { "char": "taka", "skill": "upper", "turn": "60" },
+    { "char": "ryan", "skill": "upper", "turn": "64" },
+    { "char": "ryan", "skill": "lower", "turn": "68" }
+  ],
+  "totalTurns": 68,
+  "buffTargets": {
+    "rachel_passive_weak": ["taka", "ryan", "rachel", "sieg", "biscuit"],
+    "biscuit_lower_weak": ["taka", "ryan"]
+  },
+  "scoring": { "type": "bestOf", "runs": 5 },
+  "mechanic": "standard"
+}

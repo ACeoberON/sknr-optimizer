@@ -1,0 +1,71 @@
+[
+  {
+    "id": "taka",
+    "name": "타카",
+    "skills": {
+      "upper": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "lower": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "basic": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 }
+    },
+    "effects": []
+  },
+  {
+    "id": "ryan",
+    "name": "라이언",
+    "skills": {
+      "upper": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "lower": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "basic": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 }
+    },
+    "effects": []
+  },
+  {
+    "id": "rachel",
+    "name": "레이첼",
+    "skills": {
+      "upper": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "lower": { "kind": "damage", "targets": "all", "hitsPerTarget": 2 },
+      "basic": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 }
+    },
+    "effects": [
+      {
+        "id": "rachel_passive_weak",
+        "source": "passive",
+        "stat": "weakRate",
+        "value": 27,
+        "scope": "allAllies"
+      }
+    ]
+  },
+  {
+    "id": "sieg",
+    "name": "지크",
+    "skills": {
+      "upper": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 },
+      "lower": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 },
+      "basic": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 }
+    },
+    "effects": []
+  },
+  {
+    "id": "biscuit",
+    "name": "비스킷",
+    "skills": {
+      "upper": { "kind": "damage", "targets": "all", "hitsPerTarget": 1 },
+      "lower": { "kind": "buff", "targets": "all", "hitsPerTarget": 0 },
+      "basic": { "kind": "damage", "targets": "single", "hitsPerTarget": 1 }
+    },
+    "effects": [
+      {
+        "id": "biscuit_lower_weak",
+        "source": "lower",
+        "stat": "weakRate",
+        "value": 54,
+        "scope": "selectedAllies",
+        "maxTargets": 2,
+        "selectionRule": "공격력 상위",
+        "durationOwnTurns": 5
+      }
+    ]
+  }
+]

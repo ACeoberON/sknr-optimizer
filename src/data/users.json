@@ -1,0 +1,7 @@
+[
+  { "charId": "taka", "speed": 29, "baseStats": { "crit": 23, "critDmg": 150, "weakRate": 0 } },
+  { "charId": "ryan", "speed": 29, "baseStats": { "crit": 23, "critDmg": 150, "weakRate": 0 } },
+  { "charId": "rachel", "speed": 25, "baseStats": { "crit": 5, "critDmg": 150, "weakRate": 20 } },
+  { "charId": "sieg", "speed": 25, "baseStats": { "crit": 23, "critDmg": 150, "weakRate": 0 } },
+  { "charId": "biscuit", "speed": 19, "baseStats": { "crit": 5, "critDmg": 150, "weakRate": 0 } }
+]
