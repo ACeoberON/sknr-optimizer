@@ -57,6 +57,7 @@ export interface Content {
   scoring: { type: 'bestOf'; runs: number }; // 공성전: 5판 중 베스트1
   mechanic: 'standard'; // 추후: "missZero" | "multiHitWeighted" | "threshold"
   hitWeights?: HitWeights; // 스킬별 히트 크기 (SPEC v0.2 2.1)
+  enemySpeeds?: number[]; // 적 속공 (평타 배분용, SPEC v0.3 6장). 없으면 아군 뒤로 가정
 }
 
 // ── 사용자 데이터 ──

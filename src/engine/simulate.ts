@@ -24,16 +24,60 @@ export interface SimUnit {
 }
 
 /**
+ * 캐릭터별 평타 횟수를 결정적으로 배분한다. (SPEC v0.3 6장)
+ *
+ * 총 턴 T, 유닛 수 N → 모든 유닛 ⌊T/N⌋회, 속공 내림차순 앞 (T mod N)명이 +1회.
+ * 동속이면 진형 순서(lineup) 우선. 적 속공은 content.enemySpeeds, 없으면 아군 뒤로 가정.
+ */
+export function computeBasicCounts(
+  content: Content,
+  allySpeeds: Record<string, number>,
+): Record<string, number> {
+  const unitCount = content.lineup.length + content.enemies.length;
+  const base = Math.floor(content.totalTurns / unitCount);
+  const extra = content.totalTurns - base * unitCount; // T mod N
+
+  interface Unit {
+    id: string;
+    speed: number;
+    priority: number; // 동속 시 낮을수록 앞 (아군 진형 순서, 적은 뒤로)
+    ally: boolean;
+  }
+  const units: Unit[] = [];
+  content.lineup.forEach((id, i) => {
+    units.push({ id, speed: allySpeeds[id] ?? 0, priority: i, ally: true });
+  });
+  content.enemies.forEach((_, i) => {
+    const speed = content.enemySpeeds?.[i];
+    units.push({
+      id: `__enemy${i}`,
+      speed: speed ?? Number.NEGATIVE_INFINITY,
+      priority: 1000 + i,
+      ally: false,
+    });
+  });
+  units.sort((a, b) => b.speed - a.speed || a.priority - b.priority);
+
+  const counts: Record<string, number> = {};
+  units.forEach((u, rank) => {
+    if (u.ally) counts[u.id] = base + (rank < extra ? 1 : 0);
+  });
+  return counts;
+}
+
+/**
  * 캐릭터 DB · 콘텐츠 DB · 전투 스탯으로 시뮬레이션 단위를 만든다.
  *
  * 히트 목록 = 스킬 순서 × 대상 수 × hitsPerTarget + 평타.
  * hitWeights에 값이 없으면 기본 가중치 1 (지크·비스킷: 딜 비중 1% 미만 → 스케일만 보정).
+ * basicCount를 주면 그 값을 쓰고, 없으면 T/N (평균, 소수 허용).
  */
 export function buildSimUnit(
   char: Character,
   content: Content,
   stats: CombatStats,
   scale = 1,
+  basicCount?: number,
 ): SimUnit {
   const enemyCount = content.enemies.length;
   const weights = content.hitWeights?.[char.id] ?? {};
@@ -56,7 +100,7 @@ export function buildSimUnit(
     charId: char.id,
     skillHits,
     basicWeight: weights.basic ?? 1,
-    basicCount: content.totalTurns / (content.lineup.length + enemyCount),
+    basicCount: basicCount ?? content.totalTurns / (content.lineup.length + enemyCount),
     stats,
     scale,
   };
