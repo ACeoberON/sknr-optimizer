@@ -11,6 +11,7 @@ export interface CurrentSetup {
   ringCarve: RingCarve;
   lostUpgrades?: number; // 강화가 모공·깡공에 붙은 수 (0~20, 기본 0 = 종결)
   reservedSpeedLines?: number; // 속공 부옵이 필요한 줄 수 (4번째 칸 대체, 기본 0)
+  mogongLines?: number | null; // 부옵 모공 줄 수 (0~4). null/undefined = 모름 (SPEC v0.4)
 }
 
 /** 무기 주옵 1개가 주는 스탯. */

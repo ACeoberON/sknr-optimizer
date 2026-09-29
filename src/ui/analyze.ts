@@ -1,92 +1,89 @@
 import type { Character, Content, UserCharacter } from '../data/types';
-import { buildSimUnit, simulate } from '../engine/simulate';
+import { buildSimUnit } from '../engine/simulate';
 import { analyticStats } from '../engine/analytic';
 import { buffSums } from '../engine/effectiveStats';
-import { marginalValue, type MarginalValue } from '../gear/marginal';
-import { computeBudget, type Budget } from '../gear/budget';
-import { BEST1_Z, optimizeDealer, setupCombat, type Candidate } from '../gear/optimize';
-import { SUB_UNIT, weaponMainTotals, type CurrentSetup } from '../gear/types';
+import { computeBudget } from '../gear/budget';
+import { BEST1_Z, setupCombat } from '../gear/optimize';
+import { optimizeBudget, type BudgetBest } from '../gear/reallocate';
+import { ENDGAME_MAX_U, effectiveUnits, grade, roundU, type Grade } from '../gear/grade';
+import { SUB_UNIT, type CurrentSetup } from '../gear/types';
 
-export interface DealerReport {
+export interface BasicReport {
   charId: string;
   name: string;
-  budget: Budget; // 현황 표시용 (예산 방식은 최적화에서 제거됨)
-  currentBest1: number;
+  U: number; // 유효 단위 (표시용 반올림 전)
+  uEff: number;
+  uDisplay: number; // 소수 첫째 자리
+  grade: Grade;
+  mogongKnown: boolean;
+  efficiency: number; // J_now / J_best × 100 (≤100)
   currentMean: number;
   currentStd: number;
-  currentJ: number;
-  marginal: MarginalValue;
-  wasteCritUnits: number; // 장비로 줄일 수 있는 상한 초과 낭비 (단위)
-  wasteWeakUnits: number;
-  target: Candidate;
-  targetBest1: number;
-  targetJ: number;
-  deltaPct: number; // 현재 대비 J 증감 (%)
-  critLineDiff: number; // 현재 − 목표 치확 줄 수
-  weakLineDiff: number;
+  currentSplit: { critUnits: number; weakUnits: number; critDmgUnits: number };
+  bestAtU: BudgetBest; // 같은 U 재배분 최적
+  bestAtUPlus: BudgetBest; // U+1 (개선 우선순위용)
+  target: BudgetBest; // 종결 목표 (U = 32)
 }
 
-const SEED = 20240601;
-
-/** 딜러 1명의 현재 세팅을 분석해 예산·목표·레시피·줄당 가치·경고를 계산한다. */
-export function analyzeDealer(
+/** 딜러 1명의 Basic 분석 (등급·배분 효율·종결 목표). */
+export function analyzeBasic(
   setup: CurrentSetup,
   char: Character,
   user: UserCharacter,
   content: Content,
   characters: Character[],
   basicCount: number,
-): DealerReport {
+): BasicReport {
   const base = user.baseStats;
   const buffs = buffSums(char.id, content, characters);
   const budget = computeBudget(setup, base);
+  const U = budget.units;
+  const mogongKnown = setup.mogongLines != null;
+  const uEff = effectiveUnits(U, setup.mogongLines ?? null);
 
   const cur = setupCombat(base, buffs, setup.weaponMains, setup.ringCarve, budget);
-  const curUnit = buildSimUnit(char, content, cur.stats, cur.scaleMult, basicCount);
-  const curAnalytic = analyticStats(curUnit);
-  const currentJ = curAnalytic.mean + BEST1_Z * curAnalytic.std;
-  const currentBest1 = simulate(curUnit, 20000, SEED).bestOf;
-  const marginal = marginalValue(curUnit);
+  const curA = analyticStats(buildSimUnit(char, content, cur.stats, cur.scaleMult, basicCount));
+  const currentJ = curA.mean + BEST1_Z * curA.std;
 
-  const opt = optimizeDealer({
+  const budgetArgs = {
     char,
     content,
     baseStats: base,
     buffs,
-    lostUpgrades: setup.lostUpgrades ?? 0,
-    reservedSpeedLines: setup.reservedSpeedLines ?? 0,
     scale: 1,
     basicCount,
-  });
-  const targetJ = opt.best.objective;
+  };
+  const bestAtU = optimizeBudget({ ...budgetArgs, units: U });
+  const bestAtUPlus = optimizeBudget({ ...budgetArgs, units: Math.min(ENDGAME_MAX_U, U + 1) });
+  const target = optimizeBudget({ ...budgetArgs, units: ENDGAME_MAX_U });
 
-  // 장비로 줄일 수 있는 초과분만 낭비로 센다 (기본 + 버프로 넘는 부분 제외).
-  const critFloor = Math.max(100, base.crit + buffs.crit);
-  const weakFloor = Math.max(100, base.weakRate + buffs.weakRate);
-
-  // 현재 − 목표 부옵 줄 수 (양수 = 현재가 목표보다 많음)
-  const wmTarget = weaponMainTotals(opt.best.weaponMains);
-  const targetSubCrit = opt.best.targetVillage.crit - base.crit - wmTarget.crit;
-  const targetSubWeak = opt.best.targetVillage.weakRate - base.weakRate - wmTarget.weakRate;
-  const critLineDiff = (budget.subCrit - targetSubCrit) / SUB_UNIT.crit;
-  const weakLineDiff = (budget.subWeak - targetSubWeak) / SUB_UNIT.weakRate;
+  const efficiency = bestAtU.objective > 0 ? Math.min(100, (currentJ / bestAtU.objective) * 100) : 100;
 
   return {
     charId: char.id,
     name: char.name,
-    budget,
-    currentBest1,
-    currentMean: curAnalytic.mean,
-    currentStd: curAnalytic.std,
-    currentJ,
-    marginal,
-    wasteCritUnits: Math.max(0, cur.stats.crit - critFloor) / SUB_UNIT.crit,
-    wasteWeakUnits: Math.max(0, cur.stats.weakRate - weakFloor) / SUB_UNIT.weakRate,
-    target: opt.best,
-    targetBest1: opt.best1,
-    targetJ,
-    deltaPct: currentJ > 0 ? ((targetJ - currentJ) / currentJ) * 100 : 0,
-    critLineDiff,
-    weakLineDiff,
+    U,
+    uEff,
+    uDisplay: roundU(U),
+    grade: grade(uEff),
+    mogongKnown,
+    efficiency,
+    currentMean: curA.mean,
+    currentStd: curA.std,
+    currentSplit: {
+      critUnits: budget.subCrit / SUB_UNIT.crit,
+      weakUnits: budget.subWeak / SUB_UNIT.weakRate,
+      critDmgUnits: budget.subCritDmg / SUB_UNIT.critDmg,
+    },
+    bestAtU,
+    bestAtUPlus,
+    target,
   };
+}
+
+/** 팀 목적함수 J = Σμ + 1.163√(Σσ²). */
+export function teamObjective(means: number[], stds: number[]): number {
+  const sumMean = means.reduce((a, b) => a + b, 0);
+  const sumVar = stds.reduce((a, b) => a + b * b, 0);
+  return sumMean + BEST1_Z * Math.sqrt(sumVar);
 }

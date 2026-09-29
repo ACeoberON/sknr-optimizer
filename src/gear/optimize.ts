@@ -59,6 +59,7 @@ export interface OptimizeInput {
   buffs: BuffSums;
   lostUpgrades: number; // 강화가 모공·깡공에 붙은 수 (0~20)
   reservedSpeedLines?: number; // 4번째 칸을 속공으로 대체한 줄 수
+  allowFlatAtk?: boolean; // 4번째 칸 깡공 허용 (기본 false = 약확 고정). SPEC v0.4 0.1
   scale?: number;
   basicCount?: number;
 }
@@ -121,7 +122,8 @@ export function optimizeDealer(input: OptimizeInput): OptimizeResult {
   const reserved = input.reservedSpeedLines ?? 0;
   const weakLines = Math.max(0, WEAK_LINES - reserved); // 속공 줄이 4번째 칸을 대체
   const baseBuffWeak = baseStats.weakRate + buffs.weakRate;
-  const modes = slot4Modes(baseBuffWeak, weakLines);
+  // SPEC v0.4 0.1: 4번째 칸은 기본 약확 고정. 깡공은 토글(allowFlatAtk) 켤 때만 허용.
+  const modes: Slot4[] = input.allowFlatAtk ? slot4Modes(baseBuffWeak, weakLines) : ['weak'];
   const scale = input.scale ?? 1;
 
   const candidates: Candidate[] = [];

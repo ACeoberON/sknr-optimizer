@@ -110,10 +110,17 @@ describe('SPEC v0.3 7장 테스트', () => {
     }
   });
 
-  // 7-5. 약확이 버프로 (거의) 100 이상인 라이언·타카는 4번째 칸 = 깡공
-  it('5. 라이언·타카의 4번째 칸 = 깡공(flatAtk)', () => {
-    expect(runOpt('ryan').best.slot4).toBe('flatAtk');
-    expect(runOpt('taka').best.slot4).toBe('flatAtk');
+  // 7-5. (SPEC v0.4 0.1) 깡공 토글 꺼짐(기본) → 모든 캐릭터 4번째 칸 = 약확
+  it('5. 토글 꺼짐 시 모든 캐릭터 4번째 칸 = 약확', () => {
+    for (const id of ['ryan', 'taka', 'rachel', 'sieg']) {
+      expect(runOpt(id).best.slot4).toBe('weak');
+    }
+  });
+
+  // 7-5b. (SPEC v0.4 0.1) 라이언·타카 추천 전투 약확 ≥ 100 (약확 4줄 + 버프)
+  it('5b. 라이언·타카 추천 전투 약확 ≥ 100', () => {
+    expect(runOpt('ryan').best.combat.weakRate).toBeGreaterThanOrEqual(100);
+    expect(runOpt('taka').best.combat.weakRate).toBeGreaterThanOrEqual(100);
   });
 
   // 7-6. 최적화 대상: 진형 순서에서 비스킷(optimize=false) 제외
