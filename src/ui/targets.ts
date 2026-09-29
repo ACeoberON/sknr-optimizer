@@ -1,14 +1,14 @@
 import type { Character, Content, UserCharacter } from '../data/types';
 import { buffSums } from '../engine/effectiveStats';
 import { computeBasicCounts } from '../engine/simulate';
-import { optimizeBudget, type BudgetBest } from '../gear/reallocate';
+import { optimizeStructured, type StructuredBest } from '../gear/reallocate';
 import { teamObjective } from './analyze';
 
 export interface TargetRow {
   charId: string;
   name: string;
   optimize: boolean;
-  best?: BudgetBest; // optimize=false면 없음
+  best?: StructuredBest; // optimize=false면 없음
   combatCrit?: number; // 전투 치확 (상한 100)
   combatWeak?: number; // 전투 약확 (상한 100)
 }
@@ -20,12 +20,12 @@ export interface TargetResult {
   teamJ: number;
 }
 
-/** 장비 수준(유효 단위 U)을 예산으로 편성 전원의 목표 세팅을 계산한다. (SPEC 목표 탭) */
+/** 장비 수준(유효 강화 횟수)을 예산으로 편성 전원의 목표 세팅을 계산한다. (SPEC 목표 탭) */
 export function computeTargets(
   content: Content,
   characters: Character[],
   users: UserCharacter[],
-  units: number,
+  enhance: number,
 ): TargetResult {
   const byId = (id: string) => characters.find((c) => c.id === id)!;
   const userById = (id: string) => users.find((u) => u.charId === id);
@@ -44,12 +44,12 @@ export function computeTargets(
       rows.push({ charId: id, name: char.name, optimize: false });
       continue;
     }
-    const best = optimizeBudget({
+    const best = optimizeStructured({
       char,
       content,
       baseStats: user.baseStats,
       buffs: buffSums(id, content, characters),
-      units,
+      enhance,
       scale: 1,
       basicCount: basicCounts[id],
     });

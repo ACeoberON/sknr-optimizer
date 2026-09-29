@@ -13,13 +13,14 @@ const content = siegeFriJson as unknown as Content;
 const users = usersJson as unknown as UserCharacter[];
 const userById = (id: string) => users.find((u) => u.charId === id)!;
 
-const LEVELS = [32, 29, 25, 21];
-const results = LEVELS.map((u) => ({ u, r: computeTargets(content, characters, users, u) }));
+// 유효 강화 횟수 (종결 20 / A 17 / B 13 / C 9)
+const LEVELS = [20, 17, 13, 9];
+const results = LEVELS.map((e) => ({ u: e, r: computeTargets(content, characters, users, e) }));
 
-const critDmgOf = (u: number, id: string) =>
-  results.find((x) => x.u === u)!.r.rows.find((row) => row.charId === id)!.best!.targetVillage.critDmg;
-const critOf = (u: number, id: string) =>
-  results.find((x) => x.u === u)!.r.rows.find((row) => row.charId === id)!.best!.targetVillage.crit;
+const rowOf = (e: number, id: string) => results.find((x) => x.u === e)!.r.rows.find((row) => row.charId === id)!;
+const critDmgOf = (e: number, id: string) => rowOf(e, id).best!.targetVillage.critDmg;
+const critOf = (e: number, id: string) => rowOf(e, id).best!.targetVillage.crit;
+const weakOf = (e: number, id: string) => rowOf(e, id).best!.targetVillage.weakRate;
 
 describe('목표 탭 계산', () => {
   // 유효 단위 32 > 29 > 25 > 21 순으로 목표 치피 단조 감소
@@ -49,6 +50,37 @@ describe('목표 탭 계산', () => {
         const wmCritDmg = weaponMainTotals(row.best.weaponMains).critDmg;
         const cap = base.critDmg + wmCritDmg + SUB_UNIT.critDmg * (CRITDMG_LINES + TOTAL_ENHANCE);
         expect(row.best.targetVillage.critDmg).toBeLessThanOrEqual(cap + 1e-9);
+      }
+    }
+  });
+
+  // (SPEC v0.4 수정 §3) 모든 캐릭터 목표 마을 약확 ≥ 기본 약확 + 20 (약확 4줄)
+  it('목표 마을 약확 ≥ 기본 약확 + 20 (약확 4줄 유지)', () => {
+    for (const { r } of results) {
+      for (const row of r.rows) {
+        if (!row.best) continue;
+        const base = userById(row.charId).baseStats;
+        expect(row.best.targetVillage.weakRate).toBeGreaterThanOrEqual(base.weakRate + 20 - 1e-9);
+      }
+    }
+  });
+
+  // 라이언·타카 목표 전투 약확 ≥ 100
+  it('라이언·타카 목표 전투 약확 ≥ 100', () => {
+    for (const { r } of results) {
+      for (const id of ['ryan', 'taka']) {
+        const row = r.rows.find((x) => x.charId === id)!;
+        expect(row.combatWeak!).toBeGreaterThanOrEqual(100 - 1e-9);
+      }
+    }
+  });
+
+  // 장비 수준을 낮춰도 약확 4줄분(20)은 유지 — 강화만 감소
+  it('장비 수준이 낮아져도 약확 4줄분 유지', () => {
+    for (const e of LEVELS) {
+      for (const id of ['ryan', 'taka', 'rachel', 'sieg']) {
+        const base = userById(id).baseStats;
+        expect(weakOf(e, id)).toBeGreaterThanOrEqual(base.weakRate + 20 - 1e-9);
       }
     }
   });

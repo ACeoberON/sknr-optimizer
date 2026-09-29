@@ -10,12 +10,13 @@ import { ENDGAME_MAX_U } from '../gear/grade';
 import { analyzeBasic, teamObjective, type BasicReport } from './analyze';
 import { computeTargets } from './targets';
 
-/** 장비 수준 프리셋 (유효 단위). */
-const LEVELS: { u: number; label: string }[] = [
-  { u: 32, label: '종결 (32)' },
-  { u: 29, label: 'A급 (29)' },
-  { u: 25, label: 'B급 (25)' },
-  { u: 21, label: 'C급 (21)' },
+/** 장비 수준 프리셋 (유효 강화 횟수 = 유효 단위 − 고정 12줄). */
+const ENDGAME_ENHANCE = 20;
+const LEVELS: { enhance: number; label: string }[] = [
+  { enhance: 20, label: '종결 (32)' },
+  { enhance: 17, label: 'A급 (29)' },
+  { enhance: 13, label: 'B급 (25)' },
+  { enhance: 9, label: 'C급 (21)' },
 ];
 
 const characters = charactersJson as unknown as Character[];
@@ -32,11 +33,12 @@ const STAT_KO: Record<MainStat, string> = { crit: '치확', critDmg: '치피', w
 const RING_KO: Record<RingCarve, string> = { crit: '치확+10', weak: '약확+12', siege: '공성×1.04', survival: '생존(효과 없음)' };
 const MOGONG_OPTS = ['모름', '0', '1', '2', '3', '4'];
 
+const L4 = { crit: 4, critDmg: 4, weakRate: 4 };
 const DEFAULTS: Record<string, CurrentSetup> = {
-  sieg: { charId: 'sieg', village: { crit: 99, critDmg: 270, weakRate: 5 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'survival', mogongLines: null },
-  rachel: { charId: 'rachel', village: { crit: 93, critDmg: 246, weakRate: 45 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'crit', mogongLines: null },
-  ryan: { charId: 'ryan', village: { crit: 100, critDmg: 258, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege', mogongLines: null },
-  taka: { charId: 'taka', village: { crit: 99, critDmg: 270, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege', mogongLines: null },
+  sieg: { charId: 'sieg', village: { crit: 99, critDmg: 270, weakRate: 5 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'survival', mogongLines: null, lineCounts: { ...L4 } },
+  rachel: { charId: 'rachel', village: { crit: 93, critDmg: 246, weakRate: 45 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'crit', mogongLines: null, lineCounts: { ...L4 } },
+  ryan: { charId: 'ryan', village: { crit: 100, critDmg: 258, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege', mogongLines: null, lineCounts: { ...L4 } },
+  taka: { charId: 'taka', village: { crit: 99, critDmg: 270, weakRate: 20 }, weaponMains: ['crit', 'critDmg'], ringCarve: 'siege', mogongLines: null, lineCounts: { ...L4 } },
 };
 
 const GRADE_COLOR: Record<string, string> = { S: '#6a1b9a', A: '#137333', B: '#8a6d00', C: '#c5221f' };
@@ -49,10 +51,17 @@ const pct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
 /** 재배분 제안 문구 생성. */
 function suggestions(r: BasicReport, setup: CurrentSetup, reallocGain: number): string[] {
   const out: string[] = [];
+  const lc = setup.lineCounts ?? L4;
+  // 목표 부옵 단위 = 줄 수 + 강화 횟수
+  const bestUnits = {
+    crit: lc.crit + r.bestAtU.enhance.crit,
+    critDmg: lc.critDmg + r.bestAtU.enhance.critDmg,
+    weakRate: lc.weakRate + r.bestAtU.enhance.weakRate,
+  };
   const diffs: { stat: MainStat; d: number }[] = [
-    { stat: 'crit', d: r.currentSplit.critUnits - r.bestAtU.critUnits },
-    { stat: 'critDmg', d: r.currentSplit.critDmgUnits - r.bestAtU.critDmgUnits },
-    { stat: 'weakRate', d: r.currentSplit.weakUnits - r.bestAtU.weakUnits },
+    { stat: 'crit', d: r.currentSplit.critUnits - bestUnits.crit },
+    { stat: 'critDmg', d: r.currentSplit.critDmgUnits - bestUnits.critDmg },
+    { stat: 'weakRate', d: r.currentSplit.weakUnits - bestUnits.weakRate },
   ];
   const over = diffs.slice().sort((a, b) => b.d - a.d)[0];
   const under = diffs.slice().sort((a, b) => a.d - b.d)[0];
@@ -73,18 +82,19 @@ function suggestions(r: BasicReport, setup: CurrentSetup, reallocGain: number): 
 
 export function App() {
   const [tab, setTab] = useState<'target' | 'basic' | 'standard'>('target');
-  const [targetU, setTargetU] = useState(29);
+  const [targetEnhance, setTargetEnhance] = useState(17); // A급 기본
   const [setups, setSetups] = useState<Record<string, CurrentSetup>>(() => structuredClone(DEFAULTS));
   const [reports, setReports] = useState<BasicReport[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   // 목표 탭: 입력 없이 선택한 장비 수준으로 즉시 계산
-  const targetResult = useMemo(() => computeTargets(content, characters, users, targetU), [targetU]);
-  const endgameResult = useMemo(() => computeTargets(content, characters, users, ENDGAME_MAX_U), []);
+  const targetResult = useMemo(() => computeTargets(content, characters, users, targetEnhance), [targetEnhance]);
+  const endgameResult = useMemo(() => computeTargets(content, characters, users, ENDGAME_ENHANCE), []);
   const levelDelta = endgameResult.teamJ > 0 ? ((targetResult.teamJ - endgameResult.teamJ) / endgameResult.teamJ) * 100 : 0;
 
+  // 진단한 유효 단위(U) → 유효 강화 횟수(U − 고정 12줄)
   const viewTargetAt = (u: number) => {
-    setTargetU(Math.round(u * 10) / 10);
+    setTargetEnhance(Math.max(0, Math.min(ENDGAME_ENHANCE, Math.round(u - 12))));
     setTab('target');
   };
 
@@ -161,11 +171,13 @@ export function App() {
             </label>
             <label style={lbl}>
               장비 수준
-              <select value={targetU} onChange={(e) => setTargetU(Number(e.target.value))} style={{ ...inp, width: 130 }}>
+              <select value={targetEnhance} onChange={(e) => setTargetEnhance(Number(e.target.value))} style={{ ...inp, width: 130 }}>
                 {LEVELS.map((l) => (
-                  <option key={l.u} value={l.u}>{l.label}</option>
+                  <option key={l.enhance} value={l.enhance}>{l.label}</option>
                 ))}
-                {!LEVELS.some((l) => l.u === targetU) && <option value={targetU}>진단값 ({targetU})</option>}
+                {!LEVELS.some((l) => l.enhance === targetEnhance) && (
+                  <option value={targetEnhance}>강화 {targetEnhance}회 (U≈{targetEnhance + 12})</option>
+                )}
               </select>
             </label>
           </div>
@@ -203,7 +215,7 @@ export function App() {
           <p style={{ ...muted, marginTop: 12 }}>
             팀 목적함수 기준 예상치(상대): <strong>{fmt(targetResult.teamJ)}</strong>
             {' · '}
-            {targetU === ENDGAME_MAX_U ? '종결(32) 기준' : `종결(32) 대비 ${pct(levelDelta)}`}
+            {targetEnhance === ENDGAME_ENHANCE ? '종결(32) 기준' : `종결(32) 대비 ${pct(levelDelta)}`}
             {' · '}치확·치피는 곱 관계라 장비 수준이 낮으면 목표 치확·치피가 함께 낮아집니다.
           </p>
         </>
@@ -270,6 +282,23 @@ export function App() {
                       ))}
                     </select>
                   </label>
+                  {(['crit', 'critDmg', 'weakRate'] as const).map((k) => (
+                    <label key={k} style={lbl}>
+                      {STAT_KO[k]} 줄
+                      <input
+                        type="number"
+                        min={0}
+                        max={4}
+                        value={(s.lineCounts ?? L4)[k]}
+                        onChange={(e) =>
+                          update(id, {
+                            lineCounts: { ...(s.lineCounts ?? L4), [k]: Math.max(0, Math.min(4, Number(e.target.value))) },
+                          })
+                        }
+                        style={{ ...inp, width: 64 }}
+                      />
+                    </label>
+                  ))}
                 </div>
               </fieldset>
             );
@@ -307,6 +336,11 @@ export function App() {
                     {suggestions(r, setups[r.charId], reallocGain).map((line, i) => (
                       <li key={i} style={{ fontSize: 13, color: '#333' }}>{line}</li>
                     ))}
+                    {r.target.maxWeak < 100 && (
+                      <li style={{ fontSize: 13, color: '#8a6d00' }}>
+                        약확 줄 부족으로 전투 약확 최대 {fmt(r.target.maxWeak)}
+                      </li>
+                    )}
                   </ul>
                   <p style={{ ...muted, margin: '4px 0 8px' }}>
                     종결 목표: 치확 {fmt(r.target.targetVillage.crit)} / 치피 {fmt(r.target.targetVillage.critDmg)} / 약확 {fmt(r.target.targetVillage.weakRate)}

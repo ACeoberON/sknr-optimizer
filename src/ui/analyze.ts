@@ -4,9 +4,12 @@ import { analyticStats } from '../engine/analytic';
 import { buffSums } from '../engine/effectiveStats';
 import { computeBudget } from '../gear/budget';
 import { BEST1_Z, setupCombat } from '../gear/optimize';
-import { optimizeBudget, type BudgetBest } from '../gear/reallocate';
-import { ENDGAME_MAX_U, effectiveUnits, grade, roundU, type Grade } from '../gear/grade';
-import { SUB_UNIT, type CurrentSetup } from '../gear/types';
+import { optimizeStructured, type StructuredBest } from '../gear/reallocate';
+import { effectiveUnits, grade, roundU, type Grade } from '../gear/grade';
+import { DEFAULT_LINES, SUB_UNIT, type CurrentSetup } from '../gear/types';
+
+/** 종결 유효 강화 횟수 (= 20). */
+const ENDGAME_ENHANCE = 20;
 
 export interface BasicReport {
   charId: string;
@@ -20,9 +23,9 @@ export interface BasicReport {
   currentMean: number;
   currentStd: number;
   currentSplit: { critUnits: number; weakUnits: number; critDmgUnits: number };
-  bestAtU: BudgetBest; // 같은 U 재배분 최적
-  bestAtUPlus: BudgetBest; // U+1 (개선 우선순위용)
-  target: BudgetBest; // 종결 목표 (U = 32)
+  bestAtU: StructuredBest; // 같은 강화 횟수 재배분 최적
+  bestAtUPlus: StructuredBest; // 강화 +1 (개선 우선순위용)
+  target: StructuredBest; // 종결 목표 (강화 20)
 }
 
 /** 딜러 1명의 Basic 분석 (등급·배분 효율·종결 목표). */
@@ -45,17 +48,15 @@ export function analyzeBasic(
   const curA = analyticStats(buildSimUnit(char, content, cur.stats, cur.scaleMult, basicCount));
   const currentJ = curA.mean + BEST1_Z * curA.std;
 
-  const budgetArgs = {
-    char,
-    content,
-    baseStats: base,
-    buffs,
-    scale: 1,
-    basicCount,
-  };
-  const bestAtU = optimizeBudget({ ...budgetArgs, units: U });
-  const bestAtUPlus = optimizeBudget({ ...budgetArgs, units: Math.min(ENDGAME_MAX_U, U + 1) });
-  const target = optimizeBudget({ ...budgetArgs, units: ENDGAME_MAX_U });
+  // U = 줄 수 합 + 강화 횟수 → 현재 유효 강화 = U − 줄 수 합
+  const lineCounts = setup.lineCounts ?? DEFAULT_LINES;
+  const lineSum = lineCounts.crit + lineCounts.critDmg + lineCounts.weakRate;
+  const enhanceNow = Math.max(0, Math.round(U - lineSum));
+
+  const structuredArgs = { char, content, baseStats: base, buffs, lineCounts, scale: 1, basicCount };
+  const bestAtU = optimizeStructured({ ...structuredArgs, enhance: enhanceNow });
+  const bestAtUPlus = optimizeStructured({ ...structuredArgs, enhance: Math.min(ENDGAME_ENHANCE, enhanceNow + 1) });
+  const target = optimizeStructured({ ...structuredArgs, enhance: ENDGAME_ENHANCE });
 
   const efficiency = bestAtU.objective > 0 ? Math.min(100, (currentJ / bestAtU.objective) * 100) : 100;
 

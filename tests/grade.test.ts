@@ -8,11 +8,13 @@ import { analyticStats } from '../src/engine/analytic';
 import { buffSums } from '../src/engine/effectiveStats';
 import { computeBudget } from '../src/gear/budget';
 import { setupCombat } from '../src/gear/optimize';
-import { optimizeBudget, PER_STAT_CAP } from '../src/gear/reallocate';
+import { optimizeStructured, PER_STAT_CAP, ENHANCE_PER_LINE, MAX_LINES } from '../src/gear/reallocate';
 import { BEST1_Z } from '../src/gear/optimize';
 import { effectiveUnits, grade, roundU } from '../src/gear/grade';
 import { optimizedMembers } from '../src/gear/optimize';
-import { SUB_UNIT, type CurrentSetup } from '../src/gear/types';
+import { SUB_UNIT, weaponMainTotals, type CurrentSetup } from '../src/gear/types';
+
+const LINE_SUM = 12; // 기본 4/4/4
 
 const characters = charactersJson as unknown as Character[];
 const content = siegeFriJson as unknown as Content;
@@ -31,13 +33,13 @@ function currentJ(setup: CurrentSetup) {
   return { J: a.mean + BEST1_Z * a.std, U: budget.units };
 }
 
-function bestAt(id: string, units: number) {
-  return optimizeBudget({
+function bestAt(id: string, enhance: number) {
+  return optimizeStructured({
     char: byId(id),
     content,
     baseStats: userById(id).baseStats,
     buffs: buffSums(id, content, characters),
-    units,
+    enhance,
     scale: 1,
     basicCount: basicCounts[id],
   });
@@ -57,9 +59,9 @@ describe('SPEC v0.4 6장 테스트', () => {
     expect(grade(U)).toBe('A');
   });
 
-  // 6-2. v0.3.2 종결 추천 입력 → U=32, S, 배분 효율 100%
+  // 6-2. 종결 추천(강화 20) 입력 → U=32, S, 배분 효율 100%
   it('2. 종결 추천 입력 → U=32, 등급 S, 효율 100%', () => {
-    const best = bestAt('ryan', 32);
+    const best = bestAt('ryan', 20);
     const setup: CurrentSetup = {
       charId: 'ryan',
       village: best.targetVillage,
@@ -69,7 +71,7 @@ describe('SPEC v0.4 6장 테스트', () => {
     const { J, U } = currentJ(setup);
     expect(roundU(U)).toBe(32);
     expect(grade(U)).toBe('S');
-    const eff = (J / bestAt('ryan', U).objective) * 100;
+    const eff = (J / bestAt('ryan', Math.round(U - LINE_SUM)).objective) * 100;
     expect(eff).toBeGreaterThan(99.9);
     expect(eff).toBeLessThanOrEqual(100 + 1e-6);
   });
@@ -100,12 +102,15 @@ describe('SPEC v0.4 6장 테스트', () => {
         ringCarve: 'crit',
       };
       const { J, U } = currentJ(setup);
-      const best = bestAt(id, U);
-      const eff = (J / best.objective) * 100;
+      const best = bestAt(id, Math.round(U - LINE_SUM));
+      const eff = Math.min(100, (J / best.objective) * 100); // 앱과 동일하게 클램프
       expect(eff).toBeLessThanOrEqual(100 + 1e-6);
-      expect(best.critUnits).toBeLessThanOrEqual(PER_STAT_CAP + 1e-9);
-      expect(best.weakUnits).toBeLessThanOrEqual(PER_STAT_CAP + 1e-9);
-      expect(best.critDmgUnits).toBeLessThanOrEqual(PER_STAT_CAP + 1e-9);
+      // 스탯별 유효 단위 = 4줄 + 강화 ≤ 24
+      expect(MAX_LINES + best.enhance.crit).toBeLessThanOrEqual(PER_STAT_CAP);
+      expect(MAX_LINES + best.enhance.critDmg).toBeLessThanOrEqual(PER_STAT_CAP);
+      expect(MAX_LINES + best.enhance.weakRate).toBeLessThanOrEqual(PER_STAT_CAP);
+      // 강화는 줄당 5회 이하
+      expect(best.enhance.crit).toBeLessThanOrEqual(MAX_LINES * ENHANCE_PER_LINE);
     }
   });
 
@@ -120,5 +125,49 @@ describe('SPEC v0.4 6장 테스트', () => {
 describe('SPEC v0.4 유효 단위 근거', () => {
   it('1단위 = 치확 4 / 치피 6 / 약확 5', () => {
     expect(SUB_UNIT).toEqual({ crit: 4, critDmg: 6, weakRate: 5 });
+  });
+});
+
+// SPEC v0.4 수정 §5: 유효 부옵 줄 수
+describe('SPEC v0.4 줄 수 입력', () => {
+  const opt = (id: string, lineCounts: { crit: number; critDmg: number; weakRate: number }, enhance = 20) =>
+    optimizeStructured({
+      char: byId(id),
+      content,
+      baseStats: userById(id).baseStats,
+      buffs: buffSums(id, content, characters),
+      enhance,
+      lineCounts,
+      scale: 1,
+      basicCount: basicCounts[id],
+    });
+
+  it('약확 줄 0 → 목표 마을 약확에 약확 부옵 없음', () => {
+    const best = opt('ryan', { crit: 4, critDmg: 4, weakRate: 0 });
+    const base = userById('ryan').baseStats;
+    const wmWeak = weaponMainTotals(best.weaponMains).weakRate;
+    expect(best.targetVillage.weakRate - base.weakRate - wmWeak).toBeCloseTo(0, 9);
+  });
+
+  it('치확 줄 1 → 치확 강화 ≤ 5', () => {
+    const best = opt('ryan', { crit: 1, critDmg: 4, weakRate: 4 });
+    expect(best.enhance.crit).toBeLessThanOrEqual(5);
+  });
+
+  it('줄 수 기본값(4/4/4)은 줄 수 미지정과 동일 결과', () => {
+    for (const id of ['ryan', 'taka', 'rachel', 'sieg']) {
+      const a = opt(id, { crit: 4, critDmg: 4, weakRate: 4 });
+      const b = optimizeStructured({
+        char: byId(id),
+        content,
+        baseStats: userById(id).baseStats,
+        buffs: buffSums(id, content, characters),
+        enhance: 20,
+        scale: 1,
+        basicCount: basicCounts[id],
+      });
+      expect(a.objective).toBeCloseTo(b.objective, 6);
+      expect(a.targetVillage).toEqual(b.targetVillage);
+    }
   });
 });
