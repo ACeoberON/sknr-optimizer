@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import charactersJson from '../data/characters.json';
 import siegeFriJson from '../data/contents/siege-fri.json';
 import usersJson from '../data/users.json';
@@ -8,6 +8,15 @@ import { optimizedMembers } from '../gear/optimize';
 import type { MainStat, RingCarve, CurrentSetup } from '../gear/types';
 import { ENDGAME_MAX_U } from '../gear/grade';
 import { analyzeBasic, teamObjective, type BasicReport } from './analyze';
+import { computeTargets } from './targets';
+
+/** 장비 수준 프리셋 (유효 단위). */
+const LEVELS: { u: number; label: string }[] = [
+  { u: 32, label: '종결 (32)' },
+  { u: 29, label: 'A급 (29)' },
+  { u: 25, label: 'B급 (25)' },
+  { u: 21, label: 'C급 (21)' },
+];
 
 const characters = charactersJson as unknown as Character[];
 const content = siegeFriJson as unknown as Content;
@@ -63,10 +72,21 @@ function suggestions(r: BasicReport, setup: CurrentSetup, reallocGain: number): 
 }
 
 export function App() {
-  const [tab, setTab] = useState<'basic' | 'standard'>('basic');
+  const [tab, setTab] = useState<'target' | 'basic' | 'standard'>('target');
+  const [targetU, setTargetU] = useState(29);
   const [setups, setSetups] = useState<Record<string, CurrentSetup>>(() => structuredClone(DEFAULTS));
   const [reports, setReports] = useState<BasicReport[] | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // 목표 탭: 입력 없이 선택한 장비 수준으로 즉시 계산
+  const targetResult = useMemo(() => computeTargets(content, characters, users, targetU), [targetU]);
+  const endgameResult = useMemo(() => computeTargets(content, characters, users, ENDGAME_MAX_U), []);
+  const levelDelta = endgameResult.teamJ > 0 ? ((targetResult.teamJ - endgameResult.teamJ) / endgameResult.teamJ) * 100 : 0;
+
+  const viewTargetAt = (u: number) => {
+    setTargetU(Math.round(u * 10) / 10);
+    setTab('target');
+  };
 
   const update = (id: string, patch: Partial<CurrentSetup>) => setSetups((s) => ({ ...s, [id]: { ...s[id], ...patch } }));
   const updateVillage = (id: string, key: keyof CurrentSetup['village'], v: number) =>
@@ -117,14 +137,77 @@ export function App() {
       <p>{content.name} · v0.4 장비 등급 판정</p>
 
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #ddd', marginBottom: 16 }}>
-        {(['basic', 'standard'] as const).map((t) => (
+        {([
+          ['target', '목표'],
+          ['basic', '내 세팅 진단'],
+          ['standard', 'Standard'],
+        ] as const).map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
-            {t === 'basic' ? 'Basic' : 'Standard'}
+            {label}
           </button>
         ))}
       </div>
 
       {tab === 'standard' && <p style={muted}>Standard(장비 개별 입력) 모드는 준비 중입니다.</p>}
+
+      {tab === 'target' && (
+        <>
+          <div style={{ ...row, alignItems: 'flex-end', marginBottom: 16 }}>
+            <label style={lbl}>
+              콘텐츠
+              <select value={content.id} disabled style={{ ...inp, width: 150 }}>
+                <option value={content.id}>{content.name}</option>
+              </select>
+            </label>
+            <label style={lbl}>
+              장비 수준
+              <select value={targetU} onChange={(e) => setTargetU(Number(e.target.value))} style={{ ...inp, width: 130 }}>
+                {LEVELS.map((l) => (
+                  <option key={l.u} value={l.u}>{l.label}</option>
+                ))}
+                {!LEVELS.some((l) => l.u === targetU) && <option value={targetU}>진단값 ({targetU})</option>}
+              </select>
+            </label>
+          </div>
+
+          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['캐릭터', '무기 주옵', '반지 세공', '마을 치확', '마을 치피', '마을 약확', '전투 치확/약확'].map((h) => (
+                  <th key={h} style={tHead}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {targetResult.rows.map((r) =>
+                r.optimize && r.best ? (
+                  <tr key={r.charId}>
+                    <td style={tCell}>{r.name}</td>
+                    <td style={tCell}>{r.best.weaponMains.map((m) => STAT_KO[m]).join(' + ')}</td>
+                    <td style={tCell}>{RING_KO[r.best.ringCarve]}</td>
+                    <td style={tNum}>{fmt(r.best.targetVillage.crit)}</td>
+                    <td style={tNum}>{fmt(r.best.targetVillage.critDmg)}</td>
+                    <td style={tNum}>{fmt(r.best.targetVillage.weakRate)}</td>
+                    <td style={tNum}>{fmt(r.combatCrit!)} / {fmt(r.combatWeak!)}</td>
+                  </tr>
+                ) : (
+                  <tr key={r.charId}>
+                    <td style={tCell}>{r.name}</td>
+                    <td style={{ ...tCell, color: '#999' }} colSpan={6}>생존 세팅 (최적화 제외)</td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+
+          <p style={{ ...muted, marginTop: 12 }}>
+            팀 목적함수 기준 예상치(상대): <strong>{fmt(targetResult.teamJ)}</strong>
+            {' · '}
+            {targetU === ENDGAME_MAX_U ? '종결(32) 기준' : `종결(32) 대비 ${pct(levelDelta)}`}
+            {' · '}치확·치피는 곱 관계라 장비 수준이 낮으면 목표 치확·치피가 함께 낮아집니다.
+          </p>
+        </>
+      )}
 
       {tab === 'basic' && (
         <>
@@ -225,11 +308,14 @@ export function App() {
                       <li key={i} style={{ fontSize: 13, color: '#333' }}>{line}</li>
                     ))}
                   </ul>
-                  <p style={{ ...muted, margin: '4px 0 0' }}>
+                  <p style={{ ...muted, margin: '4px 0 8px' }}>
                     종결 목표: 치확 {fmt(r.target.targetVillage.crit)} / 치피 {fmt(r.target.targetVillage.critDmg)} / 약확 {fmt(r.target.targetVillage.weakRate)}
                     {' · '}주옵 {r.target.weaponMains.map((m) => STAT_KO[m]).join('+')} · 세공 {RING_KO[r.target.ringCarve]}
                     {' · '}이 캐릭터만 종결 시 팀 {pct(deltaC)}
                   </p>
+                  <button onClick={() => viewTargetAt(r.uEff)} style={linkBtn}>
+                    이 등급으로 목표 보기 (U={r.uDisplay})
+                  </button>
                 </section>
               ))}
               <p style={muted}>배분 효율·줄당 가치는 스케일 무관. 공성 세공(×1.04)은 미검증 가정.</p>
@@ -258,3 +344,7 @@ const inp: CSSProperties = { padding: '4px 6px', width: 90, fontSize: 14 };
 const btn: CSSProperties = { padding: '8px 18px', fontSize: 15, cursor: 'pointer', borderRadius: 6, border: '1px solid #888', background: '#f4f4f4' };
 const card: CSSProperties = { border: '1px solid #e0e0e0', borderRadius: 8, padding: 14, marginBottom: 12 };
 const muted: CSSProperties = { color: '#666', fontSize: 13 };
+const tHead: CSSProperties = { textAlign: 'left', borderBottom: '2px solid #888', padding: '6px 8px', whiteSpace: 'nowrap' };
+const tCell: CSSProperties = { borderBottom: '1px solid #eee', padding: '6px 8px' };
+const tNum: CSSProperties = { ...tCell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
+const linkBtn: CSSProperties = { padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 5, border: '1px solid #1a73e8', background: '#fff', color: '#1a73e8' };
