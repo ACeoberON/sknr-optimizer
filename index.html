@@ -1789,7 +1789,7 @@ function goalRun(){
         ', 강화 ' + (b.uc-UNIT_MIN) + '·' + (b.ud-UNIT_MIN) + '·' + Math.max(0, b.uw-UNIT_MIN) + ']' +
         (lo === hi ? '' : '  치확 ' + lo + '~' + hi + ' 무방'));
       const my = (mine[c.id] || {})[u.name] || [];
-      const inp = (i, ph) => '<td><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="' + ph + '" min="0" max="999"></td>';
+      const inp = (i, ph) => '<td><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="' + ph + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" title="화살표 1칸 = ' + ['치확 4','치피 6','약확 5'][i] + ' (부옵 1줄)"></td>';
       const mainSel = '<td><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       mrows += '<tr><td>' + u.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span></td><td class="num muted">' + b.vc + ' / ' + b.vd + ' / ' + b.vq + '</td>' +
@@ -1807,6 +1807,14 @@ function goalRun(){
     mine[c][n][+i] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? null : +e.target.value);
     mPersist(); mineEval();
   }));
+  // 화살표 기준점 = 지금 값 (min 이 없으면 step 기준이 value 속성이라 4·6·5씩 어긋나지 않고 움직인다)
+  mb.querySelectorAll('input[type=number]').forEach(el => {
+    el.addEventListener('change', () => el.setAttribute('value', el.value));
+    // 빈 칸에서 화살표를 누르면 0이 아니라 이상치(placeholder)를 기준으로 움직인다
+    const anchor = () => { if (el.value === ''){ el.value = el.placeholder; el.setAttribute('value', el.placeholder); } };
+    el.addEventListener('mousedown', e => { if (e.offsetX > el.clientWidth - 22) anchor(); });   // 스피너 버튼만
+    el.addEventListener('keydown', e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') anchor(); });
+  });
   mineEval();
 
   const c0 = parts[0];
