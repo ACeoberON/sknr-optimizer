@@ -332,7 +332,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <h2>배정 결과</h2>
   <div class="scroll">
     <table>
-      <thead><tr><th>캐릭터</th><th>무기 2</th><th>방어구 2</th><th>세공</th><th>치확</th><th>치피</th><th>약확</th><th>목표 대비</th></tr></thead>
+      <thead><tr><th>캐릭터</th><th>무기 2</th><th>방어구 2</th><th>세공</th><th>마을 치확</th><th>마을 치피</th><th>마을 약확</th><th>이상 대비</th></tr></thead>
       <tbody id="aRows"></tbody>
     </table>
   </div>
@@ -1706,7 +1706,7 @@ function teamCtx(c, U, k){
     best.r = 1 + (best.T - 1) / u.s;
     return best;
   }
-  return { J, J0, evalOne, live };
+  return { J, J0, evalOne, live, ms };
 }
 
 let goalLast = [];
@@ -2376,46 +2376,38 @@ $('gPaste').addEventListener('click', () => {
 
 /* ── 배정 ── */
 const pieceStat = g => [MAINV[g.main][0] + g.c, MAINV[g.main][1] + g.d, MAINV[g.main][2] + g.w];
-const CARVEV = { c:[10,0], w:[0,12], siege:[0,0], surv:[0,0] };
-const carveMult = v => v === 'siege' ? 1.04 : 1;
 
+/* 배정도 목표 탭과 같은 기준: 마을 스탯 = 기본값 + 장비, 채점 = 팀 점수(teamCtx).
+   배정 대상이 아닌 캐릭터(버퍼·생존)는 이상 세팅으로 둔다. */
 function buildAssign(c){
-  const gs = guessShare(c);
-  const k = c.sc === 'siege' ? GOAL_CARRY : 1.0;
-  const chars = [];
-  c.lu.forEach(([name, up, dn], i) => {
-    const role = roleOf(c, i, gs);
-    if (role === 'buff' || (up + dn) === 0) return;
-    const ch = charFull(name);
-    const H = dHits(c, up, dn), qf = qbOf(c, i);
-    chars.push({ name, ch, H, qf, share: gs[i] / 100,
-                 need: ch.atk === 'mag' ? 'wm' : 'wp',
-                 ref: calc(100, 300, Math.min(100, qf + 20), k, ch.wm, H).mu });
+  const { U, k } = solveContent(c, GOAL_CARRY, GOAL_MAXENH);
+  const T = teamCtx(c, U, k);
+  const chars = T.live.map(u => {
+    const ch = charFull(u.name);
+    return { name: u.name, u, ch, share: u.s, need: ch.atk === 'mag' ? 'wm' : 'wp' };
   });
-  return { chars, k };
+  return { chars, k, T, c };
 }
 
-// 캐릭터 한 명의 장비 묶음 → 전투 스탯
-function statsOf(ch, pieces, carve, qf){
-  let p = ch.ch.bc + ch.ch.pf + CARVEV[carve][0], cd = ch.ch.bd, q = ch.ch.bq + qf + CARVEV[carve][1];
-  pieces.forEach(g => { if (!g) return; const [a, b, w] = pieceStat(g); p += a; cd += b; q += w; });
-  return { p, cd, q };
+// 캐릭터 한 명의 장비 묶음 → 마을 스탯
+function statsOf(ch, pieces){
+  let vc = ch.u.cc.bc, vd = ch.u.cc.bd, vq = ch.u.cc.bq;
+  pieces.forEach(g => { if (!g) return; const [a, b, w] = pieceStat(g); vc += a; vd += b; vq += w; });
+  return { vc, vd, vq };
 }
 
-function evalAssign(A, state, k){
-  let m = 0, va = 0;
+function evalAssign(A, state){
+  const over = new Map();
   A.chars.forEach((ch, i) => {
-    const s = statsOf(ch, state.pieces[i], state.carve[i], ch.qf);
-    const r = calc(s.p, s.cd, s.q, k, ch.ch.wm, ch.H);
-    const mult = carveMult(state.carve[i]);
-    m += ch.share * mult * r.mu / ch.ref;
-    va += Math.pow(ch.share * mult * r.sd / ch.ref, 2);
+    const s = statsOf(ch, state.pieces[i]);
+    over.set(ch.u, A.T.ms(ch.u, s.vc, s.vd, s.vq, state.carve[i]));
   });
-  return m + k * Math.sqrt(va);
+  return A.T.J(over) / A.T.J0;
 }
 
 function optimizeAssign(c){
   const A = buildAssign(c), k = A.k;
+  const CVS = Object.keys(CARVES);
   if (!A.chars.length) return { A, err: '이 콘텐츠에 배정할 딜러가 없습니다. 목표 탭에서 역할을 확인하십시오.' };
 
   const arms = gear.filter(g => g.slot === 'ar');
@@ -2432,7 +2424,7 @@ function optimizeAssign(c){
   const slots = [];
   A.chars.forEach((ch, i) => { slots.push({ i, t: ch.need }, { i, t: ch.need }, { i, t:'ar' }, { i, t:'ar' }); });
 
-  const state = { pieces: A.chars.map(() => [null, null, null, null]), carve: A.chars.map(() => 'c') };
+  const state = { pieces: A.chars.map(() => [null, null, null, null]), carve: A.chars.map(() => 'crit') };
   const slotOf = (i, t, n) => (t === 'ar' ? 2 : 0) + n;
   const used = new Set();
 
@@ -2446,7 +2438,7 @@ function optimizeAssign(c){
         if (used.has(gi) || g.slot !== t) return;
         const keep = state.pieces[i][slotOf(i, t, n)];
         state.pieces[i][slotOf(i, t, n)] = g;
-        const j = evalAssign(A, state, k);
+        const j = evalAssign(A, state);
         state.pieces[i][slotOf(i, t, n)] = keep;
         if (j > bj){ bj = j; bi = gi; }
       });
@@ -2457,10 +2449,9 @@ function optimizeAssign(c){
   // 2) 세공 선택
   A.chars.forEach((ch, i) => {
     let best = state.carve[i], bj = -Infinity;
-    CARVE.forEach(([v]) => {
-      if (v === 'surv') return;
+    CVS.forEach(v => {
       const keep = state.carve[i]; state.carve[i] = v;
-      const j = evalAssign(A, state, k); state.carve[i] = keep;
+      const j = evalAssign(A, state); state.carve[i] = keep;
       if (j > bj){ bj = j; best = v; }
     });
     state.carve[i] = best;
@@ -2473,13 +2464,13 @@ function optimizeAssign(c){
     A.chars.forEach((ch, i) => {
       [[ch.need, 0], [ch.need, 1], ['ar', 0], ['ar', 1]].forEach(([t, n]) => {
         const si = slotOf(i, t, n), cur = state.pieces[i][si];
-        const base = evalAssign(A, state, k);
+        const base = evalAssign(A, state);
         let bj = base, bg = null, bSwap = null;
         // 미사용 장비로 교체
         gear.forEach(g => {
           if (g.slot !== t || used.has(gear.indexOf(g))) return;
           state.pieces[i][si] = g;
-          const j = evalAssign(A, state, k);
+          const j = evalAssign(A, state);
           if (j > bj + 1e-12){ bj = j; bg = g; bSwap = null; }
           state.pieces[i][si] = cur;
         });
@@ -2491,7 +2482,7 @@ function optimizeAssign(c){
             if (t2 !== t) return;
             const sj = slotOf(i2, t2, n2), other = state.pieces[i2][sj];
             state.pieces[i][si] = other; state.pieces[i2][sj] = cur;
-            const j = evalAssign(A, state, k);
+            const j = evalAssign(A, state);
             state.pieces[i][si] = cur; state.pieces[i2][sj] = other;
             if (j > bj + 1e-12){ bj = j; bg = null; bSwap = [i2, sj, other]; }
           });
@@ -2508,10 +2499,9 @@ function optimizeAssign(c){
     // 세공 재선택
     A.chars.forEach((ch, i) => {
       let best = state.carve[i], bj = -Infinity;
-      CARVE.forEach(([v]) => {
-        if (v === 'surv') return;
+      CVS.forEach(v => {
         const keep = state.carve[i]; state.carve[i] = v;
-        const j = evalAssign(A, state, k); state.carve[i] = keep;
+        const j = evalAssign(A, state); state.carve[i] = keep;
         if (j > bj){ bj = j; best = v; }
       });
       if (best !== state.carve[i]){ state.carve[i] = best; moved = true; }
@@ -2527,32 +2517,35 @@ function aRun(){
   $('aResultCard').hidden = false;
   const tb = $('aRows'); tb.innerHTML = '';
   if (r.err){ $('aNote').textContent = r.err; return; }
-  const { A, state, k } = r;
+  const { A, state } = r;
   const label = g => g ? (g.nm || (SLOTS.find(s => s[0] === g.slot)[1] + ' ' + (gear.indexOf(g) + 1))) : '없음';
-  const carveName = v => CARVE.find(x => x[0] === v)[1];
-
+  const over = new Map();
   A.chars.forEach((ch, i) => {
-    const s = statsOf(ch, state.pieces[i], state.carve[i], ch.qf);
-    const p = Math.min(s.p, 100), q = Math.min(s.q, 100);
-    const best = bestSwap(p, s.cd, q, k, ch.ch.wm, ch.H, ch.ch.pf + ch.ch.bc, c.forceQ ? 100 : ch.qf);
+    const s = statsOf(ch, state.pieces[i]);
+    const ev = A.T.evalOne(ch.u, s.vc, s.vd, s.vq, state.carve[i]);
+    over.set(ch.u, ev.x);
+    const mains = state.pieces[i].slice(0, 2).map(g => g && g.main !== 'none' ? g.main : null);
+    const mc = mains[0] && mains[1] ? MAINCOMBOS.find(m => m === mains.join('') || m === mains.slice().reverse().join('')) : null;
+    const un = mc ? unitsOf(ch.u.cc, mc, s.vc, s.vd, s.vq) : null;
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + ch.name + '</td>' +
+    tr.innerHTML = '<td>' + ch.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(ch.share * 100) + '%</span></td>' +
       '<td class="muted">' + label(state.pieces[i][0]) + ' · ' + label(state.pieces[i][1]) + '</td>' +
       '<td class="muted">' + label(state.pieces[i][2]) + ' · ' + label(state.pieces[i][3]) + '</td>' +
-      '<td class="muted">' + carveName(state.carve[i]) + '</td>' +
-      '<td class="num">' + p + '</td><td class="num">' + s.cd + '</td><td class="num">' + q + '</td>' +
-      '<td class="num ' + (best.gain < 0.005 ? 'win' : 'flat') + '">' +
-        (best.gain < 0.005 ? '최선' : pct(-best.gain * 100)) + '</td>';
+      '<td class="muted">' + CARVENAME[state.carve[i]] + '</td>' +
+      '<td class="num">' + s.vc + '</td><td class="num">' + s.vd + '</td><td class="num">' + s.vq + '</td>' +
+      '<td class="num ' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%' +
+        '<span style="display:block;font-size:11px" class="muted">' + (un && !un.neg ? '유효 ' + un.u.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p</span></td>';
     tb.appendChild(tr);
-    aLast = { c, A, state };
   });
+  aLast = { c, A, state };
+  const team = A.T.J(over) / A.T.J0;
   const usedSiege = A.chars.some((_, i) => state.carve[i] === 'siege');
   $('aNote').innerHTML = (r.short.length
       ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “없음”으로 둡니다. '
       : '') +
-    '“목표 대비”는 이 장비로 만든 스탯이 같은 줄 수로 가능한 최선 배분에서 얼마나 떨어져 있는지입니다. ' +
-    '0%에 가까우면 배분은 끝났고 장비 자체를 올려야 한다는 뜻입니다.' +
-    (usedSiege ? ' <strong>공성 세공(×1.04)은 커뮤니티 실측 가정이라 아직 검증되지 않았습니다</strong> — 치확이 이미 100에 붙은 캐릭터라면 거의 항상 이게 1위로 나오니, 실제로 쓰기 전에 한 번 재보십시오.' : '');
+    '<strong>팀 이상 대비 ' + (team * 100).toFixed(1) + '%</strong> — 목표 탭과 같은 기준(마을 스탯, 팀 점수)입니다. ' +
+    '"목표 탭에 반영"을 누르면 이 스탯이 내 스펙 평가에 들어가고, 거기서 줄 옮기기·후보 비교를 볼 수 있습니다.' +
+    (usedSiege ? ' <strong>공성 세공(×1.04)은 아직 실측 검증 전</strong>입니다 — 치확이 이미 높은 캐릭터라면 거의 항상 이게 고르니, 실제로 쓰기 전에 한 번 재보십시오.' : '');
 }
 let aLast = null;
 $('aRun').addEventListener('click', aRun);
