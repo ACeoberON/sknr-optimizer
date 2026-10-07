@@ -215,7 +215,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <p class="note" style="margin-top:6px"><strong>유효 단위</strong> = 치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수(종결 32). 32보다 작으면 그만큼 공% 같은 다른 옵션에 샜거나 유효 옵션이 없는 장비입니다. <strong>장비</strong> = 그 단위 수로 낼 수 있는 최고점 / 이상, <strong>배분</strong> = 내 점수 / 그 단위 수의 최고점 — 장비가 낮으면 교체·강화 초기화, 배분이 낮으면 줄 재분배로 해결합니다.</p>
   <div class="scroll" style="margin-top:10px">
   <table>
-    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th>유효 단위</th><th>장비 · 배분</th><th>이상 대비</th></tr></thead>
+    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th>유효 단위</th><th>장비 · 배분</th><th>이상 대비</th><th title="이 캐릭터 때문에 팀 점수가 깎인 양 = 딜 지분 × (100% − 이상 대비)">팀 영향</th></tr></thead>
     <tbody id="gMine"></tbody>
   </table>
   </div>
@@ -1806,7 +1806,7 @@ function goalRun(){
   const tb = $('gTargets'), mb = $('gMine');
   const multi = parts.length > 1;
   if (!parts.length){
-    tb.innerHTML = '<tr><td colspan="9" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다.</td></tr>'; mb.innerHTML = '';
     mb.innerHTML = ''; $('gMeta').textContent = '공략 미입력';
     $('gMineHead').textContent = '—'; $('gMineNote').textContent = ''; $('exportText').value = '';
     goalLast = []; return;
@@ -1818,7 +1818,7 @@ function goalRun(){
     goalLast.push({ c, U, k });
     if (multi){
       rows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
-      mrows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
+      mrows += '<tr class="round"><td colspan="10">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
       lines.push(' [' + (ROUND_LABEL[c.id] || c.n) + ']');
     }
     U.forEach(u => {
@@ -1847,11 +1847,12 @@ function goalRun(){
       const inp = (i, ph) => '<td><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="' + ph + '" min="0" max="999"></td>';
       const mainSel = '<td><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
-      mrows += '<tr><td>' + u.name + '</td><td class="num muted">' + b.vc + ' / ' + b.vd + ' / ' + b.vq + '</td>' +
+      mrows += '<tr><td>' + u.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span></td><td class="num muted">' + b.vc + ' / ' + b.vd + ' / ' + b.vq + '</td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
         '<td class="num" data-u="' + c.id + '|' + u.name + '">—</td>' +
         '<td class="num muted" data-ea="' + c.id + '|' + u.name + '">—</td>' +
-        '<td class="num" data-out="' + c.id + '|' + u.name + '">—</td></tr>';
+        '<td class="num" data-out="' + c.id + '|' + u.name + '">—</td>' +
+        '<td class="num muted" data-imp="' + c.id + '|' + u.name + '">—</td></tr>';
     });
   });
   tb.innerHTML = rows; mb.innerHTML = mrows;
@@ -1899,25 +1900,35 @@ function bestWithUnits(c, u, k, um){
   return bestCache[key];
 }
 
+const IMP_MINOR = 0.001;   // 팀 영향 0.1%p 미만 = 무시 가능
+const MISS_OK = 0.05;      // 미입력 지분 합이 5% 이하면 팀 점수 확정으로 봄
 function mineEval(){
-  let num = 0, den = 0, filled = 0, total = 0, eqN = 0, alN = 0, lost = [];
+  let num = 0, den = 0, all = 0, filled = 0, total = 0, eqN = 0, alN = 0, lost = [], missing = [];
+  const nP = goalLast.length || 1;
   goalLast.forEach(({ c, U, k }) => U.forEach(u => {
     if (u.skip || !u.pick) return;
-    total++;
+    total++; all += u.s;
     const key = c.id + '|' + u.name;
-    const cell = document.querySelector('[data-out="' + key + '"]');
-    const ucell = document.querySelector('[data-u="' + key + '"]');
-    const ecell = document.querySelector('[data-ea="' + key + '"]');
+    const q = a => document.querySelector('[data-' + a + '="' + key + '"]');
+    const cell = q('out'), ucell = q('u'), ecell = q('ea'), icell = q('imp');
     const my = (mine[c.id] || {})[u.name] || [];
     if (my[0] == null || my[1] == null || my[2] == null){
-      [cell, ucell, ecell].forEach(x => { if (x){ x.textContent = '—'; x.className = 'num' + (x === ecell ? ' muted' : ''); } });
+      [cell, ucell, ecell, icell].forEach(x => { if (x){ x.textContent = '—'; x.className = 'num' + (x === ecell || x === icell ? ' muted' : ''); } });
+      missing.push({ n: u.name, s: u.s / nP });
       return;
     }
     const r = scoreMine(u, c, k, my[0], my[1], my[2]) / u.pick.j;
     filled++; num += u.s * r; den += u.s;
+    const imp = u.s / nP * Math.max(0, 1 - r);          // 팀 점수에서 깎인 양
     if (cell){
       cell.textContent = (r * 100).toFixed(1) + '%';
       cell.className = 'num ' + (r >= 0.97 ? 'win' : r >= 0.9 ? 'flat' : 'lose');
+    }
+    if (icell){
+      const minor = imp < IMP_MINOR;
+      icell.textContent = minor ? '무시 가능' : '−' + (imp * 100).toFixed(1) + '%p';
+      icell.className = 'num ' + (minor ? 'muted' : imp >= 0.01 ? 'lose' : 'flat');
+      icell.title = '딜 지분 ' + (u.s * 100).toFixed(1) + '% × 부족분 ' + ((1 - r) * 100).toFixed(1) + '% = ' + (imp * 100).toFixed(2) + '%p';
     }
     // 유효 단위 · 장비/배분 분해
     const un = unitsOf(u.cc, my[3] || u.pick.main, my[0], my[1], my[2]);
@@ -1935,7 +1946,7 @@ function mineEval(){
       const eq = bU / b32, al = Math.min(mineJ / bU, 1.05);
       ecell.textContent = (eq * 100).toFixed(0) + '% · ' + (al * 100).toFixed(0) + '%';
       eqN += u.s * eq; alN += u.s * al;
-      if (UNIT_MAX - un.u >= 1) lost.push(u.name + ' ' + Math.round(UNIT_MAX - un.u) + '단위');
+      if (UNIT_MAX - un.u >= 1) lost.push({ n: u.name, d: Math.round(UNIT_MAX - un.u), imp });
     }
   }));
   if (!filled){
@@ -1943,12 +1954,21 @@ function mineEval(){
     $('gMineNote').textContent = '캐릭터별로 치확·치피·약확 세 칸을 모두 넣으면 계산됩니다.';
     return;
   }
-  const t = num / den;
-  $('gMineHead').className = 'big ' + (t >= 0.97 ? 'win' : t >= 0.9 ? 'flat' : 'lose');
-  $('gMineHead').textContent = '이상 대비 ' + (t * 100).toFixed(1) + '%';
+  const t = num / den, missS = missing.reduce((a, m) => a + m.s, 0);
+  const firm = missS <= MISS_OK;
+  $('gMineHead').className = 'big ' + (!firm ? 'muted' : t >= 0.97 ? 'win' : t >= 0.9 ? 'flat' : 'lose');
+  $('gMineHead').textContent = (firm ? '이상 대비 ' : '미확정 · 입력분만 ') + (t * 100).toFixed(1) + '%';
   const eqT = eqN / den, alT = alN / den;
-  $('gMineNote').innerHTML = '장비 ' + (eqT * 100).toFixed(1) + '% · 배분 ' + (alT * 100).toFixed(1) + '% (딜 지분 가중, 입력 ' + filled + '/' + total + '명). ' +
-    (lost.length ? '<strong>유효 단위 손실</strong>: ' + lost.join(', ') + ' — 공% 등 다른 옵션에 샌 강화이거나 유효 옵션이 없는 장비입니다. ' : '유효 단위 손실 없음. ') +
+  lost.sort((a, b) => b.imp - a.imp);
+  const lostTxt = lost.map(l => l.imp < IMP_MINOR
+    ? '<span class="muted">' + l.n + ' ' + l.d + '단위(무시 가능)</span>'
+    : '<strong>' + l.n + ' ' + l.d + '단위</strong>(팀 −' + (l.imp * 100).toFixed(1) + '%p)').join(', ');
+  const big = lost.some(l => l.imp >= IMP_MINOR);
+  $('gMineNote').innerHTML =
+    (!firm ? '<strong class="lose">미입력: ' + missing.sort((a, b) => b.s - a.s).map(m => m.n + '(' + Math.round(m.s * 100) + '%)').join(', ') +
+      '</strong> — 지분이 큰 캐릭터가 빠져 팀 점수가 확정되지 않았습니다. ' : '') +
+    '장비 ' + (eqT * 100).toFixed(1) + '% · 배분 ' + (alT * 100).toFixed(1) + '% (딜 지분 가중, 입력 ' + filled + '/' + total + '명). ' +
+    (lost.length ? '유효 단위 손실: ' + lostTxt + (big ? ' — 공% 등 다른 옵션에 샌 강화이거나 유효 옵션이 없는 장비입니다. ' : ' — 팀 점수엔 거의 영향 없습니다. ') : '유효 단위 손실 없음. ') +
     (eqT < alT ? '장비 쪽 여지가 더 큽니다(교체·강화 초기화).' : '배분 쪽 여지가 더 큽니다(줄 재분배).') +
     ' 공격력·스킬 레벨은 반영하지 않습니다.';
 }
