@@ -99,6 +99,22 @@ details p{margin:8px 0 0}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--card)}
 .set-head #sContent{flex:1 1 220px;font-weight:600}
 .set-tbl td{padding:6px 6px}
+.set-tbl .mob{display:none}
+@media (max-width:600px){
+  p.sub{display:none}
+  .wrap{padding:16px 12px 40px}
+  h1{font-size:20px}
+  .tabs{flex-wrap:wrap;gap:0;overflow:visible}
+  .tabs button{padding:7px 9px;font-size:13px}
+  .set-tbl{font-size:13px}
+  .set-tbl th,.set-tbl td{white-space:nowrap;padding:6px 4px}
+  .set-tbl th:nth-child(2),.set-tbl td:nth-child(2),
+  .set-tbl th:nth-child(3),.set-tbl td:nth-child(3){display:none}
+  .set-tbl tr.round td,.set-tbl td[colspan]{display:table-cell}
+  .set-tbl .mob{display:block;font-size:11px;color:var(--ink-3);margin-top:1px}
+  .set-tbl .v{font-size:14px}
+  .card{padding:12px}
+}
 tr.round td{padding:10px 6px 4px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--accent);border-bottom:1px solid var(--line)}
 .set-tbl.safe th:nth-child(7),.set-tbl.safe td:nth-child(7){display:none}
 .set-tbl .v{font:600 15px/1 var(--mono);font-variant-numeric:tabular-nums}
@@ -2758,7 +2774,8 @@ function setRows(c, safe){
       return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">생존·토템 세팅</td></tr>';
     const b = u.pick;
     const main = MLABEL[b.main[0]] + MLABEL[b.main[1]];
-    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span></td>' +
+    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' +
+      '<span class="mob">' + main + ' · ' + CARVENAME[b.cv] + '</span></td>' +
       '<td class="muted">' + main + '</td><td class="muted">' + CARVENAME[b.cv] + '</td>' +
       '<td class="v">' + b.vc + (safe && b.p < 99 ? '<span class="sub" title="약확 100을 채우면 장비 예산(32단위)으로는 치확 99까지 못 감 — 닿을 수 있는 최대치">최대</span>' : '') + '</td>';
     if (safe){
