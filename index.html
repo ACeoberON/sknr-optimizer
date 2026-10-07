@@ -6,6 +6,15 @@
 .mine-tbl input{width:58px}
 .mine-tbl select{min-width:0!important}
 .mine-tbl td.nm{line-height:1.25}
+details.gloss{margin-top:8px;font-size:13px}
+details.gloss>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;padding:3px 10px;border:1px solid var(--line,rgba(127,127,127,.35));border-radius:999px;color:var(--ink-2,inherit);user-select:none}
+details.gloss>summary::-webkit-details-marker{display:none}
+details.gloss>summary::after{content:'▾';font-size:11px;transition:transform .15s}
+details.gloss[open]>summary::after{transform:rotate(180deg)}
+details.gloss dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:10px 0 0;line-height:1.55}
+details.gloss dt{font-weight:600;white-space:nowrap}
+details.gloss dd{margin:0;color:var(--ink-2,inherit)}
+@media (max-width:600px){details.gloss dl{grid-template-columns:1fr}details.gloss dd{margin-bottom:6px}}
 .mine-tbl td.nm .ideal{display:block;font-size:11px;color:var(--ink-3);font-family:var(--mono,monospace)}
 .mine-tbl .imp{display:block;font-size:11px}
 .det-btn{all:unset;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px}
@@ -228,9 +237,16 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 
 <section class="card">
   <h2>내 스펙 평가</h2>
-  <p class="note">지금 장비의 <strong>마을</strong> 스탯과 무기 주옵을 넣으면 이상 대비 몇 %인지 나옵니다. 이름(▸)을 누르면 후보 비교·다음 강화 순서·시험 칸이 열립니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.
-  <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--ink-3)">용어</summary>
-  <span style="display:block;margin-top:4px"><strong>유효 단위</strong> = 치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수(종결 32). 32보다 작으면 공% 같은 다른 옵션에 샜거나 유효 옵션이 없는 장비. <strong>이상 대비</strong> 아래 작은 글씨는 이 캐릭터 때문에 팀 점수가 깎인 양(나머지는 이상 세팅 가정). <strong>장비 · 배분</strong>(펼침 칸) = 그 단위 수로 낼 수 있는 최고점 / 이상, 내 점수 / 그 최고점 — 장비가 낮으면 교체·강화 초기화, 배분이 낮으면 줄 재분배.</span></details></p>
+  <p class="note">지금 장비를 낀 상태의 <strong>마을 화면</strong> 치확·치피·약확과 무기 주옵을 넣으면, 이상 대비 몇 %인지 나옵니다.<br>캐릭터 이름(▸)을 누르면 다른 세팅과의 비교, 다음 강화를 어디에 붙일지, 장비를 바꿔 보는 시험 칸이 열립니다. 입력값은 이 브라우저에 저장됩니다.</p>
+  <details class="gloss"><summary>용어 설명 (눌러서 펼치기)</summary>
+  <dl>
+    <dt>이상</dt><dd>이 콘텐츠에서 이론상 가장 점수가 높은 마을 치확 / 치피 / 약확. 캐릭터 이름 아래 작은 글씨.</dd>
+    <dt>유효 단위</dt><dd>치확·치피·약확에 들어간 부옵 줄 수 + 강화 횟수. 다 맞추면 <strong>32</strong>.<br>32보다 작으면 그만큼 공%처럼 쓸모없는 옵션에 강화가 붙었거나, 부옵이 없는 장비를 끼고 있다는 뜻입니다.</dd>
+    <dt>이상 대비</dt><dd>내 스펙 점수 ÷ 이상 점수. 100%면 끝.<br>아래 작은 글씨 <strong>팀 −0.5%p</strong>는 이 캐릭터 때문에 팀 점수가 깎인 양입니다. 지분이 작은 캐릭터는 "무시"로 나옵니다.</dd>
+    <dt>세공</dt><dd>지금 스탯에 가장 유리한 장신구 세공(치확 +10 / 약확 +12 / 공성 ×1.04).</dd>
+    <dt>장비 · 배분</dt><dd>이름을 눌러 펼치면 나옵니다.<br><strong>장비</strong>가 낮으면 → 장비 교체나 강화 초기화가 필요.<br><strong>배분</strong>이 낮으면 → 줄만 옮기면 오릅니다(아래 "줄 옮기기 안내").</dd>
+  </dl>
+  </details>
   <div class="scroll" style="margin-top:10px">
   <table class="mine-tbl">
     <thead><tr><th>캐릭터 · 이상</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수, 종결 32">유효 단위</th><th title="아래 작은 글씨 = 팀 점수 손실 (나머지는 이상 세팅일 때)">이상 대비</th><th title="지금 스탯에 가장 유리한 장신구 세공">세공</th></tr></thead>
@@ -1752,23 +1768,29 @@ function renderDetail(key){
   const nx = [['치확', LINE.c, 0, 0], ['치피', 0, LINE.d, 0], ['약확', 0, 0, LINE.w]].map(([n, a, d2, w2]) =>
     [n, (T.evalOne(u, ref.vc + a, ref.vd + d2, ref.vq + w2, ref.ev.cv).T - ref.ev.T) / nP]).sort((x, y) => y[1] - x[1]);
   const nxTxt = nx.map(([n, g]) => g <= 1e-6 ? '<span class="muted">' + n + ' 상한</span>' : n + ' +' + (g * 100).toFixed(2) + '%p').join(' &gt; ');
+  const cur = [ref.vc, ref.vd, ref.vq];                          // 시험 칸 기본값 = 현재(없으면 고점)
   const tv = tr || [];
-  const ti = (i, f) => '<input type="number" data-tk="' + key + '" data-ti="' + i + '" value="' + (tv[i] ?? '') + '" placeholder="' + [ref.vc, ref.vd, ref.vq][i] + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" aria-label="' + f + '" style="width:64px">';
+  const ti = (i, f) => '<input type="number" data-tk="' + key + '" data-ti="' + i + '" value="' + (tv[i] ?? cur[i]) + '" step=""' + [LINE.c, LINE.d, LINE.w][i] + '" aria-label="' + f + '" style="width:64px">';
   row.firstChild.innerHTML = '<div class="det-box">' +
     '<div class="scroll"><table class="mine-tbl"><thead><tr><th>후보</th><th>치확/치피/약확</th><th>세공</th><th>이상 대비</th><th title="평균 대비 표준편차 — 공성전은 클수록 베스트 점수가 높게 튐">흔들림</th><th>팀 점수</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
     (detStat[key] && detStat[key].eq != null ? '<p class="note" style="margin-top:6px">유효 단위 <strong>' + detStat[key].u.toFixed(1) + ' / 32</strong> · 장비 <strong>' + (detStat[key].eq * 100).toFixed(0) + '%</strong> · 배분 <strong>' + (detStat[key].al * 100).toFixed(0) + '%</strong> — ' + (Math.min(detStat[key].eq, detStat[key].al) >= 0.995 ? '둘 다 거의 끝' : detStat[key].eq < detStat[key].al ? '장비(교체·강화 초기화) 쪽 여지가 큼' : '배분(줄 옮기기) 쪽 여지가 큼') + '</p>' : '') +
     '<p class="note" style="margin-top:6px"><strong>다음 강화 1회·부옵 1줄</strong> (' + ref.nm.split(' =')[0] + ' 기준): ' + nxTxt + '</p>' +
     '<div class="trial"><span class="note" style="margin:0">시험해 보기</span>' + ti(0, '치확') + ti(1, '치피') + ti(2, '약확') +
     '<select data-tk="' + key + '" data-ti="3">' + CV_OPTS.map(([v, l]) => '<option value="' + v + '"' + ((tv[3] || 'auto') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
-    (tr ? '<button type="button" class="ghost" data-tclear="' + key + '" style="padding:4px 10px">지우기</button>' : '') +
-    '<span class="note" style="margin:0">장비를 바꿨을 때의 마을 스탯을 넣으면 위 표에 "시험"으로 섞여 나옵니다.</span></div>' +
+    (tr ? '<button type="button" class="ghost" data-tclear="' + key + '" style="padding:4px 10px">되돌리기</button>' : '') +
+    '<span class="note" style="margin:0">지금 스탯이 들어 있습니다. 장비를 바꿨을 때의 숫자로 고치면 위 표에 "시험"으로 섞여 나옵니다.</span></div>' +
     (have ? '' : '<p class="note" style="margin-top:6px">위 표에 이 캐릭터의 마을 스탯을 넣으면 "현재"가 기준으로 맨 위에 생깁니다.</p>') +
     '</div>';
+  row.querySelectorAll('input[data-ti]').forEach(el => el.addEventListener('input', () => { if (el.value !== '' && +el.value < 0) el.value = 0; }));
   row.querySelectorAll('[data-ti]').forEach(el => el.addEventListener('change', e => {
-    const t = trial[key] || (trial[key] = []), i = +e.target.dataset.ti;
-    t[i] = i === 3 ? e.target.value : (e.target.value === '' ? null : +e.target.value);
-    if (t.slice(0, 3).every(v => v == null)) delete trial[key];
+    const g = i => row.querySelector('[data-ti="' + i + '"]').value;
+    const t = [0, 1, 2].map(i => g(i) === '' ? cur[i] : Math.max(0, +g(i)));
+    t[3] = g(3);
+    // 현재와 똑같으면 시험 행을 만들지 않는다
+    if (t[0] === cur[0] && t[1] === cur[1] && t[2] === cur[2] && t[3] === 'auto') delete trial[key]; else trial[key] = t;
+    const fi = e.target.dataset.ti;
     trPersist(); renderDetail(key);
+    const back = row.querySelector('[data-ti="' + fi + '"]'); if (back) back.focus();   // 다시 그려도 입력 중이던 칸 유지
   }));
   const cl = row.querySelector('[data-tclear]');
   if (cl) cl.addEventListener('click', () => { delete trial[key]; trPersist(); renderDetail(key); });
@@ -1833,6 +1855,7 @@ function goalRun(){
   });
   tb.innerHTML = rows; mb.innerHTML = mrows;
   mb.querySelectorAll('input[data-c],select[data-c]').forEach(el => el.addEventListener('input', e => {
+    if (el.tagName === 'INPUT' && el.value !== '' && +el.value < 0) el.value = 0;      // 스탯은 음수 불가
     const { c, n, i } = e.target.dataset;
     mine[c] ||= {}; mine[c][n] ||= [];
     mine[c][n][+i] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? null : +e.target.value);
