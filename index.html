@@ -5,7 +5,7 @@
 <title>세나 리버스 세팅 판정기</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* 탭 4개: 목표(결론) · 판정(콘텐츠 편성별) · 비교(후보 줄세우기) · 공략(원문 열람) */
+/* 탭: 세팅 · 목표(이상치 + 내 스펙 평가 + 줄 옮기기) · 장비 · 비교 · 공략 · 백업 */
 :root{
   --ink:#1b1d1a; --ink-2:#56594f; --ink-3:#878a7d;
   --paper:#f6f5ef; --card:#fffefa; --line:#ddddd0; --line-2:#ececdf;
@@ -81,8 +81,6 @@ details p{margin:8px 0 0}
   background:var(--accent-soft);color:var(--accent);margin-top:2px;white-space:nowrap}
 .shared{display:inline-block;font-size:9px;font-weight:600;padding:0 4px;border-radius:4px;
   background:var(--accent-soft);color:var(--accent);letter-spacing:0;text-transform:none;vertical-align:1px}
-#dRows td:nth-child(2),#dRows td:nth-child(10){white-space:nowrap}
-#dRows td:first-child{white-space:nowrap}
 .chip{display:inline-block;font-size:12px;padding:2px 8px;border:1px solid var(--line);
   border-radius:20px;color:var(--ink-2);margin:0 4px 4px 0}
 .md h4{font-size:14px;font-weight:600;margin:16px 0 4px}
@@ -163,7 +161,6 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 <div class="tabs" role="tablist">
   <button role="tab" id="t-set" aria-selected="true" aria-controls="p-set">세팅</button>
   <button role="tab" id="t-goal" aria-selected="false" aria-controls="p-goal">목표</button>
-  <button role="tab" id="t-diag" aria-selected="false" aria-controls="p-diag">판정</button>
   <button role="tab" id="t-gear" aria-selected="false" aria-controls="p-gear">장비</button>
   <button role="tab" id="t-cmp" aria-selected="false" aria-controls="p-cmp">비교</button>
   <button role="tab" id="t-guide" aria-selected="false" aria-controls="p-guide">공략</button>
@@ -223,6 +220,14 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   </table>
   </div>
   <div class="verdict" style="margin-top:12px"><div class="big" id="gMineHead">—</div><p id="gMineNote"></p></div>
+  <h3 style="margin:16px 0 6px;font-size:14px">줄 옮기기 안내</h3>
+  <div class="scroll">
+  <table class="mine-tbl">
+    <thead><tr><th>캐릭터</th><th>조치</th><th>바꾼 뒤 치확/치피/약확</th><th>팀 점수</th></tr></thead>
+    <tbody id="gAdvice"><tr><td colspan="4" class="muted">스펙을 넣으면 계산됩니다.</td></tr></tbody>
+  </table>
+  </div>
+  <p class="note" style="margin-top:6px">지금 가진 유효 단위 안에서 부옵·강화 줄만 옮겼을 때의 이득입니다(1줄 = 치확 4 · 치피 6 · 약확 5). 팀 점수 +0.1%p 미만은 생략하고, 큰 순서로 3개까지 보여 줍니다. 여기 아무것도 없는데 이상 대비가 낮다면 남은 여지는 장비(유효 단위)입니다.</p>
 </section>
 
 <details class="card">
@@ -253,69 +258,6 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 </div>
 </div>
 
-<!-- ───────────── 판정 ───────────── -->
-<div class="panel" id="p-diag" role="tabpanel" aria-labelledby="t-diag" hidden>
-<div class="stack">
-
-
-<section class="card">
-  <h2>콘텐츠</h2>
-  <div class="grid2">
-    <div>
-      <label for="dContent">편성</label>
-      <select id="dContent"></select>
-    </div>
-    <div>
-      <label for="dCarry">점수 이월 (공성전만)</label>
-      <select id="dCarry">
-        <option value="1.163">1주 · 5판 중 베스트1</option>
-        <option value="1.539" selected>2주 누적</option>
-        <option value="1.965">5주 누적</option>
-      </select>
-    </div>
-  </div>
-  <p class="note" id="dMeta" style="margin-top:10px"></p>
-  <div id="dChips" style="margin-top:8px"></div>
-</section>
-
-<section class="card">
-  <h2>전투 기준 스탯</h2>
-  <div class="scroll">
-    <table>
-      <thead><tr>
-        <th>캐릭터</th><th>윗/아랫</th><th>역할 <span class="shared">고정</span></th><th>지분 % <span class="shared">고정</span></th><th>치확</th><th>치피</th><th>약확</th>
-        <th>패시브 치확 <span class="shared">고정</span></th><th>버프 약확 <span class="shared">고정</span></th>
-        <th>배율 <span class="shared">고정</span></th>
-        <th>최선 배분</th><th>차이</th>
-      </tr></thead>
-      <tbody id="dRows"></tbody>
-    </table>
-  </div>
-  <div class="row-actions">
-    <button type="button" id="dClear">이 콘텐츠 초기화</button>
-    <span class="note" id="dMsg">입력하면 자동 저장됩니다.</span>
-  </div>
-  <p class="note" style="margin-top:10px">마을 스탯이 아니라 <strong>전투 기준</strong>입니다. 아군 약확 버프(비스킷 +54, 레이첼 +27)를 더한 값을 넣으십시오. <span class="shared">고정</span> 칸은 장비로 바뀌지 않는 값이라 도구에 내장되어 있고 여기서 고칠 수 없습니다 — 값이 틀렸으면 Claude에게 알려 코드를 고치십시오. 이 브라우저에 저장되는 것은 콘텐츠별 치확·치피·약확뿐입니다.</p>
-</section>
-
-<section class="verdict">
-  <div class="big" id="dHead">—</div>
-  <p id="dDetail"></p>
-</section>
-
-<section class="card">
-  <h2>줄 옮기기 안내</h2>
-  <div class="scroll">
-    <table>
-      <thead><tr><th>캐릭터</th><th>조치</th><th>팀 점수</th></tr></thead>
-      <tbody id="dAdvice"></tbody>
-    </table>
-  </div>
-  <p class="note" style="margin-top:10px">부옵 1줄 = 치확 4 · 치피 6 · 약확 5. 강화 1회도 같은 1줄값이고, 강화는 치확·치피·약확에만 붙여야 합니다. 실제로 그 배분이 안 나오면 <strong>비교</strong> 탭에서 만들 수 있는 조합끼리 줄 세우십시오.</p>
-</section>
-
-</div>
-</div>
 
 <!-- ───────────── 장비 ───────────── -->
 <div class="panel" id="p-gear" role="tabpanel" aria-labelledby="t-gear" hidden>
@@ -359,7 +301,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
     </table>
   </div>
   <div class="row-actions">
-    <button type="button" id="aApply">판정 탭에 반영</button>
+    <button type="button" id="aApply">목표 탭에 반영</button>
     <span class="note" id="aMsg"></span>
   </div>
   <p class="note" id="aNote" style="margin-top:10px"></p>
@@ -1905,8 +1847,25 @@ function bestWithUnits(c, u, k, um){
 
 const IMP_MINOR = 0.001;   // 팀 영향 0.1%p 미만 = 무시 가능
 const MISS_OK = 0.05;      // 미입력 지분 합이 5% 이하면 팀 점수 확정으로 봄
+/* 줄 옮기기: 유효 단위는 그대로 두고 치확↔치피, 약확↔치피 줄만 교환해 본다.
+   한 스탯이 4줄(최소 부옵) 아래로 내려가면 안 되지만, 이미 그 아래면 현재 줄 수까지는 허용 */
+function bestMove(u, c, k, my, un){
+  const base = scoreMine(u, c, k, my[0], my[1], my[2]);
+  const fl = x => Math.min(x, UNIT_MIN) - 1e-6;
+  let best = { sc: base, t: 0, w: 0, vc: my[0], vd: my[1], vq: my[2] };
+  for (let t = -8; t <= 8; t++) for (let w = -8; w <= 8; w++){
+    if (!t && !w) continue;
+    if (un.uc - t < fl(un.uc) || un.uw - w < fl(un.uw) || un.ud + t + w < fl(un.ud)) continue;
+    const vc = my[0] - LINE.c * t, vq = my[2] - LINE.w * w, vd = my[1] + LINE.d * (t + w);
+    if (vc > 100 + LINE.c || vq > 100 + LINE.w) continue;    // 상한 넘어 버리는 줄은 의미 없음
+    const sc = scoreMine(u, c, k, vc, vd, vq);
+    if (sc > best.sc * (1 + 1e-9) && (sc - best.sc) / base > 1e-5) best = { sc, t, w, vc, vd, vq };
+  }
+  best.base = base;
+  return best;
+}
 function mineEval(){
-  let num = 0, den = 0, all = 0, filled = 0, total = 0, eqN = 0, alN = 0, lost = [], missing = [];
+  let num = 0, den = 0, all = 0, filled = 0, total = 0, eqN = 0, alN = 0, lost = [], missing = [], adv = [];
   const nP = goalLast.length || 1;
   goalLast.forEach(({ c, U, k }) => U.forEach(u => {
     if (u.skip || !u.pick) return;
@@ -1952,7 +1911,25 @@ function mineEval(){
       eqN += u.s * eq; alN += u.s * al;
       if (UNIT_MAX - un.u >= 1) lost.push({ n: u.name, d: Math.round(UNIT_MAX - un.u), imp });
     }
+    if (!un.neg){
+      const m = bestMove(u, c, k, my, un);
+      const gain = u.s / nP * (m.sc - m.base) / u.pick.j;
+      if (m.t || m.w){
+        const mv = [];
+        if (m.t > 0) mv.push('치확 ' + m.t + '줄 → 치피');
+        if (m.t < 0) mv.push('치피 ' + (-m.t) + '줄 → 치확');
+        if (m.w > 0) mv.push('약확 ' + m.w + '줄 → 치피');
+        if (m.w < 0) mv.push('치피 ' + (-m.w) + '줄 → 약확');
+        adv.push({ n: (goalLast.length > 1 ? (ROUND_LABEL[c.id] || c.n).split(' ')[0] + ' ' : '') + u.name,
+                   mv: mv.join(', '), to: m.vc + ' / ' + m.vd + ' / ' + m.vq, gain });
+      }
+    }
   }));
+  const ab = $('gAdvice');
+  const shown = adv.filter(a => a.gain >= IMP_MINOR).sort((a, b) => b.gain - a.gain).slice(0, 3);
+  ab.innerHTML = !filled ? '<tr><td colspan="4" class="muted">스펙을 넣으면 계산됩니다.</td></tr>'
+    : !shown.length ? '<tr><td colspan="4" class="muted">옮겨서 팀 점수가 0.1%p 이상 오르는 줄이 없습니다 — 배분은 끝났습니다.</td></tr>'
+    : shown.map(a => '<tr><td>' + a.n + '</td><td>' + a.mv + '</td><td class="num">' + a.to + '</td><td class="num win">+' + (a.gain * 100).toFixed(1) + '%p</td></tr>').join('');
   if (!filled){
     $('gMineHead').className = 'big'; $('gMineHead').textContent = '—';
     $('gMineNote').textContent = '캐릭터별로 치확·치피·약확 세 칸을 모두 넣으면 계산됩니다.';
@@ -2023,29 +2000,21 @@ $('copyBtn').addEventListener('click', async () => {
   setTimeout(() => { $('copyMsg').textContent = ''; }, 2500);
 });
 
-/* ══════════ 판정 탭 ══════════ */
+/* ══════════ 공용 상수 · 딜 지분 ══════════ */
 /* 저장 원칙 (v19~)
    장비로 바뀌지 않는 값 — 약공 배율·패시브·기본 치확/약확·무기 속성·역할·딜 지분·버프 약확 — 은
-   전부 코드 상수에서만 읽는다. 브라우저에는 콘텐츠별 치확·치피·약확과 장비 목록만 저장한다.
+   전부 코드 상수에서만 읽는다. 브라우저에는 목표 탭의 내 스펙 입력·장비 목록·초월·테마만 저장한다.
    (예전에는 고정값을 처음 열 때 복사해 두어서, 코드를 고쳐도 반영되지 않는 문제가 있었다.) */
-const KEY = 'sknr-judge-v3', CKEY = 'sknr-judge-chars';
-let dState = {};
-try { dState = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { dState = {}; }
+const CKEY = 'sknr-judge-chars';
+try { localStorage.removeItem('sknr-judge-v3'); } catch {}   // 옛 판정 탭(전투 기준) 입력값 — 목표 탭에 통합되며 폐기
 const charOf = name => ({ wm: valOf(name, 'wm'), pf: valOf(name, 'pf') });
-function persist(){
-  try { localStorage.setItem(KEY, JSON.stringify(dState)); } catch { /* 저장 불가 환경이면 세션 동안만 유지 */ }
-}
-
 CONTENTS.forEach(c => {
-  ['dContent','gSel','aContent'].forEach(id => {
+  ['gSel','aContent'].forEach(id => {
     const o = document.createElement('option');
     o.value = c.id; o.textContent = c.n; $(id).appendChild(o);
   });
 });
-$('dContent').value = 'r2a'; $('aContent').value = 'r2a';
-
-const curContent = () => CONTENTS.find(c => c.id === $('dContent').value);
-function dCoef(c){ return c.sc === 'siege' ? +$('dCarry').value : 1.0; }
+$('aContent').value = 'r2a';
 
 /* 딜 지분. 실측값이 있으면 항상 실측을 쓰고, 없을 때만 시전 가중치로 추정한다.
    SRC 에 측정 판수·날짜·평균 총점을 남겨 두면 목표 탭 머리말에 그대로 표시된다. */
@@ -2082,188 +2051,18 @@ function guessShare(c){
 const roleOf = (c, i, gs) => !c.lu[i][3] ? 'buff' : gs[i] >= 20 ? 'main' : 'sub';
 const qbOf = (c, i) => c.lu[i][4] ?? c.qb;
 const ROLE_LABEL = { main:'주딜', sub:'부딜', buff:'버퍼·생존' };
-
-function dRowsInit(){
-  const c = curContent();
-  const saved = dState[c.id] || [];
-  const gs = guessShare(c);
-  const tb = $('dRows'); tb.innerHTML = '';
-  c.lu.forEach(([name, up, dn, opt], i) => {
-    const s = saved[i] || {}, ch = charOf(name);
-    const role = roleOf(c, i, gs);
-    const qf = qbOf(c, i);
-    const p  = s.p  ?? 100;
-    const cd = s.cd ?? 300;
-    const q  = s.q  ?? Math.min(100, qf + 20);
-    const tr = document.createElement('tr');
-    const dis = role === 'buff' ? ' disabled' : '';
-    tr.innerHTML =
-      '<td>' + name + (role !== 'buff' && rawOf(name).wm == null ? '<span class="tag">배율 미확인</span>' : '') + '</td>' +
-      '<td class="num muted">' + up + ' / ' + dn + '</td>' +
-      '<td class="muted" data-f="role" data-v="' + role + '">' + ROLE_LABEL[role] + '</td>' +
-      '<td class="num muted" data-f="s" data-v="' + gs[i] + '">' + gs[i] + '</td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="p"  value="' + p  + '" min="0" max="100"' + dis + '></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="cd" value="' + cd + '" min="100" max="700"' + dis + '></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="q"  value="' + q  + '" min="0" max="100"' + dis + '></td>' +
-      '<td class="num muted">' + ch.pf + '</td>' +
-      '<td class="num muted" data-f="qf" data-v="' + qf + '">' + qf + '</td>' +
-      '<td class="num muted">' + ch.wm.toFixed(2) + (c.wmTeam ? ' ×' + c.wmTeam : '') + '</td>' +
-      '<td class="num" data-out="best"></td><td class="num" data-out="diff"></td>';
-    tb.appendChild(tr);
-  });
-  tb.querySelectorAll('input').forEach(el => el.addEventListener('input', dRun));
-}
-
+/* 히트 구성: [윗 대비 한 방 비율, 횟수] — 윗 · 아랫(0.2) · 평타(0.22) */
 function dHits(c, up, dn){
   const r2 = 0.2, r1 = 0.22;
   return [[1, up * c.tg], [r2, dn * c.tg], [r1, c.pl]];
 }
 
-function dRun(){
-  const c = curContent(), k = dCoef(c);
-  $('dCarry').disabled = c.sc !== 'siege';
-  $('dMeta').textContent =
-    (c.tg === 3 ? '3인기' : '1인기') + ' · 평타 ' + c.pl + '회 · ' +
-    (c.sc === 'siege' ? '베스트1 + 이월, 분산계수 ' + k.toFixed(3)
-                      : '상위 3 / 9판, 분산계수 1.000') +
-    (RAID1(c.id) ? ' · 100만 문턱 구조라 평균 극대화 = 치확·약확 100' : '');
-
-  const chips = [];
-  if (RAID1(c.id)) chips.push('목표 치확 100');
-  else if (c.id === 'sun') chips.push('목표 치확 75', '약확 100 고정 (미스 = 딜 0)');
-  else if (c.sc === 'siege') chips.push('목표 치확 80');
-  else chips.push('목표 치확 89');
-  $('dChips').innerHTML = chips.map(t => '<span class="chip">' + t + '</span>').join('');
-
-  const rows = $('dRows').children;
-  const U = [];
-  c.lu.forEach(([name, up, dn], i) => {
-    const tr = rows[i]; if (!tr) return;
-    const g = f => tr.querySelector('[data-f="' + f + '"]');
-    const ch = charOf(name);
-    const v = { role: g('role').dataset.v, s: +g('s').dataset.v || 0,
-                p: +g('p').value || 0, cd: +g('cd').value || 100, q: +g('q').value || 0,
-                qf: +g('qf').dataset.v || 0,
-                pf: ch.pf, wm: ch.wm * (c.wmTeam || 1) };   // 콘텐츠 전체 보정 포함
-    U.push({ name, up, dn, opt: v.role !== 'buff', v, tr, H: dHits(c, up, dn) });
-  });
-  const vals = U.map(u => ({ p: u.v.p, cd: u.v.cd, q: u.v.q }));   // 장비로 바뀌는 값만 저장
-  const sSum = U.reduce((a, u) => a + u.v.s, 0) || 1;
-  U.forEach(u => { u.s = u.v.s / sSum; u.cur = calc(u.v.p, u.v.cd, u.v.q, k, u.v.wm, u.H); });
-
-  /* 팀 목적함수.
-     캐릭터 c의 기여를 현재 평균 대비 비율로 보고 딜 지분으로 가중한다.
-       팀 평균 = Σ 지분 × (μ / μ_현재)        → 현재 상태에서 1
-       팀 분산 = Σ (지분 × σ / μ_현재)²       → 캐릭터 간 독립 가정
-     이러면 지분이 작은 캐릭터의 흔들림은 지분²으로 줄어들어, 버퍼·토템은
-     자동으로 기댓값형(치확 100)이 최적이 된다. */
-  function teamJ(cfg){
-    let m = 0, va = 0;
-    U.forEach((u, i) => {
-      const a = cfg[i] || u.v;
-      const r = calc(a.p, a.cd, a.q, k, u.v.wm, u.H);
-      m += u.s * r.mu / u.cur.mu;
-      va += Math.pow(u.s * r.sd / u.cur.mu, 2);
-    });
-    return m + k * Math.sqrt(va);
-  }
-  const cfg = U.map(u => ({ p: u.v.p, cd: u.v.cd, q: u.v.q }));
-  const j0 = teamJ(cfg);
-
-  // 좌표 하강: 캐릭터마다 치확·약확 ↔ 치피 교환을 전수 스캔 (2회 반복)
-  const move = U.map(() => ({ t: 0, u: 0 }));
-  for (let pass = 0; pass < 2; pass++) U.forEach((u, i) => {
-    if (!u.opt || (u.up + u.dn) === 0) return;
-    const qFloor = c.forceQ ? 100 : u.v.qf;
-    const p0 = u.v.p, cd0 = u.v.cd, q0 = u.v.q;
-    let best = { j: teamJ(cfg), t: move[i].t, u: move[i].u, p: cfg[i].p, cd: cfg[i].cd, q: cfg[i].q };
-    for (let t = -5; t <= 5; t++) for (let w = -5; w <= 5; w++){
-      const p = p0 - LINE.c * t, q = q0 - LINE.w * w, cd = cd0 + LINE.d * (t + w);
-      if (p < u.v.pf || p > 100 || q < qFloor || q > 100 || cd < 100) continue;
-      const keep = cfg[i];
-      cfg[i] = { p, cd, q };
-      const j = teamJ(cfg);
-      cfg[i] = keep;
-      if (j > best.j + 1e-12) best = { j, t, u: w, p, cd, q };
-    }
-    cfg[i] = { p: best.p, cd: best.cd, q: best.q };
-    move[i] = { t: best.t, u: best.u };
-  });
-
-  // 캐릭터별 기여도: 그 캐릭터만 되돌렸을 때 팀 J가 얼마나 떨어지는지
-  const adv = [];
-  U.forEach((u, i) => {
-    const bc = cfg[i];
-    if (!u.opt || (u.up + u.dn) === 0){
-      u.tr.querySelector('[data-out="best"]').textContent = '치확 100';
-      u.tr.querySelector('[data-out="diff"]').textContent = '—';
-      return;
-    }
-    const keep = cfg[i];
-    cfg[i] = { p: u.v.p, cd: u.v.cd, q: u.v.q };
-    const without = teamJ(cfg);
-    cfg[i] = keep;
-    const gain = teamJ(cfg) / Math.max(without, 1e-9) - 1;
-
-    u.tr.querySelector('[data-out="best"]').textContent = bc.p + ' / ' + bc.cd + ' / ' + bc.q;
-    const dc = u.tr.querySelector('[data-out="diff"]');
-    if (gain < 0.00005){ dc.textContent = '최선'; dc.className = 'num win'; }
-    else { dc.textContent = pct(gain * 100); dc.className = 'num lose'; }
-
-    if (gain >= 0.00005){
-      const m = move[i], moves = [];
-      if (m.t > 0) moves.push('치확 ' + m.t + '줄 → 치피');
-      if (m.t < 0) moves.push('치피 ' + (-m.t) + '줄 → 치확');
-      if (m.u > 0) moves.push('약확 ' + m.u + '줄 → 치피');
-      if (m.u < 0) moves.push('치피 ' + (-m.u) + '줄 → 약확');
-      adv.push([u.name, moves.join(', ') || '유지', gain]);
-    }
-  });
-
-  const teamGain = (teamJ(cfg) / j0 - 1) * 100;
-  const head = $('dHead'), det = $('dDetail');
-  if (adv.length === 0){
-    head.className = 'big win';
-    head.textContent = RAID1(c.id) ? '문턱 구조 — 치확·약확 100이 정답' : '지금이 최선입니다';
-    det.textContent = RAID1(c.id)
-      ? '1라운드는 팀 누적 100만 딜을 넘기는 것이 목적이라 고점이 아니라 평균을 극대화해야 합니다. 치확·약확을 100으로 채우고 남는 줄을 치피에 쓰십시오.'
-      : '적어 넣은 스탯에서 줄을 옮겨 이득 보는 조합이 없습니다. 더 올리려면 장비 자체를 바꿔야 합니다.';
-  } else {
-    head.className = 'big lose';
-    head.textContent = '팀 점수 ' + pct(teamGain) + ' 여지';
-    det.textContent = adv.length + '명의 배분을 바꾸면 그만큼 올라갑니다. 괄호 안 수치는 그 캐릭터 하나만 바꿨을 때의 팀 점수 상승폭이라, 딜 지분이 반영된 값입니다.';
-  }
-
-  const ab = $('dAdvice'); ab.innerHTML = '';
-  if (adv.length === 0){
-    ab.innerHTML = '<tr><td colspan="3" class="muted">옮길 줄이 없습니다.</td></tr>';
-  } else {
-    adv.sort((x, y) => y[2] - x[2]).forEach(([n, m, gn]) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + n + '</td><td>' + m + '</td><td class="num win">' + pct(gn * 100) + '</td>';
-      ab.appendChild(tr);
-    });
-  }
-  dState[curContent().id] = vals;
-  persist();
-}
-
-$('dContent').addEventListener('change', () => { dRowsInit(); dRun(); });
-$('dCarry').addEventListener('change', dRun);
-function dFlash(t){
-  $('dMsg').textContent = t;
-  setTimeout(() => { $('dMsg').textContent = '입력하면 자동 저장됩니다.'; }, 2500);
-}
-$('dClear').addEventListener('click', () => {
-  delete dState[curContent().id]; dRowsInit(); dRun(); dFlash('이 콘텐츠를 초기화했습니다.');
-});
-
 /* ══════════ 설정 백업 — localStorage 3개 키를 한 덩어리로 ══════════ */
 const sMsg = t => { $('stateMsg').textContent = t; setTimeout(() => $('stateMsg').textContent = '', 3000); };
 $('stateOut').addEventListener('click', () => {
   $('stateText').value = JSON.stringify(
-    { v: 1, at: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      contents: dState, gear, trans, mine });
+    { v: 2, at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      gear, trans, mine });
   sMsg('내보냈습니다. 복사해서 다른 기기에 붙여넣으세요.');
 });
 $('stateCopy').addEventListener('click', async () => {
@@ -2276,15 +2075,13 @@ $('stateIn').addEventListener('click', () => {
   catch { sMsg('형식이 올바르지 않습니다.'); return; }
   if (!o || typeof o !== 'object'){ sMsg('형식이 올바르지 않습니다.'); return; }
   if (!confirm('현재 기기의 설정을 덮어씁니다. 진행할까요?')) return;
-  if (o.contents && typeof o.contents === 'object') dState = stripFixed(o.contents);   // 고정값은 버림
   if (Array.isArray(o.gear)) gear = o.gear;
   if (o.trans && typeof o.trans === 'object') { trans = o.trans; tPersist(); }
   if (o.mine && typeof o.mine === 'object') { mine = o.mine; mPersist(); }
   try {
-    localStorage.setItem(KEY, JSON.stringify(dState));
     localStorage.setItem(GKEY, JSON.stringify(gear));
   } catch {}
-  dRowsInit(); dRun(); gRowsInit(); gRender(); goalRun(); cRowsInit();
+  gRowsInit(); gRender(); goalRun(); cRowsInit();
   sMsg('가져왔습니다' + (o.at ? ' (' + o.at + ' 저장본)' : '') + '.');
 });
 
@@ -2347,7 +2144,7 @@ function cRowsInit(){
     delete trans[b.dataset.tr]; tPersist(); trChanged();
   }));
 }
-function trChanged(){ cRowsInit(); goalRun(); dRowsInit(); dRun(); if (typeof setRun === 'function') setRun(); }
+function trChanged(){ cRowsInit(); goalRun(); if (typeof setRun === 'function') setRun(); }
 $('trAdd').addEventListener('click', () => {
   trans[$('trName').value] = +$('trLv').value; tPersist(); trChanged();
 });
@@ -2413,7 +2210,7 @@ const carveMult = v => v === 'siege' ? 1.04 : 1;
 
 function buildAssign(c){
   const gs = guessShare(c);
-  const k = c.sc === 'siege' ? +$('dCarry').value : 1.0;
+  const k = c.sc === 'siege' ? GOAL_CARRY : 1.0;
   const chars = [];
   c.lu.forEach(([name, up, dn], i) => {
     const role = roleOf(c, i, gs);
@@ -2448,7 +2245,7 @@ function evalAssign(A, state, k){
 
 function optimizeAssign(c){
   const A = buildAssign(c), k = A.k;
-  if (!A.chars.length) return { A, err: '이 콘텐츠에 배정할 딜러가 없습니다. 판정 탭에서 역할을 확인하십시오.' };
+  if (!A.chars.length) return { A, err: '이 콘텐츠에 배정할 딜러가 없습니다. 목표 탭에서 역할을 확인하십시오.' };
 
   const arms = gear.filter(g => g.slot === 'ar');
   const need = A.chars.length;
@@ -2591,16 +2388,21 @@ $('aRun').addEventListener('click', aRun);
 $('aApply').addEventListener('click', () => {
   if (!aLast) return;
   const { c, A, state } = aLast;
-  const cur = dState[c.id] || (dState[c.id] = []);
-  c.lu.forEach(([name], i) => {
-    const ci = A.chars.findIndex(x => x.name === name);
-    if (ci < 0) return;
-    const s = statsOf(A.chars[ci], state.pieces[ci], state.carve[ci], A.chars[ci].qf);
-    cur[i] = Object.assign({}, cur[i], { p: Math.min(s.p, 100), cd: s.cd, q: Math.min(s.q, 100) });
+  const cur = mine[c.id] || (mine[c.id] = {});
+  A.chars.forEach((ch, i) => {
+    // 목표 탭은 마을 스탯 기준 → 패시브·세공·버프는 빼고 기본값 + 장비만
+    let vc = ch.ch.bc, vd = ch.ch.bd, vq = ch.ch.bq;
+    const mains = [];
+    state.pieces[i].forEach(g => { if (!g) return; const [a, b, w] = pieceStat(g); vc += a; vd += b; vq += w;
+      if (g.slot !== 'ar' && g.main !== 'none') mains.push(g.main); });
+    const prev = cur[ch.name] || [];
+    const mc = mains.length === 2 ? MAINCOMBOS.find(m => m === mains.join('') || m === mains.slice().reverse().join('')) : null;
+    cur[ch.name] = [vc, vd, vq, mc || prev[3]];
   });
-  persist();
-  $('dContent').value = c.id; dRowsInit(); dRun();
-  $('aMsg').textContent = '판정 탭에 넣었습니다.';
+  mPersist();
+  const opt = SET_OPTS.find(x => x.parts.includes(c.id));
+  if (opt){ $('gContent').value = opt.id; goalRun(); }
+  $('aMsg').textContent = opt ? '목표 탭 › 내 스펙 평가에 넣었습니다.' : '넣었지만 목표 탭 목록에 없는 콘텐츠입니다.';
   setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
 });
 
@@ -2950,7 +2752,7 @@ $('sContent').addEventListener('input', setRun);
 })();
 
 /* ══════════ 탭 ══════════ */
-const TABS = [['t-set','p-set'],['t-goal','p-goal'],['t-diag','p-diag'],['t-gear','p-gear'],['t-cmp','p-cmp'],['t-guide','p-guide'],['t-cfg','p-cfg']];
+const TABS = [['t-set','p-set'],['t-goal','p-goal'],['t-gear','p-gear'],['t-cmp','p-cmp'],['t-guide','p-guide'],['t-cfg','p-cfg']];
 TABS.forEach(([t]) => $(t).addEventListener('click', () => {
   TABS.forEach(([tb, pb]) => {
     const on = tb === t;
@@ -2961,29 +2763,14 @@ TABS.forEach(([t]) => $(t).addEventListener('click', () => {
   alignNotes();
 }));
 
-/* ══════════ 예전 저장값 정리 ══════════
-   v18 이전 저장분에서 고정값(role·s·qf / 캐릭터 wm·pf·bc·bq·atk)을 찾아 코드 값과 비교해 보여주고,
-   계산에서는 이미 쓰지 않는다. 확인 버튼을 누르면 지운다. */
-function stripFixed(st){
-  const out = {};
-  for (const [id, arr] of Object.entries(st || {})){
-    if (!Array.isArray(arr)) continue;
-    out[id] = arr.map(v => v ? { p: v.p, cd: v.cd, q: v.q } : v);
-  }
-  return out;
-}
-/* v18 이전에 브라우저에 복사돼 있던 고정값(캐릭터 표, 지분·역할·버프 약확)은 더 이상 읽지 않으므로 지운다 */
+/* v18 이전에 브라우저에 복사돼 있던 캐릭터 표는 더 이상 읽지 않으므로 지운다 */
 function legacyClean(){
-  try {
-    if (localStorage.getItem(CKEY) !== null) localStorage.removeItem(CKEY);
-    const dirty = Object.values(dState).some(a => Array.isArray(a) && a.some(v => v && ('s' in v || 'qf' in v || 'role' in v)));
-    if (dirty){ dState = stripFixed(dState); persist(); }
-  } catch {}
+  try { if (localStorage.getItem(CKEY) !== null) localStorage.removeItem(CKEY); } catch {}
 }
 
 /* 초기화 */
 legacyClean();
-goalRun(); cRowsInit(); gRowsInit(); dRowsInit(); dRun(); draw(); run();
+goalRun(); cRowsInit(); gRowsInit(); draw(); run();
 $('gSel').value = 'r2a'; gRender();
 setRun();
 </script>
