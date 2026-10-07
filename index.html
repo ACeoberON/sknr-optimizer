@@ -1744,7 +1744,12 @@ function renderDetail(key){
   add('고점', b.vc, b.vd, b.vq, b.cv, '이론상 최고 · 주옵 ' + MLABEL[b.main[0]] + MLABEL[b.main[1]] + ' · 유효 단위 32');
   if (b.cv === 'siege'){ const alt = u.cand.find(a => a.cv !== 'siege'); if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 세공 ×1.04는 미검증'); }
   if (su && su.pick) add('안전', su.pick.vc, su.pick.vd, su.pick.vq, su.pick.cv, '세팅 탭 안전 모드');
-  const tr = trial[key];
+  const tMain = my[3] || u.pick.main;                             // 시험도 지금 무기 주옵 기준 격자
+  let tr = trial[key];
+  if (tr){                                                        // 주옵을 바꿨으면 시험값도 새 격자로 다시 맞춘다
+    const fx = fixStats(u, tMain, tr.slice(0, 3));
+    if (fx.some((v, i) => v !== tr[i])){ tr = [...fx, tr[3] || 'auto']; trial[key] = tr; trPersist(); }
+  }
   if (tr && tr[0] != null && tr[1] != null && tr[2] != null) add('시험', tr[0], tr[1], tr[2], tr[3] || 'auto', '아래 칸에 넣은 값');
   // 같은 결과는 한 줄로
   for (let i = rows.length - 1; i > 0; i--){
@@ -1768,8 +1773,7 @@ function renderDetail(key){
   const nx = [['치확', LINE.c, 0, 0], ['치피', 0, LINE.d, 0], ['약확', 0, 0, LINE.w]].map(([n, a, d2, w2]) =>
     [n, (T.evalOne(u, ref.vc + a, ref.vd + d2, ref.vq + w2, ref.ev.cv).T - ref.ev.T) / nP]).sort((x, y) => y[1] - x[1]);
   const nxTxt = nx.map(([n, g]) => g <= 1e-6 ? '<span class="muted">' + n + ' 상한</span>' : n + ' +' + (g * 100).toFixed(2) + '%p').join(' &gt; ');
-  const cur = [ref.vc, ref.vd, ref.vq];                          // 시험 칸 기본값 = 현재(없으면 고점)
-  const tMain = my[3] || u.pick.main;                             // 시험도 지금 무기 주옵 기준 격자
+  const cur = fixStats(u, tMain, [ref.vc, ref.vd, ref.vq]);      // 시험 칸 기본값 = 현재(없으면 고점), 지금 주옵 격자에 맞춤
   const tv = tr || [];
   const ti = (i, f) => '<input type="number" data-tk="' + key + '" data-ti="' + i + '" value="' + (tv[i] ?? cur[i]) + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" aria-label="' + f + '" style="width:64px">';
   row.firstChild.innerHTML = '<div class="det-box">' +
