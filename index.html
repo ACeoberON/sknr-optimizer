@@ -100,6 +100,8 @@ details p{margin:8px 0 0}
 .set-head #sContent{flex:1 1 220px;font-weight:600}
 .set-tbl td{padding:6px 6px}
 .set-tbl .mob{display:none}
+.beta{display:inline-block;vertical-align:4px;font-size:11px;font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--flat);color:var(--flat)}
 @media (max-width:600px){
   p.sub{display:none}
   .wrap{padding:16px 12px 40px}
@@ -149,7 +151,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 
 <div class="wrap">
 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-<h1>세나 리버스 세팅 판정기</h1>
+<h1>세나 리버스 세팅 판정기 <span class="beta" title="계산 구조는 검증됐지만 일부 입력값이 아직 가정값입니다">테스트 버전</span></h1>
 <button type="button" id="themeBtn" style="flex:none" aria-label="화면 테마 전환">테마: 라이트</button>
 </div>
 <p class="sub">치확·치피·약확을 어디에 두는 게 이득인지만 판정합니다. 공격력·스킬 계수는 모든 후보에 똑같이 곱해지는 상수라 비교에서 상쇄되므로 입력받지 않습니다.</p>
@@ -176,6 +178,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
     </div>
   </div>
   <p class="note" id="sMeta" style="margin-top:8px"></p>
+  <p class="note" id="sCheck" style="margin-top:2px"></p>
   <div class="scroll" style="margin-top:6px">
     <table class="set-tbl">
       <thead><tr><th>캐릭터</th><th>주옵</th><th>세공</th><th>치확</th><th>치피</th><th>약확</th><th>치확 무방</th></tr></thead>
@@ -1963,9 +1966,7 @@ CONTENTS.forEach(c => {
     o.value = c.id; o.textContent = c.n; $(id).appendChild(o);
   });
 });
-SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.n; $('gContent').appendChild(o); });
 $('dContent').value = 'r2a'; $('aContent').value = 'r2a';
-$('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 
 const curContent = () => CONTENTS.find(c => c.id === $('dContent').value);
 function dCoef(c){ return c.sc === 'siege' ? +$('dCarry').value : 1.0; }
@@ -1990,6 +1991,12 @@ const SHARE_SRC = {
   wed : '실측 5판 · 2026-10-08 · 평균 12,063,209 / 최고 12,578,267',
   y1  : '구조상 단독 딜'
 };
+/* 검증 완료(✓) = 편성 전원의 딜 지분을 5판 이상 실측한 콘텐츠 */
+const verified = opt => opt.parts.length > 0 &&
+  opt.parts.every(id => { const m = /^실측 (\d+)판/.exec(SHARE_SRC[id] || ''); return m && +m[1] >= 5; });
+const optLabel = opt => (verified(opt) ? '✓ ' : '　 ') + opt.n;
+SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('gContent').appendChild(o); });
+$('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 function guessShare(c){
   if (SHARE[c.id]) return SHARE[c.id].slice();
   const w = c.lu.map(([, up, dn]) => up + dn * 0.2);
@@ -2693,7 +2700,7 @@ function gRender(){
 $('gSel').addEventListener('change', gRender);
 
 /* ══════════ 세팅 탭 — 한 화면 요약 ══════════ */
-SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.n; $('sContent').appendChild(o); });
+SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('sContent').appendChild(o); });
 // 공성전은 09시(KST) 리셋 = UTC 자정 → UTC 요일이 곧 오늘의 공성전
 $('sContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 
@@ -2813,6 +2820,7 @@ function setRun(){
   if (!parts.length){
     $('sRows').innerHTML = '<tr><td colspan="7" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다 — 편성·시전 횟수·속공·스킬 순서를 주시면 채웁니다.</td></tr>';
     $('sMeta').textContent = '공략 미입력';
+    $('sCheck').textContent = '';
     $('sOps').innerHTML = '';
     $('sFoot').textContent = '';
     return;
@@ -2826,6 +2834,9 @@ function setRun(){
 
   const c0 = parts[0];
   const share = parts.every(c => /^실측/.test(SHARE_SRC[c.id] || '')) ? '실측 지분' : '지분 추정';
+  $('sCheck').innerHTML = verified(opt)
+    ? '<strong class="win">✓ 검증 완료</strong> — 딜 지분 실측(' + parts.map(c => SHARE_SRC[c.id]).join(' / ') + ')'
+    : '<strong class="flat">미검증</strong> — 딜 지분이 추정치라 목표가 바뀔 수 있습니다. 판 끝나고 전투 통계 캡처를 주시면 실측으로 바꿉니다.';
   const kind = c0.sc === 'siege' ? '공성전 · ' + (c0.tg === 3 ? '3인기' : '1인기')
              : multi ? '강림 · 1인기 · 1R 문턱 → 2R 상위 3/9' : '강림 · 1인기';
   $('sMeta').innerHTML = kind + ' · ' + share +
