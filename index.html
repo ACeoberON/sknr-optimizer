@@ -227,7 +227,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
     <tbody id="gAdvice"><tr><td colspan="4" class="muted">스펙을 넣으면 계산됩니다.</td></tr></tbody>
   </table>
   </div>
-  <p class="note" style="margin-top:6px">지금 가진 유효 단위 안에서 부옵·강화 줄만 옮겼을 때의 이득입니다(1줄 = 치확 4 · 치피 6 · 약확 5). 팀 점수 +0.1%p 미만은 생략하고, 큰 순서로 3개까지 보여 줍니다. 여기 아무것도 없는데 이상 대비가 낮다면 남은 여지는 장비(유효 단위)입니다.</p>
+  <p class="note" style="margin-top:6px">지금 가진 유효 단위 안에서 부옵·강화 줄만 옮겼을 때의 이득입니다(1줄 = 치확 4 · 치피 6 · 약확 5). 팀 점수 +0.1%p 이상을 큰 순서로 3개까지 보여 주고, 나머지는 접어 둡니다(이 콘텐츠에선 비중이 작아도 다른 요일엔 클 수 있음). 여기 아무것도 없는데 이상 대비가 낮다면 남은 여지는 장비(유효 단위)입니다.</p>
 </section>
 
 <details class="card">
@@ -1846,6 +1846,7 @@ function bestWithUnits(c, u, k, um){
 }
 
 const IMP_MINOR = 0.001;   // 팀 영향 0.1%p 미만 = 무시 가능
+let advOpen = false;      // 줄 옮기기 '나머지 보기' 펼침 상태 (세션 동안 유지)
 const MISS_OK = 0.05;      // 미입력 지분 합이 5% 이하면 팀 점수 확정으로 봄
 /* 줄 옮기기: 유효 단위는 그대로 두고 치확↔치피, 약확↔치피 줄만 교환해 본다.
    한 스탯이 4줄(최소 부옵) 아래로 내려가면 안 되지만, 이미 그 아래면 현재 줄 수까지는 허용 */
@@ -1914,22 +1915,38 @@ function mineEval(){
     if (!un.neg){
       const m = bestMove(u, c, k, my, un);
       const gain = u.s / nP * (m.sc - m.base) / u.pick.j;
-      if (m.t || m.w){
-        const mv = [];
-        if (m.t > 0) mv.push('치확 ' + m.t + '줄 → 치피');
-        if (m.t < 0) mv.push('치피 ' + (-m.t) + '줄 → 치확');
-        if (m.w > 0) mv.push('약확 ' + m.w + '줄 → 치피');
-        if (m.w < 0) mv.push('치피 ' + (-m.w) + '줄 → 약확');
+      {
+        // 순변화로 표기: 줄이 빠지는 스탯 → 늘어나는 스탯
+        const dl = [['치확', -m.t], ['치피', m.t + m.w], ['약확', -m.w]];
+        const from = dl.filter(x => x[1] < 0), to = dl.filter(x => x[1] > 0);
+        const mv = from.length ? [from.map(x => x[0] + ' ' + (-x[1]) + '줄').join(' · ') + ' → ' +
+          (to.length > 1 ? to.map(x => x[0] + ' ' + x[1]).join(' · ') : to.map(x => x[0]).join(''))] : [];
         adv.push({ n: (goalLast.length > 1 ? (ROUND_LABEL[c.id] || c.n).split(' ')[0] + ' ' : '') + u.name,
-                   mv: mv.join(', '), to: m.vc + ' / ' + m.vd + ' / ' + m.vq, gain });
+                   mv: mv.join(', '), to: mv.length ? m.vc + ' / ' + m.vd + ' / ' + m.vq : '', gain: mv.length ? gain : 0 });
       }
     }
   }));
   const ab = $('gAdvice');
-  const shown = adv.filter(a => a.gain >= IMP_MINOR).sort((a, b) => b.gain - a.gain).slice(0, 3);
+  adv.sort((a, b) => b.gain - a.gain);
+  const top = adv.filter(a => a.gain >= IMP_MINOR).slice(0, 3), rest = adv.filter(a => !top.includes(a));
+  const advRow = (a, more) => {
+    const minor = a.gain < IMP_MINOR;
+    const cls = more ? ' class="adv-more"' + (advOpen ? '' : ' hidden') : '';
+    if (!a.mv) return '<tr' + cls + '><td>' + a.n + '</td><td class="muted">옮길 줄 없음</td><td></td><td class="num muted">최선</td></tr>';
+    return '<tr' + cls + (minor ? ' style="color:var(--ink-3)"' : '') + '><td>' + a.n + '</td><td>' + a.mv + '</td><td class="num">' + a.to + '</td>' +
+      '<td class="num ' + (minor ? 'muted' : 'win') + '">' + (minor ? '무시(+' + (a.gain * 100).toFixed(2) + '%p)' : '+' + (a.gain * 100).toFixed(1) + '%p') + '</td></tr>';
+  };
   ab.innerHTML = !filled ? '<tr><td colspan="4" class="muted">스펙을 넣으면 계산됩니다.</td></tr>'
-    : !shown.length ? '<tr><td colspan="4" class="muted">옮겨서 팀 점수가 0.1%p 이상 오르는 줄이 없습니다 — 배분은 끝났습니다.</td></tr>'
-    : shown.map(a => '<tr><td>' + a.n + '</td><td>' + a.mv + '</td><td class="num">' + a.to + '</td><td class="num win">+' + (a.gain * 100).toFixed(1) + '%p</td></tr>').join('');
+    : (top.length ? top.map(a => advRow(a, false)).join('')
+       : '<tr><td colspan="4" class="muted">옮겨서 팀 점수가 0.1%p 이상 오르는 줄이 없습니다 — 배분은 끝났습니다.</td></tr>') +
+      (rest.length ? '<tr><td colspan="4"><button type="button" id="advToggle" style="padding:4px 10px;font-size:12px">' +
+        (advOpen ? '접기' : '나머지 ' + rest.length + '명 보기') + '</button></td></tr>' + rest.map(a => advRow(a, true)).join('') : '');
+  const tg = $('advToggle');
+  if (tg) tg.addEventListener('click', () => {
+    advOpen = !advOpen;
+    ab.querySelectorAll('.adv-more').forEach(r => r.hidden = !advOpen);
+    tg.textContent = advOpen ? '접기' : '나머지 ' + rest.length + '명 보기';
+  });
   if (!filled){
     $('gMineHead').className = 'big'; $('gMineHead').textContent = '—';
     $('gMineNote').textContent = '캐릭터별로 치확·치피·약확 세 칸을 모두 넣으면 계산됩니다.';
