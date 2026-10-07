@@ -1,4 +1,7 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}  .mine-tbl th,.mine-tbl td{white-space:nowrap}
+  .mine-tbl input{width:58px}
+  .mine-tbl select{min-width:0!important}
+</style></head><body>
 <title>세나 리버스 세팅 판정기</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -214,8 +217,8 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <p class="note">지금 장비의 <strong>마을</strong> 치확·치피·약확과 <strong>무기 주옵</strong>을 넣으면, 이상 목표 대비 몇 %인지와 그 원인을 나눠 보여 줍니다. 세공은 넣은 스탯에 가장 유리한 것으로 가정합니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.</p>
   <p class="note" style="margin-top:6px"><strong>유효 단위</strong> = 치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수(종결 32). 32보다 작으면 그만큼 공% 같은 다른 옵션에 샜거나 유효 옵션이 없는 장비입니다. <strong>장비</strong> = 그 단위 수로 낼 수 있는 최고점 / 이상, <strong>배분</strong> = 내 점수 / 그 단위 수의 최고점 — 장비가 낮으면 교체·강화 초기화, 배분이 낮으면 줄 재분배로 해결합니다.</p>
   <div class="scroll" style="margin-top:10px">
-  <table>
-    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th>유효 단위</th><th>장비 · 배분</th><th>이상 대비</th><th title="이 캐릭터 때문에 팀 점수가 깎인 양 = 딜 지분 × (100% − 이상 대비)">팀 영향</th></tr></thead>
+  <table class="mine-tbl">
+    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="종결 32">유효 단위 /32</th><th>장비 · 배분</th><th>이상 대비</th><th title="이 캐릭터 때문에 팀 점수가 깎인 양 = 딜 지분 × (100% − 이상 대비)">팀 영향</th></tr></thead>
     <tbody id="gMine"></tbody>
   </table>
   </div>
@@ -1926,7 +1929,7 @@ function mineEval(){
     }
     if (icell){
       const minor = imp < IMP_MINOR;
-      icell.textContent = minor ? '무시 가능' : '−' + (imp * 100).toFixed(1) + '%p';
+      icell.textContent = minor ? '무시' : '−' + (imp * 100).toFixed(1) + '%p';
       icell.className = 'num ' + (minor ? 'muted' : imp >= 0.01 ? 'lose' : 'flat');
       icell.title = '딜 지분 ' + (u.s * 100).toFixed(1) + '% × 부족분 ' + ((1 - r) * 100).toFixed(1) + '% = ' + (imp * 100).toFixed(2) + '%p';
     }
@@ -1936,9 +1939,10 @@ function mineEval(){
     const odd = Math.abs(un.u - Math.round(un.u)) > 0.15;
     if (ucell){
       ucell.innerHTML = un.neg ? '<span class="lose" title="주옵 선택이 맞는지 확인">주옵?</span>'
-        : uRound.toFixed(1) + ' / 32' + (odd ? ' <span class="muted" title="줄값으로 나눠떨어지지 않음 — 오타, 숨은 수급원, 기본값 미확인 가능">?</span>' : '');
+        : uRound.toFixed(1) + (odd ? ' <span class="muted" title="줄값으로 나눠떨어지지 않음 — 오타, 숨은 수급원, 기본값 미확인 가능">?</span>' : '');
       ucell.className = 'num ' + (un.neg ? '' : un.u >= 31.5 ? 'win' : un.u >= 28 ? 'flat' : 'lose');
     }
+    if (un.neg && ecell){ ecell.textContent = '—'; ecell.className = 'num muted'; }
     if (!un.neg && ecell){
       const um = Math.min(UNIT_MAX, Math.floor(un.u + 0.15));
       const b32 = bestWithUnits(c, u, k, UNIT_MAX), bU = bestWithUnits(c, u, k, um);
