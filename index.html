@@ -316,60 +316,30 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 
 <section class="card">
   <h2>조건</h2>
-  <div class="grid3">
-    <div>
-      <label for="content">채점 방식</label>
-      <select id="content">
-        <option value="siege">공성 월~토 · 3인기 · 베스트1</option>
-        <option value="sunday">공성 일요일 · 1인기 · 베스트1</option>
-        <option value="raid2" selected>강림 · 1인기 · 상위 3/9</option>
-      </select>
-    </div>
-    <div>
-      <label for="carry">점수 이월 (공성전)</label>
-      <select id="carry">
-        <option value="1.163">1주 (5판)</option>
-        <option value="1.539">2주 누적</option>
-        <option value="1.965">5주 누적</option>
-      </select>
-    </div>
-    <div>
-      <label for="wm">약공 배율</label>
-      <select id="wm">
-        <option value="1.3" selected>1.30 · 추가 피해 없음</option>
-        <option value="1.6">1.60 · 추가 피해 보통</option>
-        <option value="3.36">3.36 · 추가 피해 큼 (라이언)</option>
-      </select>
-    </div>
+  <div class="grid2">
+    <div><label for="cContent">콘텐츠</label><select id="cContent"></select></div>
+    <div><label for="cChar">캐릭터</label><select id="cChar"></select></div>
   </div>
-  <div class="grid3" style="margin-top:10px">
-    <div><label for="casts">윗스킬 시전</label><input id="casts" type="number" value="5" min="0" max="40"></div>
-    <div><label for="casts2">아랫스킬 시전</label><input id="casts2" type="number" value="0" min="0" max="40"></div>
-    <div><label for="plains">평타 횟수</label><input id="plains" type="number" value="8.5" step="0.5" min="0" max="60"></div>
-  </div>
-  <div class="grid2" style="margin-top:10px">
-    <div><label for="r2">아랫 ÷ 윗 한 방</label><input id="r2" type="number" value="0.2" step="0.01" min="0.01" max="3"></div>
-    <div><label for="r1">평타 ÷ 윗 한 방</label><input id="r1" type="number" value="0.22" step="0.01" min="0.01" max="3"></div>
-  </div>
-  <p class="note" style="margin-top:10px">기본값은 세인 강림 2라운드 실측(윗 5회, 평타 8.5회, 평타가 윗의 0.22배)입니다. 라이언은 0.08, 타카는 0.18 근처입니다.</p>
+  <p class="note" id="cMeta" style="margin-top:10px"></p>
 </section>
 
 <section class="card">
-  <h2>후보 세팅 · 전투 기준</h2>
+  <h2>후보 세팅 · 마을 스탯</h2>
   <div class="scroll">
-    <table>
+    <table class="mine-tbl">
       <thead><tr>
-        <th style="width:36px">순위</th><th>이름</th><th>치확</th><th>치피</th><th>약확</th>
-        <th>평균</th><th>흔들림</th><th>고점</th><th style="width:28px"></th>
+        <th style="width:36px">순위</th><th>후보</th><th>치확</th><th>치피</th><th>약확</th><th>세공</th>
+        <th>이상 대비</th><th title="평균 대비 표준편차 — 공성전은 이게 커야 베스트 점수가 높게 튐">흔들림</th><th title="첫 행(기준) 대비 팀 점수 차이 = 딜 지분 반영">팀 점수</th><th style="width:28px"></th>
       </tr></thead>
-      <tbody id="rows"></tbody>
+      <tbody id="cRowsCmp"></tbody>
     </table>
   </div>
   <div class="row-actions">
-    <button type="button" id="add">후보 추가</button>
-    <button type="button" id="reset">기본값으로</button>
+    <button type="button" id="cAdd">후보 추가</button>
+    <button type="button" id="cWipe">내가 넣은 후보 지우기</button>
+    <span class="note" id="cMsg"></span>
   </div>
-  <p class="note" style="margin-top:10px">실제로 만들 수 있는 조합만 적어 넣으십시오. 평균·고점은 첫 행 대비 비율입니다.</p>
+  <p class="note" style="margin-top:10px"><strong>자동</strong> 행은 목표 탭과 같은 데이터로 매번 다시 만들어집니다 — 현재(내 스펙 평가 입력값)와 그 세공 바꿔 끼우기, 줄 옮기기 결과, 고점·안전 세팅. 직접 넣은 후보는 콘텐츠·캐릭터별로 이 브라우저에 저장됩니다. 세공 "자동"은 그 스탯에 가장 유리한 세공을 고릅니다. 첫 행이 기준이고, 팀 점수는 그 대비 차이입니다.</p>
 </section>
 
 <section class="verdict">
@@ -381,22 +351,22 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <h2>한계 가치 · 1위 후보 기준</h2>
   <div class="scroll">
   <table>
-    <thead><tr><th>부옵 1줄 추가</th><th>고점 상승</th><th>판정</th></tr></thead>
+    <thead><tr><th>부옵 1줄 추가</th><th>이상 대비</th><th>팀 점수</th><th>판정</th></tr></thead>
     <tbody>
-      <tr><td>치확 +4</td><td class="num" id="mgC">—</td><td id="mgCt"></td></tr>
-      <tr><td>치피 +6</td><td class="num" id="mgD">—</td><td id="mgDt"></td></tr>
-      <tr><td>약확 +5</td><td class="num" id="mgW">—</td><td id="mgWt"></td></tr>
+      <tr><td>치확 +4</td><td class="num" id="mgC">—</td><td class="num" id="mgCs">—</td><td id="mgCt"></td></tr>
+      <tr><td>치피 +6</td><td class="num" id="mgD">—</td><td class="num" id="mgDs">—</td><td id="mgDt"></td></tr>
+      <tr><td>약확 +5</td><td class="num" id="mgW">—</td><td class="num" id="mgWs">—</td><td id="mgWt"></td></tr>
     </tbody>
   </table>
   </div>
-  <p class="note" style="margin-top:10px">다음에 올려야 할 스탯입니다. 줄을 옮길 때는 뺀 줄 수와 더한 줄 수가 같아야 공정한 비교입니다.</p>
+  <p class="note" style="margin-top:10px">다음 강화·부옵 1줄을 어디에 붙이면 가장 오르는지입니다. 세공은 1위 후보의 것으로 고정합니다.</p>
 </section>
 
 <details>
   <summary>계산 근거</summary>
   <p>히트마다 치명과 약공을 독립 판정합니다. 치명 시 피해 ×(치피÷100), 약공 시 ×약공 배율이고 두 판정은 곱해집니다. 상태이상(화상·출혈·중독)은 통제 불가 변수라 제외했습니다.</p>
-  <p>고점 = 평균 + 계수 × 표준편차. 약공 전역 배율 1.30은 파스칼 단독 측정으로 확인했습니다 — 치명만 123,494 vs 치명+약공 160,543 = 1.30001.</p>
-  <p>약확이 99처럼 상한에 붙으면 결과가 거의 확정적이 되어 흔들림이 0.8%까지 줄어듭니다. 약확을 낮추면 평균은 떨어지지만 흔들림이 5배로 커져 베스트제에서는 역전될 수 있으니, 평균만 보고 판단하면 안 됩니다.</p>
+  <p>점수 = 평균 + 계수 × 표준편차. 계수는 공성전 1.539(2주 누적 베스트), 강림 1.0(상위 3/9), 강림 1라운드 0(100만 문턱 = 평균만). 약공 전역 배율 1.30은 파스칼 단독 측정으로 확인했습니다 — 치명만 123,494 vs 치명+약공 160,543 = 1.30001.</p>
+  <p>약확이 100에 붙으면 결과가 거의 확정적이 되어 흔들림이 줄어듭니다. 약확을 낮추면 평균은 떨어지지만 흔들림이 커져 베스트제에서는 역전될 수 있으니, 평균만 보고 판단하면 안 됩니다.</p>
 </details>
 
 </div>
@@ -1733,15 +1703,35 @@ try { mine = JSON.parse(localStorage.getItem(MKEY_MINE) || '{}') || {}; } catch 
 const mPersist = () => { try { localStorage.setItem(MKEY_MINE, JSON.stringify(mine)); } catch {} };
 
 /* 내 스탯(마을) → 그 캐릭터 점수. 세공은 셋 중 가장 유리한 것으로 가정 */
-function scoreMine(u, c, k, vc, vd, vq){
-  let best = -Infinity;
-  for (const cv of Object.keys(CARVES)){
+
+/* 팀 기준 채점 — 한 캐릭터만 바꾸고 나머지는 이상 세팅에 둔 채 팀 점수(지분 가중 평균 + k·팀 표준편차)를 잰다.
+   캐릭터 단독 점수(μ + kσ)로 재면 지분이 작은 캐릭터의 흔들림을 과대평가한다:
+   팀 흔들림에서 그 몫은 지분² 로 줄어들기 때문 (수요일 미호 12% → 단독으론 고점형이 이득처럼 보이지만 팀으론 손해).
+   r = 그 캐릭터 기준으로 환산한 이상 대비 = 1 + (팀 비율 − 1) / 지분 */
+function teamCtx(c, U, k){
+  const live = U.filter(u => !u.skip && u.pick);
+  const ms = (u, vc, vd, vq, cv) => {
     const [cp, cq, mult] = CARVES[cv];
     const p = Math.min(vc + u.cc.pf + cp, 100), q = Math.min(vq + u.cc.qb + cq, 100);
     const r = c.missZero ? calcMiss(p, vd, q, k, u.cc.H) : calc(p, vd, q, k, u.cc.wm, u.cc.H);
-    best = Math.max(best, r.j * mult);
+    return [mult * r.mu / u.ref, mult * r.sd / u.ref, r.mu ? r.sd / r.mu : 0];
+  };
+  const base = new Map(live.map(u => [u, ms(u, u.pick.vc, u.pick.vd, u.pick.vq, u.pick.cv)]));
+  const J = over => { let m = 0, v = 0;
+    live.forEach(u => { const x = (over && over.get(u)) || base.get(u); m += u.s * x[0]; v += Math.pow(u.s * x[1], 2); });
+    return m + k * Math.sqrt(v); };
+  const J0 = J();
+  function evalOne(u, vc, vd, vq, cv){
+    let best = null;
+    for (const v of (!cv || cv === 'auto' ? Object.keys(CARVES) : [cv])){
+      const x = ms(u, vc, vd, vq, v);
+      const T = J(new Map([[u, x]])) / J0;
+      if (!best || T > best.T) best = { T, cv: v, rs: x[2], x };
+    }
+    best.r = 1 + (best.T - 1) / u.s;
+    return best;
   }
-  return best;
+  return { J, J0, evalOne, live };
 }
 
 let goalLast = [];
@@ -1760,7 +1750,7 @@ function goalRun(){
   goalLast = [];
   parts.forEach(c => {
     const { U, k } = solveContent(c, GOAL_CARRY, GOAL_MAXENH);
-    goalLast.push({ c, U, k });
+    goalLast.push({ c, U, k, T: teamCtx(c, U, k) });
     if (multi){
       rows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
       mrows += '<tr class="round"><td colspan="10">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
@@ -1843,12 +1833,13 @@ function unitsOf(cc, main, vc, vd, vq){
   return { uc, ud, uw, u: uc + ud + uw, neg: uc < 0 || ud < 0 || uw < -0.01 };
 }
 const bestCache = {};
-function bestWithUnits(c, u, k, um){
+function bestWithUnits(c, u, k, um, T){
   const key = c.id + '|' + u.name + '|' + um;
   if (bestCache[key] === undefined){
     const opt = { forceQ: !!c.forceQ, missZero: !!c.missZero, maxEnh: 20, umax: Math.max(um, UNIT_MIN * 3) };
-    const r = solveOne(u.cc, k, opt);
-    bestCache[key] = r.length ? r[0].j : 0;
+    let best = -Infinity;
+    for (const a of solveOne(u.cc, k, opt)) best = Math.max(best, T.evalOne(u, a.vc, a.vd, a.vq, a.cv).r);
+    bestCache[key] = isFinite(best) ? best : 0;
   }
   return bestCache[key];
 }
@@ -1858,8 +1849,8 @@ let advOpen = false;      // 줄 옮기기 '나머지 보기' 펼침 상태 (세
 const MISS_OK = 0.05;      // 미입력 지분 합이 5% 이하면 팀 점수 확정으로 봄
 /* 줄 옮기기: 유효 단위는 그대로 두고 치확↔치피, 약확↔치피 줄만 교환해 본다.
    한 스탯이 4줄(최소 부옵) 아래로 내려가면 안 되지만, 이미 그 아래면 현재 줄 수까지는 허용 */
-function bestMove(u, c, k, my, un){
-  const base = scoreMine(u, c, k, my[0], my[1], my[2]);
+function bestMove(u, T, my, un){
+  const base = T.evalOne(u, my[0], my[1], my[2]).T;
   const fl = x => Math.min(x, UNIT_MIN) - 1e-6;
   let best = { sc: base, t: 0, w: 0, vc: my[0], vd: my[1], vq: my[2] };
   for (let t = -8; t <= 8; t++) for (let w = -8; w <= 8; w++){
@@ -1867,8 +1858,8 @@ function bestMove(u, c, k, my, un){
     if (un.uc - t < fl(un.uc) || un.uw - w < fl(un.uw) || un.ud + t + w < fl(un.ud)) continue;
     const vc = my[0] - LINE.c * t, vq = my[2] - LINE.w * w, vd = my[1] + LINE.d * (t + w);
     if (vc > 100 + LINE.c || vq > 100 + LINE.w) continue;    // 상한 넘어 버리는 줄은 의미 없음
-    const sc = scoreMine(u, c, k, vc, vd, vq);
-    if (sc > best.sc * (1 + 1e-9) && (sc - best.sc) / base > 1e-5) best = { sc, t, w, vc, vd, vq };
+    const sc = T.evalOne(u, vc, vd, vq).T;
+    if (sc > best.sc + 1e-6) best = { sc, t, w, vc, vd, vq };
   }
   best.base = base;
   return best;
@@ -1876,7 +1867,8 @@ function bestMove(u, c, k, my, un){
 function mineEval(){
   let num = 0, den = 0, all = 0, filled = 0, total = 0, eqN = 0, alN = 0, lost = [], missing = [], adv = [];
   const nP = goalLast.length || 1;
-  goalLast.forEach(({ c, U, k }) => U.forEach(u => {
+  const overs = goalLast.map(() => new Map());
+  goalLast.forEach(({ c, U, k, T }, pi) => U.forEach(u => {
     if (u.skip || !u.pick) return;
     total++; all += u.s;
     const key = c.id + '|' + u.name;
@@ -1888,9 +1880,10 @@ function mineEval(){
       missing.push({ n: u.name, s: u.s / nP });
       return;
     }
-    const r = scoreMine(u, c, k, my[0], my[1], my[2]) / u.pick.j;
-    filled++; num += u.s * r; den += u.s;
-    const imp = u.s / nP * Math.max(0, 1 - r);          // 팀 점수에서 깎인 양
+    const ev = T.evalOne(u, my[0], my[1], my[2]), r = ev.r;
+    overs[pi].set(u, ev.x);
+    filled++; den += u.s;
+    const imp = Math.max(0, 1 - ev.T) / nP;              // 이 캐릭터만 이상에서 지금으로 바꿨을 때 팀 점수 손실
     if (cell){
       cell.textContent = (r * 100).toFixed(1) + '%';
       cell.className = 'num ' + (r >= 0.97 ? 'win' : r >= 0.9 ? 'flat' : 'lose');
@@ -1899,7 +1892,7 @@ function mineEval(){
       const minor = imp < IMP_MINOR;
       icell.textContent = minor ? '무시' : '−' + (imp * 100).toFixed(1) + '%p';
       icell.className = 'num ' + (minor ? 'muted' : imp >= 0.01 ? 'lose' : 'flat');
-      icell.title = '딜 지분 ' + (u.s * 100).toFixed(1) + '% × 부족분 ' + ((1 - r) * 100).toFixed(1) + '% = ' + (imp * 100).toFixed(2) + '%p';
+      icell.title = '나머지는 이상 세팅으로 두고 이 캐릭터만 지금 스펙일 때 팀 점수 손실 ' + (imp * 100).toFixed(2) + '%p (딜 지분 ' + (u.s * 100).toFixed(1) + '%)';
     }
     // 유효 단위 · 장비/배분 분해
     const un = unitsOf(u.cc, my[3] || u.pick.main, my[0], my[1], my[2]);
@@ -1913,16 +1906,15 @@ function mineEval(){
     if (un.neg && ecell){ ecell.textContent = '—'; ecell.className = 'num muted'; }
     if (!un.neg && ecell){
       const um = Math.min(UNIT_MAX, Math.floor(un.u + 0.15));
-      const b32 = bestWithUnits(c, u, k, UNIT_MAX), bU = bestWithUnits(c, u, k, um);
-      const mineJ = r * u.pick.j;
-      const eq = bU / b32, al = Math.min(mineJ / bU, 1.05);
+      const b32 = bestWithUnits(c, u, k, UNIT_MAX, T), bU = bestWithUnits(c, u, k, um, T);
+      const eq = Math.min(bU / b32, 1), al = Math.min(r / bU, 1.05);
       ecell.textContent = (eq * 100).toFixed(0) + '% · ' + (al * 100).toFixed(0) + '%';
       eqN += u.s * eq; alN += u.s * al;
       if (UNIT_MAX - un.u >= 1) lost.push({ n: u.name, d: Math.round(UNIT_MAX - un.u), imp });
     }
     if (!un.neg){
-      const m = bestMove(u, c, k, my, un);
-      const gain = u.s / nP * (m.sc - m.base) / u.pick.j;
+      const m = bestMove(u, T, my, un);
+      const gain = (m.sc - m.base) / nP;
       {
         // 순변화로 표기: 줄이 빠지는 스탯 → 늘어나는 스탯
         const dl = [['치확', -m.t], ['치피', m.t + m.w], ['약확', -m.w]];
@@ -1960,10 +1952,11 @@ function mineEval(){
     $('gMineNote').textContent = '캐릭터별로 치확·치피·약확 세 칸을 모두 넣으면 계산됩니다.';
     return;
   }
-  const t = num / den, missS = missing.reduce((a, m) => a + m.s, 0);
+  // 팀 합계 = 입력한 캐릭터를 전부 지금 스펙으로 바꾼 팀 점수 / 이상 팀 점수 (라운드가 여럿이면 평균). 미입력은 이상으로 가정
+  const t = goalLast.reduce((a, { T }, pi) => a + T.J(overs[pi]) / T.J0, 0) / nP, missS = missing.reduce((a, m) => a + m.s, 0);
   const firm = missS <= MISS_OK;
   $('gMineHead').className = 'big ' + (!firm ? 'muted' : t >= 0.97 ? 'win' : t >= 0.9 ? 'flat' : 'lose');
-  $('gMineHead').textContent = (firm ? '이상 대비 ' : '미확정 · 입력분만 ') + (t * 100).toFixed(1) + '%';
+  $('gMineHead').textContent = (firm ? '이상 대비 ' : '미확정 · ') + (t * 100).toFixed(1) + '%';
   const eqT = eqN / den, alT = alN / den;
   lost.sort((a, b) => b.imp - a.imp);
   const lostTxt = lost.map(l => l.imp < IMP_MINOR
@@ -1972,7 +1965,7 @@ function mineEval(){
   const big = lost.some(l => l.imp >= IMP_MINOR);
   $('gMineNote').innerHTML =
     (!firm ? '<strong class="lose">미입력: ' + missing.sort((a, b) => b.s - a.s).map(m => m.n + '(' + Math.round(m.s * 100) + '%)').join(', ') +
-      '</strong> — 지분이 큰 캐릭터가 빠져 팀 점수가 확정되지 않았습니다. ' : '') +
+      '</strong> — 지분이 큰 캐릭터가 빠져 있어, 그 캐릭터는 이상 세팅이라고 가정한 값입니다. ' : '') +
     '장비 ' + (eqT * 100).toFixed(1) + '% · 배분 ' + (alT * 100).toFixed(1) + '% (딜 지분 가중, 입력 ' + filled + '/' + total + '명). ' +
     (lost.length ? '유효 단위 손실: ' + lostTxt + (big ? ' — 공% 등 다른 옵션에 샌 강화이거나 유효 옵션이 없는 장비입니다. ' : ' — 팀 점수엔 거의 영향 없습니다. ') : '유효 단위 손실 없음. ') +
     (eqT < alT ? '장비 쪽 여지가 더 큽니다(교체·강화 초기화).' : '배분 쪽 여지가 더 큽니다(줄 재분배).') +
@@ -2087,7 +2080,7 @@ const sMsg = t => { $('stateMsg').textContent = t; setTimeout(() => $('stateMsg'
 $('stateOut').addEventListener('click', () => {
   $('stateText').value = JSON.stringify(
     { v: 2, at: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      gear, trans, mine });
+      gear, trans, mine, cmp: cmpStore });
   sMsg('내보냈습니다. 복사해서 다른 기기에 붙여넣으세요.');
 });
 $('stateCopy').addEventListener('click', async () => {
@@ -2103,10 +2096,11 @@ $('stateIn').addEventListener('click', () => {
   if (Array.isArray(o.gear)) gear = o.gear;
   if (o.trans && typeof o.trans === 'object') { trans = o.trans; tPersist(); }
   if (o.mine && typeof o.mine === 'object') { mine = o.mine; mPersist(); }
+  if (o.cmp && typeof o.cmp === 'object') { cmpStore = o.cmp; cmpPersist(); }
   try {
     localStorage.setItem(GKEY, JSON.stringify(gear));
   } catch {}
-  gRowsInit(); gRender(); goalRun(); cRowsInit();
+  gRowsInit(); gRender(); goalRun(); cRowsInit(); cmpSync();
   sMsg('가져왔습니다' + (o.at ? ' (' + o.at + ' 저장본)' : '') + '.');
 });
 
@@ -2169,7 +2163,7 @@ function cRowsInit(){
     delete trans[b.dataset.tr]; tPersist(); trChanged();
   }));
 }
-function trChanged(){ cRowsInit(); goalRun(); if (typeof setRun === 'function') setRun(); }
+function trChanged(){ cRowsInit(); goalRun(); cmpSolved = null; if (typeof setRun === 'function') setRun(); }
 $('trAdd').addEventListener('click', () => {
   trans[$('trName').value] = +$('trLv').value; tPersist(); trChanged();
 });
@@ -2431,107 +2425,190 @@ $('aApply').addEventListener('click', () => {
   setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
 });
 
-/* ══════════ 비교 탭 ══════════ */
-const DEFAULTS = [
-  ['현재', 100, 306, 99],
-  ['약확 강화 → 치피', 100, 336, 74],
-  ['치확도 낮춤', 89, 352, 74]
-];
-let cand = DEFAULTS.map(r => r.slice());
+/* ══════════ 비교 탭 — 만들 수 있는 세팅끼리 줄 세우기 ══════════
+   조건(배율·시전·버프·지분·채점 계수)은 전부 콘텐츠 데이터에서 자동으로 가져온다.
+   자동 후보: 현재(목표 탭 입력) · 현재+세공 3종 · 줄 옮기기 · 고점 · 고점(공성 세공 없이) · 안전.
+   직접 넣은 후보만 localStorage(sknr-cmp)에 콘텐츠·캐릭터별로 저장한다. */
+const CMPKEY = 'sknr-cmp';
+let cmpStore = {};
+try { cmpStore = JSON.parse(localStorage.getItem(CMPKEY) || '{}') || {}; } catch { cmpStore = {}; }
+const cmpPersist = () => { try { localStorage.setItem(CMPKEY, JSON.stringify(cmpStore)); } catch {} };
+const CV_OPTS = [['auto','자동'], ['crit','치확+10'], ['weak','약확+12'], ['siege','공성×1.04']];
 
-function hits(){
-  const up = +$('casts').value || 0, dn = +$('casts2').value || 0;
-  const plains = +$('plains').value || 0;
-  const r2 = +$('r2').value || 0.2, r1 = +$('r1').value || 0.22;
-  const tg = $('content').value === 'siege' ? 3 : 1;
-  return [[1, up * tg], [r2, dn * tg], [r1, plains]];
-}
-const coef = () => $('content').value === 'raid2' ? 1.0 : +$('carry').value;
-
-function draw(){
-  const tb = $('rows'); tb.innerHTML = '';
-  cand.forEach((c, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td><span class="rank">–</span></td>' +
-      '<td><input class="name" data-i="' + i + '" data-f="0" value="' + String(c[0]).replace(/"/g, '&quot;') + '"></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="1" value="' + c[1] + '" min="0" max="100"></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="2" value="' + c[2] + '" min="100" max="700"></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="3" value="' + c[3] + '" min="0" max="100"></td>' +
-      '<td class="num" data-out="mu"></td><td class="num" data-out="sd"></td><td class="num" data-out="j"></td>' +
-      '<td><button type="button" class="ghost" data-del="' + i + '" aria-label="후보 삭제">×</button></td>';
-    tb.appendChild(tr);
+let cmpSolved = null;   // { optId, parts: [{ c, U, k, safeU }] }
+function cmpSolve(){
+  const id = $('cContent').value;
+  if (cmpSolved && cmpSolved.optId === id) return cmpSolved;
+  const opt = SET_OPTS.find(x => x.id === id);
+  const parts = opt.parts.map(pid => CONTENTS.find(c => c.id === pid)).map(c => {
+    const { U, k } = solveContent(c, GOAL_CARRY, GOAL_MAXENH);
+    const safeU = solveContent(c, GOAL_CARRY, GOAL_MAXENH, true).U;
+    return { c, U, k, safeU, T: teamCtx(c, U, k) };
   });
-  tb.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
-    const i = +e.target.dataset.i, f = +e.target.dataset.f;
-    cand[i][f] = f === 0 ? e.target.value : (+e.target.value || 0);
-    run();
-  }));
-  tb.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', e => {
-    if (cand.length <= 1) return;
-    cand.splice(+e.target.dataset.del, 1); draw(); run();
-  }));
+  return (cmpSolved = { optId: id, parts });
 }
 
-function run(){
-  const H = hits(), k = coef(), wm = +$('wm').value;
-  $('carry').disabled = $('content').value === 'raid2';
+function cmpCharsInit(){
+  const S = cmpSolve(), sel = $('cChar'), prev = sel.value;
+  const multi = S.parts.length > 1;
+  sel.innerHTML = '';
+  S.parts.forEach(({ c, U }) => U.forEach(u => {
+    if (u.skip || !u.pick) return;
+    const o = document.createElement('option');
+    o.value = c.id + '|' + u.name;
+    o.textContent = (multi ? (ROUND_LABEL[c.id] || c.n).split(' ')[0] + ' ' : '') + u.name + ' · 지분 ' + Math.round(u.s * 100) + '%';
+    sel.appendChild(o);
+  }));
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  if (!sel.options.length){
+    const o = document.createElement('option'); o.textContent = '공략 데이터 없음'; o.value = ''; sel.appendChild(o);
+  }
+}
 
-  const res = cand.map(c => calc(c[1], c[2], c[3], k, wm, H));
-  const ref = res[0];
-  const order = res.map((r, i) => [r.j, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+function cmpCurrent(){
+  const S = cmpSolve(), [cid, name] = ($('cChar').value || '').split('|');
+  const P = S.parts.find(p => p.c.id === cid);
+  if (!P) return null;
+  const u = P.U.find(x => x.name === name), su = P.safeU.find(x => x.name === name);
+  return { P, u, su, c: P.c, k: P.k, T: P.T, nP: S.parts.length, key: S.optId + '|' + cid + '|' + name };
+}
+
+function cmpRows(X){
+  const { u, su, c, k } = X, rows = [];
+  const add = (nm, vc, vd, vq, cv, note) => {
+    if (rows.some(r => r.vc === vc && r.vd === vd && r.vq === vq && r.cv === cv)) return;
+    rows.push({ nm, vc, vd, vq, cv, auto: true, note });
+  };
+  const my = (mine[c.id] || {})[u.name] || [];
+  const have = my[0] != null && my[1] != null && my[2] != null;
+  if (have){
+    add('현재', my[0], my[1], my[2], 'auto', '목표 탭 › 내 스펙 평가 입력값');
+    for (const cv of ['crit','weak','siege']) add('현재 · ' + CARVENAME[cv], my[0], my[1], my[2], cv, '세공만 바꿔 끼움');
+    const un = unitsOf(u.cc, my[3] || u.pick.main, my[0], my[1], my[2]);
+    if (!un.neg){
+      const m = bestMove(u, X.T, my, un);
+      if (m.t || m.w) add('줄 옮기기', m.vc, m.vd, m.vq, 'auto', '현재 유효 단위 그대로, 목표 탭 안내와 같음');
+    }
+  }
+  const b = u.pick;
+  add('고점 (이상)', b.vc, b.vd, b.vq, b.cv, '이론상 최고 · 주옵 ' + MLABEL[b.main[0]] + MLABEL[b.main[1]]);
+  if (b.cv === 'siege'){
+    const alt = u.cand.find(a => a.cv !== 'siege');
+    if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 세공 ×1.04는 미검증');
+  }
+  if (su && su.pick) add('안전', su.pick.vc, su.pick.vd, su.pick.vq, su.pick.cv, '세팅 탭 안전 모드 (치확 99 근처)');
+  (cmpStore[X.key] || []).forEach((r, i) => rows.push({ nm: r[0], vc: r[1], vd: r[2], vq: r[3], cv: r[4] || 'auto', auto: false, idx: i }));
+  return { rows, have };
+}
+
+function cmpRender(){
+  const X = cmpCurrent(), tb = $('cRowsCmp');
+  if (!X){
+    tb.innerHTML = '<tr><td colspan="10" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다.</td></tr>';
+    $('cMeta').textContent = ''; $('headline').textContent = '—'; $('detail').textContent = '';
+    ['mgC','mgD','mgW','mgCs','mgDs','mgWs'].forEach(id => $(id).textContent = '—');
+    ['mgCt','mgDt','mgWt'].forEach(id => $(id).textContent = '');
+    return;
+  }
+  const { u, c, k } = X;
+  const lu = c.lu.find(l => l[0] === u.name) || [];
+  $('cMeta').innerHTML =
+    '약공 배율 ×' + u.cc.wm.toFixed(2) + ' · 윗 ' + lu[1] + '회 / 아랫 ' + lu[2] + '회 / 평타 ' + c.pl + '회' + (c.tg === 3 ? ' (3인기 — 스킬 히트 ×3)' : '') +
+    ' · 패시브·버프 치확 +' + u.cc.pf + ' · 버프 약확 +' + u.cc.qb +
+    ' · 딜 지분 ' + (u.s * 100).toFixed(1) + '% · 채점 계수 ' + k.toFixed(3) +
+    (c.missZero ? ' · <strong class="lose">미스 = 딜 0</strong>' : '') + (c.forceQ ? ' · 약확 100 강제' : '') +
+    ' — 전부 콘텐츠 데이터에서 자동입니다.';
+  const { rows, have } = cmpRows(X);
+  const sc = rows.map(r => X.T.evalOne(u, r.vc, r.vd, r.vq, r.cv));
+  // 자동 행끼리 결과가 같으면(같은 스탯·같은 세공) 뒤쪽은 지운다 — 예: '현재' 자동 세공 = '현재 · 치확+10'
+  for (let i = rows.length - 1; i > 0; i--){
+    if (!rows[i].auto) continue;
+    const dup = rows.findIndex((r, j) => j < i && r.vc === rows[i].vc && r.vd === rows[i].vd && r.vq === rows[i].vq && sc[j].cv === sc[i].cv);
+    if (dup >= 0){ if (!rows[i].nm.startsWith('현재 ·')) rows[dup].nm += ' = ' + rows[i].nm; rows.splice(i, 1); sc.splice(i, 1); }
+  }
+  const rel = sc.map(s => s.r), w = u.s / X.nP;
+  const order = rel.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
   const bestI = order[0];
+  const inp = (i, f, v) => '<input type="number" data-ci="' + i + '" data-f="' + f + '" value="' + v + '" step="' + [0, LINE.c, LINE.d, LINE.w][f] + '">';
+  tb.innerHTML = rows.map((r, i) => {
+    const d = (sc[i].T - sc[0].T) / X.nP * 100;
+    const cvTxt = r.cv === 'auto' ? '자동 → ' + CARVENAME[sc[i].cv] : CARVENAME[r.cv];
+    const rk = '<td><span class="rank' + (i === bestI ? ' top' : '') + '">' + (order.indexOf(i) + 1) + '</span></td>';
+    const tail = '<td class="num ' + (rel[i] >= 0.995 ? 'win' : rel[i] >= 0.95 ? 'flat' : 'lose') + '">' + (rel[i] * 100).toFixed(1) + '%</td>' +
+      '<td class="num muted">' + (sc[i].rs * 100).toFixed(1) + '%</td>' +
+      '<td class="num ' + (i === 0 ? 'muted' : d > 0.005 ? 'win' : d < -0.005 ? 'lose' : 'muted') + '">' + (i === 0 ? '기준' : (d >= 0 ? '+' : '') + d.toFixed(2) + '%p') + '</td>';
+    if (r.auto) return '<tr>' + rk + '<td title="' + r.note + '">' + r.nm + ' <span class="tag">자동</span></td>' +
+      '<td class="num">' + r.vc + '</td><td class="num">' + r.vd + '</td><td class="num">' + r.vq + '</td><td class="muted">' + cvTxt + '</td>' + tail + '<td></td></tr>';
+    return '<tr>' + rk + '<td><input class="name" data-ci="' + r.idx + '" data-f="0" value="' + String(r.nm).replace(/"/g, '&quot;') + '"></td>' +
+      '<td>' + inp(r.idx, 1, r.vc) + '</td><td>' + inp(r.idx, 2, r.vd) + '</td><td>' + inp(r.idx, 3, r.vq) + '</td>' +
+      '<td><select data-ci="' + r.idx + '" data-f="4">' + CV_OPTS.map(([v, l]) => '<option value="' + v + '"' + (r.cv === v ? ' selected' : '') + '>' + (v === 'auto' && r.cv === 'auto' ? '자동 → ' + CARVENAME[sc[i].cv] : l) + '</option>').join('') + '</select></td>' +
+      tail + '<td><button type="button" class="ghost" data-cdel="' + r.idx + '" aria-label="후보 삭제">×</button></td></tr>';
+  }).join('');
+  tb.querySelectorAll('[data-ci]').forEach(el => el.addEventListener('change', e => {
+    const i = +e.target.dataset.ci, f = +e.target.dataset.f, list = cmpStore[X.key];
+    list[i][f] = f === 0 ? e.target.value : f === 4 ? e.target.value : (+e.target.value || 0);
+    cmpPersist(); cmpRender();
+  }));
+  tb.querySelectorAll('[data-cdel]').forEach(el => el.addEventListener('click', e => {
+    cmpStore[X.key].splice(+e.target.dataset.cdel, 1);
+    if (!cmpStore[X.key].length) delete cmpStore[X.key];
+    cmpPersist(); cmpRender();
+  }));
 
-  const rows = $('rows').children;
-  res.forEach((r, i) => {
-    const tr = rows[i]; if (!tr) return;
-    tr.querySelector('[data-out="mu"]').textContent = (r.mu / ref.mu * 100).toFixed(1) + '%';
-    tr.querySelector('[data-out="sd"]').textContent = (r.sd / r.mu * 100).toFixed(1) + '%';
-    const jc = tr.querySelector('[data-out="j"]');
-    jc.textContent = (r.j / ref.j * 100).toFixed(1) + '%';
-    jc.className = 'num ' + (i === bestI ? 'win' : r.j < ref.j ? 'lose' : '');
-    const badge = tr.querySelector('.rank');
-    badge.textContent = order.indexOf(i) + 1;
-    badge.className = 'rank' + (i === bestI ? ' top' : '');
-  });
-
-  const gain = (res[bestI].j / ref.j - 1) * 100;
-  const head = $('headline'), det = $('detail');
-  if (bestI === 0){
+  const head = $('headline'), det = $('detail'), r0 = rows[0], rb = rows[bestI];
+  if (bestI === 0 || (sc[bestI].T - sc[0].T) / X.nP < 0.0005){
     head.className = 'big flat';
-    head.textContent = '지금이 최선입니다';
-    det.textContent = '적어 넣은 후보 중 첫 행보다 나은 것이 없습니다. 더 올리려면 장비 자체를 바꿔야 합니다.';
+    head.textContent = '“' + r0.nm + '” 유지가 최선';
+    det.textContent = (have ? '' : '목표 탭 › 내 스펙 평가에 이 캐릭터를 입력하면 "현재" 행이 맨 위에 생깁니다. ') +
+      '첫 행보다 팀 점수가 0.05%p 넘게 오르는 후보가 없습니다.';
   } else {
+    const d = (sc[bestI].T - sc[0].T) / X.nP * 100;
     head.className = 'big win';
-    head.textContent = '“' + (cand[bestI][0] || '후보 ' + (bestI + 1)) + '” ' + pct(gain);
-    det.textContent = '치확 ' + cand[bestI][1] + ' / 치피 ' + cand[bestI][2] + ' / 약확 ' + cand[bestI][3]
-      + ' — 평균은 ' + pct(res[bestI].mu / ref.mu * 100 - 100)
-      + ', 흔들림은 ' + (ref.sd / ref.mu * 100).toFixed(1) + '% → ' + (res[bestI].sd / res[bestI].mu * 100).toFixed(1) + '%.';
+    head.textContent = '“' + rb.nm + '” 팀 +' + d.toFixed(2) + '%p';
+    det.innerHTML = '치확 ' + rb.vc + ' / 치피 ' + rb.vd + ' / 약확 ' + rb.vq + ' · ' + CARVENAME[sc[bestI].cv] +
+      ' — 이 캐릭터만 보면 ' + pct((rel[bestI] / rel[0] - 1) * 100) + ', 흔들림 ' + (sc[0].rs * 100).toFixed(1) + '% → ' + (sc[bestI].rs * 100).toFixed(1) + '%.' +
+      (w < IMP_MINOR * 10 && d < 0.1 ? ' <span class="muted">딜 지분이 작아 팀 점수엔 거의 영향 없습니다.</span>' : '') +
+      (!have ? ' <span class="muted">목표 탭 › 내 스펙 평가에 입력하면 "현재" 행이 기준으로 맨 위에 생깁니다.</span>' : '') +
+      (sc[bestI].cv === 'siege' ? ' <strong>공성 세공 ×1.04는 아직 실측 검증 전</strong>입니다.' : '');
   }
 
-  const b = cand[bestI], base = res[bestI].j;
-  const d = {
-    mgC: calc(b[1] + LINE.c, b[2], b[3], k, wm, H).j / base - 1,
-    mgD: calc(b[1], b[2] + LINE.d, b[3], k, wm, H).j / base - 1,
-    mgW: calc(b[1], b[2], b[3] + LINE.w, k, wm, H).j / base - 1
-  };
-  const top = Math.max(...Object.values(d));
-  for (const [id, v] of Object.entries(d)){
-    $(id).textContent = pct(v * 100);
-    const t = $(id + 't');
-    if (v <= 0.00005){ t.textContent = '상한 도달'; t.className = 'lose'; }
-    else if (v >= top - 1e-9){ t.textContent = '1순위'; t.className = 'win'; }
+  const sb = sc[bestI];
+  const mg = { C: [LINE.c, 0, 0], D: [0, LINE.d, 0], W: [0, 0, LINE.w] };
+  const v = {};
+  for (const [kx, [a, b2, c2]] of Object.entries(mg)) v[kx] = X.T.evalOne(u, rb.vc + a, rb.vd + b2, rb.vq + c2, sb.cv);
+  const g0 = Object.fromEntries(Object.entries(v).map(([kx, e]) => [kx, (e.T - sb.T) / X.nP]));
+  const top = Math.max(...Object.values(g0));
+  for (const [kx, g] of Object.entries(g0)){
+    $('mg' + kx).textContent = (v[kx].r - sb.r >= 0 ? '+' : '') + ((v[kx].r - sb.r) * 100).toFixed(2) + '%p';
+    $('mg' + kx + 's').textContent = (g >= 0 ? '+' : '') + (g * 100).toFixed(3) + '%p';
+    const t = $('mg' + kx + 't');
+    if (g <= 1e-6){ t.textContent = '상한 도달'; t.className = 'lose'; }
+    else if (g >= top - 1e-9){ t.textContent = '1순위'; t.className = 'win'; }
     else { t.textContent = ''; t.className = ''; }
   }
 }
 
-$('add').addEventListener('click', () => {
-  const last = cand[cand.length - 1];
-  cand.push(['후보 ' + (cand.length + 1), last[1], last[2], last[3]]);
-  draw(); run();
+SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('cContent').appendChild(o); });
+let cmpLastG = null;
+function cmpSync(){            // 목표 탭 콘텐츠가 바뀌었으면 따라가고, 아니면 비교 탭에서 고른 걸 유지
+  if (cmpLastG !== $('gContent').value){ cmpLastG = $('gContent').value; $('cContent').value = cmpLastG; }
+  cmpSolved = null; cmpCharsInit(); cmpRender();
+}
+$('cContent').addEventListener('change', () => { cmpSolved = null; cmpCharsInit(); cmpRender(); });
+$('cChar').addEventListener('change', cmpRender);
+$('cAdd').addEventListener('click', () => {
+  const X = cmpCurrent(); if (!X) return;
+  const { rows } = cmpRows(X), r = rows[0];
+  const list = cmpStore[X.key] || (cmpStore[X.key] = []);
+  list.push(['후보 ' + (list.length + 1), r.vc, r.vd, r.vq, 'auto']);
+  cmpPersist(); cmpRender();
+  $('cMsg').textContent = '첫 행 값을 복사했습니다. 숫자를 고치면 바로 다시 줄 세웁니다.';
+  setTimeout(() => { $('cMsg').textContent = ''; }, 3000);
 });
-$('reset').addEventListener('click', () => { cand = DEFAULTS.map(r => r.slice()); draw(); run(); });
-['content','carry','wm','casts','casts2','plains','r2','r1'].forEach(id => $(id).addEventListener('input', run));
+$('cWipe').addEventListener('click', () => {
+  const X = cmpCurrent(); if (!X || !cmpStore[X.key]) return;
+  delete cmpStore[X.key]; cmpPersist(); cmpRender();
+});
 
 /* ══════════ 공략 탭 ══════════ */
 const RAW = $('guidemd').textContent;
@@ -2784,6 +2861,7 @@ TABS.forEach(([t]) => $(t).addEventListener('click', () => {
     $(tb).setAttribute('aria-selected', String(on));
     $(pb).hidden = !on;
   });
+  if (t === 't-cmp') cmpSync();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   alignNotes();
 }));
@@ -2795,7 +2873,7 @@ function legacyClean(){
 
 /* 초기화 */
 legacyClean();
-goalRun(); cRowsInit(); gRowsInit(); draw(); run();
+goalRun(); cRowsInit(); gRowsInit(); cmpSync();
 $('gSel').value = 'r2a'; gRender();
 setRun();
 </script>
