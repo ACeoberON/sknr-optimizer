@@ -14,4 +14,4 @@
 
 ## 구조
 `index.html` 한 장이 전부입니다(빌드 없음). `main`에 push하면 GitHub Actions가 그대로 Pages에 배포합니다.
-이전 Vite 버전은 `legacy-vite` 태그에 남아 있습니다.
+이전 Vite 버전은 커밋 `4361aff`에 남아 있습니다.
