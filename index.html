@@ -1762,13 +1762,14 @@ function renderDetail(key){
       '<td class="muted">' + CARVENAME[r.ev.cv] + '</td>' +
       '<td class="num ' + (r.ev.r >= 0.995 ? 'win' : r.ev.r >= 0.95 ? 'flat' : 'lose') + '">' + (r.ev.r * 100).toFixed(1) + '%</td>' +
       '<td class="num muted">' + (r.ev.rs * 100).toFixed(1) + '%</td>' +
-      '<td class="num ' + (isRef ? 'muted' : d > 0.005 ? 'win' : d < -0.005 ? 'lose' : 'muted') + '">' + (isRef ? '기준' : (d >= 0 ? '+' : '') + d.toFixed(2) + '%p') + '</td></tr>';
+      '<td class="num ' + (isRef ? 'muted' : d > 0.005 ? 'win' : d < -0.005 ? 'lose' : 'muted') + '">' + (isRef ? '기준' : Math.abs(d) < 0.005 ? '±0.00%p' : (d > 0 ? '+' : '') + d.toFixed(2) + '%p') + '</td></tr>';
   }).join('');
   // 다음 1줄 (기준 행의 세공 고정)
   const nx = [['치확', LINE.c, 0, 0], ['치피', 0, LINE.d, 0], ['약확', 0, 0, LINE.w]].map(([n, a, d2, w2]) =>
     [n, (T.evalOne(u, ref.vc + a, ref.vd + d2, ref.vq + w2, ref.ev.cv).T - ref.ev.T) / nP]).sort((x, y) => y[1] - x[1]);
   const nxTxt = nx.map(([n, g]) => g <= 1e-6 ? '<span class="muted">' + n + ' 상한</span>' : n + ' +' + (g * 100).toFixed(2) + '%p').join(' &gt; ');
   const cur = [ref.vc, ref.vd, ref.vq];                          // 시험 칸 기본값 = 현재(없으면 고점)
+  const tMain = my[3] || u.pick.main;                             // 시험도 지금 무기 주옵 기준 격자
   const tv = tr || [];
   const ti = (i, f) => '<input type="number" data-tk="' + key + '" data-ti="' + i + '" value="' + (tv[i] ?? cur[i]) + '" step=""' + [LINE.c, LINE.d, LINE.w][i] + '" aria-label="' + f + '" style="width:64px">';
   row.firstChild.innerHTML = '<div class="det-box">' +
@@ -1782,9 +1783,10 @@ function renderDetail(key){
     (have ? '' : '<p class="note" style="margin-top:6px">위 표에 이 캐릭터의 마을 스탯을 넣으면 "현재"가 기준으로 맨 위에 생깁니다.</p>') +
     '</div>';
   row.querySelectorAll('input[data-ti]').forEach(el => el.addEventListener('input', () => { if (el.value !== '' && +el.value < 0) el.value = 0; }));
+  setBounds([0, 1, 2].map(i => row.querySelector('input[data-ti="' + i + '"]')), u, tMain);
   row.querySelectorAll('[data-ti]').forEach(el => el.addEventListener('change', e => {
     const g = i => row.querySelector('[data-ti="' + i + '"]').value;
-    const t = [0, 1, 2].map(i => g(i) === '' ? cur[i] : Math.max(0, +g(i)));
+    const t = fixStats(u, tMain, [0, 1, 2].map(i => g(i) === '' ? cur[i] : +g(i)), e.target.dataset.ti === '3' ? null : +e.target.dataset.ti);
     t[3] = g(3);
     // 현재와 똑같으면 시험 행을 만들지 않는다
     if (t[0] === cur[0] && t[1] === cur[1] && t[2] === cur[2] && t[3] === 'auto') delete trial[key]; else trial[key] = t;
@@ -1861,9 +1863,22 @@ function goalRun(){
     mine[c][n][+i] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? null : +e.target.value);
     mPersist(); mineEval();
   }));
-  // 화살표 기준점 = 지금 값 (min 이 없으면 step 기준이 value 속성이라 4·6·5씩 어긋나지 않고 움직인다)
+  // 가능한 수치로 맞추기: 칸을 벗어날 때(또는 화살표) 격자·32단위 한도에 맞춘다
+  const rowInputs = (cid, n) => [0, 1, 2].map(i => mb.querySelector('input[data-c="' + cid + '"][data-n="' + n + '"][data-i="' + i + '"]'));
+  const mainOf = (cid, n) => mb.querySelector('select[data-c="' + cid + '"][data-n="' + n + '"]').value;
+  function snapRow(cid, n, ci){
+    const u = findU(cid, n); if (!u) return;
+    const ins = rowInputs(cid, n), main = mainOf(cid, n);
+    const raw = ins.map(el => el.value === '' ? null : +el.value);
+    const fx = fixStats(u, main, raw, ci);
+    mine[cid] ||= {}; mine[cid][n] ||= [];
+    fx.forEach((v, i) => { if (v !== raw[i]){ ins[i].value = v ?? ''; } if (v != null) ins[i].setAttribute('value', v); mine[cid][n][i] = v; });
+    setBounds(ins, u, main);
+    mPersist(); mineEval();
+  }
+  mb.querySelectorAll('select[data-c]').forEach(el => el.addEventListener('change', () => snapRow(el.dataset.c, el.dataset.n, null)));
   mb.querySelectorAll('input[type=number][data-c]').forEach(el => {
-    el.addEventListener('change', () => el.setAttribute('value', el.value));
+    el.addEventListener('change', () => snapRow(el.dataset.c, el.dataset.n, +el.dataset.i));
     // 빈 칸에서 화살표를 누르면 0이 아니라 이상치(placeholder)를 기준으로 움직인다
     const anchor = () => { if (el.value === ''){ el.value = el.placeholder; el.setAttribute('value', el.placeholder); } };
     el.addEventListener('mousedown', e => { if (e.offsetX > el.clientWidth - 22) anchor(); });   // 스피너 버튼만
@@ -1876,6 +1891,7 @@ function goalRun(){
     mb.querySelector('[data-detrow="' + k + '"]').hidden = !open;
     if (open) renderDetail(k);
   }));
+  mb.querySelectorAll('select[data-c]').forEach(el => { const u = findU(el.dataset.c, el.dataset.n); if (u) setBounds(rowInputs(el.dataset.c, el.dataset.n), u, el.value); });
   mineEval();
 
   const c0 = parts[0];
@@ -1903,6 +1919,47 @@ function unitsOf(cc, main, vc, vd, vq){
   const uw = (vq - cc.bq - m1[2] - m2[2]) / LINE.w;
   return { uc, ud, uw, u: uc + ud + uw, neg: uc < 0 || ud < 0 || uw < -0.01 };
 }
+/* 가능한 수치만 — 마을 스탯 = 기본값 + 무기 주옵 + 줄값 × 정수(0 이상), 세 스탯 합계 32단위 이하.
+   기본값이 확인된 스탯만 격자에 맞춘다(미확인이면 실제 수치를 막을 수 있어 하한·32단위 상한만 적용 — 하한은 임시 기본값 기준). */
+const LINES = [LINE.c, LINE.d, LINE.w];
+function gridOf(u, main){
+  const m1 = MAIN[main[0]], m2 = MAIN[main[1]], raw = rawOf(u.name);
+  return {
+    lo: [u.cc.bc + m1[0] + m2[0], u.cc.bd + m1[1] + m2[1], u.cc.bq + m1[2] + m2[2]],
+    known: [raw.bc != null, raw.bd != null, raw.bq != null]
+  };
+}
+/* vals = [치확, 치피, 약확] (null 허용). ci = 방금 고친 칸 — 32단위를 넘기면 그 칸을 깎는다 */
+function fixStats(u, main, vals, ci){
+  const G = gridOf(u, main), v = vals.slice();
+  for (let i = 0; i < 3; i++){
+    if (v[i] == null || v[i] === '') { v[i] = null; continue; }
+    let x = Math.max(+v[i], G.lo[i]);                 // 기본값 + 주옵 아래는 불가능
+    if (G.known[i]) x = G.lo[i] + Math.round((x - G.lo[i]) / LINES[i]) * LINES[i];
+    v[i] = x;
+  }
+  const un = i => v[i] == null ? 0 : Math.max(0, (v[i] - G.lo[i]) / LINES[i]);
+  const over = un(0) + un(1) + un(2) - UNIT_MAX;
+  if (over > 1e-6){
+    const j = ci != null && v[ci] != null ? ci : [0, 1, 2].sort((a, b) => un(b) - un(a))[0];
+    const cut = G.known[j] ? Math.ceil(over - 1e-9) * LINES[j] : Math.ceil(over * LINES[j]);
+    v[j] = Math.max(G.lo[j], v[j] - cut);
+  }
+  return v;
+}
+/* 입력칸 min·max 갱신 — min 이 격자 시작점이라 화살표가 가능한 값으로만 움직인다 */
+function setBounds(inputs, u, main){
+  const G = gridOf(u, main), vals = inputs.map(el => el.value === '' ? null : +el.value);
+  const un = i => vals[i] == null ? 0 : Math.max(0, (vals[i] - G.lo[i]) / LINES[i]);
+  inputs.forEach((el, i) => {
+    el.min = G.lo[i];
+    const room = UNIT_MAX - (un(0) + un(1) + un(2) - un(i));
+    el.max = G.lo[i] + Math.floor(room + 1e-9) * LINES[i];
+    el.title = (G.known[i] ? '가능한 값: ' + G.lo[i] + ' + ' + LINES[i] + '의 배수' : '최소 ' + G.lo[i] + ' (기본값 미확인이라 칸 단위 맞춤은 생략)') + ' · 최대 ' + el.max + ' (32단위 한도)';
+  });
+}
+const findU = (cid, name) => { const G = goalLast.find(g => g.c.id === cid); return G && G.U.find(x => x.name === name); };
+
 const bestCache = {};
 function bestWithUnits(c, u, k, um, T){
   const key = c.id + '|' + u.name + '|' + um;
