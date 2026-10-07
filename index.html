@@ -211,10 +211,11 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 
 <section class="card">
   <h2>내 스펙 평가</h2>
-  <p class="note">지금 장비의 <strong>마을</strong> 치확·치피·약확을 넣으면, 위 이상 목표 대비 몇 %의 점수가 나오는지 계산합니다. 세공은 넣은 스탯에 가장 유리한 것으로 가정합니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.</p>
+  <p class="note">지금 장비의 <strong>마을</strong> 치확·치피·약확과 <strong>무기 주옵</strong>을 넣으면, 이상 목표 대비 몇 %인지와 그 원인을 나눠 보여 줍니다. 세공은 넣은 스탯에 가장 유리한 것으로 가정합니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.</p>
+  <p class="note" style="margin-top:6px"><strong>유효 단위</strong> = 치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수(종결 32). 32보다 작으면 그만큼 공% 같은 다른 옵션에 샜거나 유효 옵션이 없는 장비입니다. <strong>장비</strong> = 그 단위 수로 낼 수 있는 최고점 / 이상, <strong>배분</strong> = 내 점수 / 그 단위 수의 최고점 — 장비가 낮으면 교체·강화 초기화, 배분이 낮으면 줄 재분배로 해결합니다.</p>
   <div class="scroll" style="margin-top:10px">
   <table>
-    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th>이상 대비</th></tr></thead>
+    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th>유효 단위</th><th>장비 · 배분</th><th>이상 대비</th></tr></thead>
     <tbody id="gMine"></tbody>
   </table>
   </div>
@@ -1668,8 +1669,9 @@ function solveOne(c, k, opt, noW){
       if (MKEY.indexOf(m2) < MKEY.indexOf(m1)) continue;
       const mp = MAIN[m1][0] + MAIN[m2][0], md = MAIN[m1][1] + MAIN[m2][1], mq = MAIN[m1][2] + MAIN[m2][2];
       if (wOpt && (mq > 0 || cq > 0)) continue;      // 약확을 안 쓰는 세팅이면 약확 주옵·약확 세공도 쓰지 않는다
-      for (let uc = UNIT_MIN; uc <= UNIT_MAX; uc++) for (let ud = UNIT_MIN; ud <= UNIT_MAX - uc; ud++){
-        let uw = UNIT_MAX - uc - ud;
+      const UM = opt.umax ?? UNIT_MAX;                 // 유효 단위 총량 (종결 32, 내 장비 평가 시 실제 값)
+      for (let uc = UNIT_MIN; uc <= UM; uc++) for (let ud = UNIT_MIN; ud <= UM - uc; ud++){
+        let uw = UM - uc - ud;
         if (wOpt){ if (uw !== UNIT_MIN) continue; uw = 0; }   // 약확 줄 대신 모공
         else if (uw < UNIT_MIN) continue;
         const vc = c.bc + mp + LINE.c * uc;          // 마을 치확
@@ -1816,7 +1818,7 @@ function goalRun(){
     goalLast.push({ c, U, k });
     if (multi){
       rows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
-      mrows += '<tr class="round"><td colspan="6">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
+      mrows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
       lines.push(' [' + (ROUND_LABEL[c.id] || c.n) + ']');
     }
     U.forEach(u => {
@@ -1843,16 +1845,20 @@ function goalRun(){
         (lo === hi ? '' : '  치확 ' + lo + '~' + hi + ' 무방'));
       const my = (mine[c.id] || {})[u.name] || [];
       const inp = (i, ph) => '<td><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="' + ph + '" min="0" max="999"></td>';
+      const mainSel = '<td><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
+        MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       mrows += '<tr><td>' + u.name + '</td><td class="num muted">' + b.vc + ' / ' + b.vd + ' / ' + b.vq + '</td>' +
-        inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
+        mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
+        '<td class="num" data-u="' + c.id + '|' + u.name + '">—</td>' +
+        '<td class="num muted" data-ea="' + c.id + '|' + u.name + '">—</td>' +
         '<td class="num" data-out="' + c.id + '|' + u.name + '">—</td></tr>';
     });
   });
   tb.innerHTML = rows; mb.innerHTML = mrows;
-  mb.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
+  mb.querySelectorAll('input,select').forEach(el => el.addEventListener('input', e => {
     const { c, n, i } = e.target.dataset;
     mine[c] ||= {}; mine[c][n] ||= [];
-    mine[c][n][+i] = e.target.value === '' ? null : +e.target.value;
+    mine[c][n][+i] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? null : +e.target.value);
     mPersist(); mineEval();
   }));
   mineEval();
@@ -1873,20 +1879,63 @@ function goalRun(){
 }
 
 /* 이상 대비 % — 캐릭터별, 그리고 딜 지분 가중 팀 합계 */
+const MAINCOMBOS = ['cc','cd','cw','dd','dw','ww'];
+/* 마을 스탯 + 무기 주옵 → 유효 단위 (치확 4 · 치피 6 · 약확 5 = 1단위) */
+function unitsOf(cc, main, vc, vd, vq){
+  const m1 = MAIN[main[0]], m2 = MAIN[main[1]];
+  const uc = (vc - cc.bc - m1[0] - m2[0]) / LINE.c;
+  const ud = (vd - cc.bd - m1[1] - m2[1]) / LINE.d;
+  const uw = (vq - cc.bq - m1[2] - m2[2]) / LINE.w;
+  return { uc, ud, uw, u: uc + ud + uw, neg: uc < 0 || ud < 0 || uw < -0.01 };
+}
+const bestCache = {};
+function bestWithUnits(c, u, k, um){
+  const key = c.id + '|' + u.name + '|' + um;
+  if (bestCache[key] === undefined){
+    const opt = { forceQ: !!c.forceQ, missZero: !!c.missZero, maxEnh: 20, umax: Math.max(um, UNIT_MIN * 3) };
+    const r = solveOne(u.cc, k, opt);
+    bestCache[key] = r.length ? r[0].j : 0;
+  }
+  return bestCache[key];
+}
+
 function mineEval(){
-  let num = 0, den = 0, filled = 0, total = 0;
+  let num = 0, den = 0, filled = 0, total = 0, eqN = 0, alN = 0, lost = [];
   goalLast.forEach(({ c, U, k }) => U.forEach(u => {
     if (u.skip || !u.pick) return;
     total++;
-    const cell = document.querySelector('[data-out="' + c.id + '|' + u.name + '"]');
+    const key = c.id + '|' + u.name;
+    const cell = document.querySelector('[data-out="' + key + '"]');
+    const ucell = document.querySelector('[data-u="' + key + '"]');
+    const ecell = document.querySelector('[data-ea="' + key + '"]');
     const my = (mine[c.id] || {})[u.name] || [];
-    if (my[0] == null || my[1] == null || my[2] == null){ if (cell){ cell.textContent = '—'; cell.className = 'num'; } return; }
-    const ideal = u.pick.j;
-    const r = scoreMine(u, c, k, my[0], my[1], my[2]) / ideal;
+    if (my[0] == null || my[1] == null || my[2] == null){
+      [cell, ucell, ecell].forEach(x => { if (x){ x.textContent = '—'; x.className = 'num' + (x === ecell ? ' muted' : ''); } });
+      return;
+    }
+    const r = scoreMine(u, c, k, my[0], my[1], my[2]) / u.pick.j;
     filled++; num += u.s * r; den += u.s;
     if (cell){
       cell.textContent = (r * 100).toFixed(1) + '%';
       cell.className = 'num ' + (r >= 0.97 ? 'win' : r >= 0.9 ? 'flat' : 'lose');
+    }
+    // 유효 단위 · 장비/배분 분해
+    const un = unitsOf(u.cc, my[3] || u.pick.main, my[0], my[1], my[2]);
+    const uRound = Math.round(un.u * 10) / 10;
+    const odd = Math.abs(un.u - Math.round(un.u)) > 0.15;
+    if (ucell){
+      ucell.innerHTML = un.neg ? '<span class="lose" title="주옵 선택이 맞는지 확인">주옵?</span>'
+        : uRound.toFixed(1) + ' / 32' + (odd ? ' <span class="muted" title="줄값으로 나눠떨어지지 않음 — 오타, 숨은 수급원, 기본값 미확인 가능">?</span>' : '');
+      ucell.className = 'num ' + (un.neg ? '' : un.u >= 31.5 ? 'win' : un.u >= 28 ? 'flat' : 'lose');
+    }
+    if (!un.neg && ecell){
+      const um = Math.min(UNIT_MAX, Math.floor(un.u + 0.15));
+      const b32 = bestWithUnits(c, u, k, UNIT_MAX), bU = bestWithUnits(c, u, k, um);
+      const mineJ = r * u.pick.j;
+      const eq = bU / b32, al = Math.min(mineJ / bU, 1.05);
+      ecell.textContent = (eq * 100).toFixed(0) + '% · ' + (al * 100).toFixed(0) + '%';
+      eqN += u.s * eq; alN += u.s * al;
+      if (UNIT_MAX - un.u >= 1) lost.push(u.name + ' ' + Math.round(UNIT_MAX - un.u) + '단위');
     }
   }));
   if (!filled){
@@ -1897,8 +1946,11 @@ function mineEval(){
   const t = num / den;
   $('gMineHead').className = 'big ' + (t >= 0.97 ? 'win' : t >= 0.9 ? 'flat' : 'lose');
   $('gMineHead').textContent = '이상 대비 ' + (t * 100).toFixed(1) + '%';
-  $('gMineNote').textContent = '입력한 ' + filled + '/' + total + '명 기준, 딜 지분 가중 평균입니다. ' +
-    '97% 이상이면 사실상 종결, 90% 미만이면 장비 교체·재분배 여지가 큽니다. 공격력·스킬 레벨은 반영하지 않으므로 치확·치피·약확 배분의 완성도만 봅니다.';
+  const eqT = eqN / den, alT = alN / den;
+  $('gMineNote').innerHTML = '장비 ' + (eqT * 100).toFixed(1) + '% · 배분 ' + (alT * 100).toFixed(1) + '% (딜 지분 가중, 입력 ' + filled + '/' + total + '명). ' +
+    (lost.length ? '<strong>유효 단위 손실</strong>: ' + lost.join(', ') + ' — 공% 등 다른 옵션에 샌 강화이거나 유효 옵션이 없는 장비입니다. ' : '유효 단위 손실 없음. ') +
+    (eqT < alT ? '장비 쪽 여지가 더 큽니다(교체·강화 초기화).' : '배분 쪽 여지가 더 큽니다(줄 재분배).') +
+    ' 공격력·스킬 레벨은 반영하지 않습니다.';
 }
 
 const EXPORT_HEAD = `[세나 리버스] PVE 콘텐츠별 목표 치확·치피·약확`;
