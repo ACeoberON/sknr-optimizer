@@ -5,6 +5,9 @@
 .mine-tbl th,.mine-tbl td{white-space:nowrap}
 .mine-tbl input{width:58px}
 .mine-tbl select{min-width:0!important}
+.mine-tbl td.nm{line-height:1.25}
+.mine-tbl td.nm .ideal{display:block;font-size:11px;color:var(--ink-3);font-family:var(--mono,monospace)}
+.mine-tbl .imp{display:block;font-size:11px}
 .det-btn{all:unset;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 .det-btn::before{content:'▸';font-size:10px;color:var(--ink-3);transition:transform .15s}
 .det-btn[aria-expanded="true"]::before{transform:rotate(90deg)}
@@ -225,15 +228,15 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 
 <section class="card">
   <h2>내 스펙 평가</h2>
-  <p class="note">지금 장비의 <strong>마을</strong> 치확·치피·약확과 <strong>무기 주옵</strong>을 넣으면, 이상 목표 대비 몇 %인지와 그 원인을 나눠 보여 줍니다. 세공은 넣은 스탯에 가장 유리한 것으로 가정합니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.</p>
-  <p class="note" style="margin-top:6px"><strong>유효 단위</strong> = 치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수(종결 32). 32보다 작으면 그만큼 공% 같은 다른 옵션에 샜거나 유효 옵션이 없는 장비입니다. <strong>장비</strong> = 그 단위 수로 낼 수 있는 최고점 / 이상, <strong>배분</strong> = 내 점수 / 그 단위 수의 최고점 — 장비가 낮으면 교체·강화 초기화, 배분이 낮으면 줄 재분배로 해결합니다.</p>
+  <p class="note">지금 장비의 <strong>마을</strong> 스탯과 무기 주옵을 넣으면 이상 대비 몇 %인지 나옵니다. 이름(▸)을 누르면 후보 비교·다음 강화 순서·시험 칸이 열립니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.
+  <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--ink-3)">용어</summary>
+  <span style="display:block;margin-top:4px"><strong>유효 단위</strong> = 치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수(종결 32). 32보다 작으면 공% 같은 다른 옵션에 샜거나 유효 옵션이 없는 장비. <strong>이상 대비</strong> 아래 작은 글씨는 이 캐릭터 때문에 팀 점수가 깎인 양(나머지는 이상 세팅 가정). <strong>장비 · 배분</strong>(펼침 칸) = 그 단위 수로 낼 수 있는 최고점 / 이상, 내 점수 / 그 최고점 — 장비가 낮으면 교체·강화 초기화, 배분이 낮으면 줄 재분배.</span></details></p>
   <div class="scroll" style="margin-top:10px">
   <table class="mine-tbl">
-    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="종결 32">유효 단위 /32</th><th>장비 · 배분</th><th>이상 대비</th><th title="지금 스탯에 가장 유리한 장신구 세공">추천 세공</th><th title="나머지는 이상 세팅으로 두고 이 캐릭터만 지금 스펙일 때 팀 점수 손실">팀 영향</th></tr></thead>
+    <thead><tr><th>캐릭터 · 이상</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수, 종결 32">유효 단위</th><th title="아래 작은 글씨 = 팀 점수 손실 (나머지는 이상 세팅일 때)">이상 대비</th><th title="지금 스탯에 가장 유리한 장신구 세공">세공</th></tr></thead>
     <tbody id="gMine"></tbody>
   </table>
   </div>
-  <p class="note" style="margin-top:6px">캐릭터 이름(▸)을 누르면 <strong>현재 · 줄 옮기기 · 고점 · 안전</strong>을 팀 점수로 줄 세운 비교와, 다음 강화를 어디에 붙일지, 다른 세팅을 시험해 보는 칸이 열립니다.</p>
   <div id="gAfter">
   <div class="verdict" style="margin-top:12px"><div class="big" id="gMineHead">—</div><p id="gMineNote"></p></div>
   <h3 style="margin:16px 0 6px;font-size:14px">줄 옮기기 안내</h3>
@@ -1691,6 +1694,7 @@ function teamCtx(c, U, k){
 }
 
 let goalLast = [];
+const detStat = {};   // 펼침 칸용: 유효 단위 · 장비 · 배분
 /* ══════════ 후보 비교 — 목표 탭 캐릭터 행을 펼치면 나온다 ══════════
    자동 후보: 현재(내 스펙) · 줄 옮기기 · 고점 · 고점(공성 세공 없이) · 안전, 그리고 직접 넣는 '시험' 1줄.
    전부 팀 점수(나머지는 이상 세팅)로 채점한다. 시험값만 localStorage(sknr-trial)에 저장. */
@@ -1752,6 +1756,7 @@ function renderDetail(key){
   const ti = (i, f) => '<input type="number" data-tk="' + key + '" data-ti="' + i + '" value="' + (tv[i] ?? '') + '" placeholder="' + [ref.vc, ref.vd, ref.vq][i] + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" aria-label="' + f + '" style="width:64px">';
   row.firstChild.innerHTML = '<div class="det-box">' +
     '<div class="scroll"><table class="mine-tbl"><thead><tr><th>후보</th><th>치확/치피/약확</th><th>세공</th><th>이상 대비</th><th title="평균 대비 표준편차 — 공성전은 클수록 베스트 점수가 높게 튐">흔들림</th><th>팀 점수</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+    (detStat[key] && detStat[key].eq != null ? '<p class="note" style="margin-top:6px">유효 단위 <strong>' + detStat[key].u.toFixed(1) + ' / 32</strong> · 장비 <strong>' + (detStat[key].eq * 100).toFixed(0) + '%</strong> · 배분 <strong>' + (detStat[key].al * 100).toFixed(0) + '%</strong> — ' + (Math.min(detStat[key].eq, detStat[key].al) >= 0.995 ? '둘 다 거의 끝' : detStat[key].eq < detStat[key].al ? '장비(교체·강화 초기화) 쪽 여지가 큼' : '배분(줄 옮기기) 쪽 여지가 큼') + '</p>' : '') +
     '<p class="note" style="margin-top:6px"><strong>다음 강화 1회·부옵 1줄</strong> (' + ref.nm.split(' =')[0] + ' 기준): ' + nxTxt + '</p>' +
     '<div class="trial"><span class="note" style="margin:0">시험해 보기</span>' + ti(0, '치확') + ti(1, '치피') + ti(2, '약확') +
     '<select data-tk="' + key + '" data-ti="3">' + CV_OPTS.map(([v, l]) => '<option value="' + v + '"' + ((tv[3] || 'auto') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
@@ -1788,7 +1793,7 @@ function goalRun(){
     goalLast.push({ c, U, k, T: teamCtx(c, U, k) });
     if (multi){
       rows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
-      mrows += '<tr class="round"><td colspan="11">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
+      mrows += '<tr class="round"><td colspan="8">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
       lines.push(' [' + (ROUND_LABEL[c.id] || c.n) + ']');
     }
     U.forEach(u => {
@@ -1816,16 +1821,14 @@ function goalRun(){
       const my = (mine[c.id] || {})[u.name] || [];
       const inp = (i, ph) => '<td><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="' + ph + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" title="화살표 1칸 = ' + ['치확 4','치피 6','약확 5'][i] + ' (부옵 1줄)"></td>';
       const mainSel = '<td><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
-        MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
+        MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
-      mrows += '<tr><td><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span></td><td class="num muted">' + b.vc + ' / ' + b.vd + ' / ' + b.vq + '</td>' +
+      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span><span class="ideal">이상 ' + b.vc + '/' + b.vd + '/' + b.vq + '</span></td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
         '<td class="num" data-u="' + c.id + '|' + u.name + '">—</td>' +
-        '<td class="num muted" data-ea="' + c.id + '|' + u.name + '">—</td>' +
-        '<td class="num" data-out="' + c.id + '|' + u.name + '">—</td>' +
-        '<td class="muted" data-cv="' + c.id + '|' + u.name + '">—</td>' +
-        '<td class="num muted" data-imp="' + c.id + '|' + u.name + '">—</td></tr>' +
-        '<tr class="mine-det" data-detrow="' + dk + '"' + (detOpen.has(dk) ? '' : ' hidden') + '><td colspan="11"></td></tr>';
+        '<td class="num"><span data-out="' + dk + '">—</span><span class="imp muted" data-imp="' + dk + '"></span></td>' +
+        '<td class="muted" data-cv="' + dk + '">—</td></tr>' +
+        '<tr class="mine-det" data-detrow="' + dk + '"' + (detOpen.has(dk) ? '' : ' hidden') + '><td colspan="8"></td></tr>';
     });
   });
   tb.innerHTML = rows; mb.innerHTML = mrows;
@@ -1918,26 +1921,30 @@ function mineEval(){
     total++; all += u.s;
     const key = c.id + '|' + u.name;
     const q = a => document.querySelector('[data-' + a + '="' + key + '"]');
-    const cell = q('out'), ucell = q('u'), ecell = q('ea'), icell = q('imp'), ccell = q('cv');
+    const cell = q('out'), ucell = q('u'), icell = q('imp'), ccell = q('cv');
     const my = (mine[c.id] || {})[u.name] || [];
     if (my[0] == null || my[1] == null || my[2] == null){
-      [cell, ucell, ecell, icell, ccell].forEach(x => { if (x){ x.textContent = '—'; x.className = (x === ccell ? '' : 'num') + (x === cell || x === ucell ? '' : ' muted'); } });
+      if (cell){ cell.textContent = '—'; cell.className = ''; }
+      if (icell){ icell.textContent = ''; }
+      if (ucell){ ucell.textContent = '—'; ucell.className = 'num'; }
+      if (ccell){ ccell.textContent = '—'; ccell.className = 'muted'; }
+      delete detStat[key];
       missing.push({ n: u.name, s: u.s / nP });
       return;
     }
     const ev = T.evalOne(u, my[0], my[1], my[2]), r = ev.r;
     overs[pi].set(u, ev.x);
-    if (ccell){ ccell.textContent = CARVENAME[ev.cv]; ccell.className = ev.cv === 'siege' ? 'flat' : ''; ccell.title = ev.cv === 'siege' ? '공성 세공 ×1.04는 미검증' : ''; }
+    if (ccell){ ccell.textContent = CARVENAME[ev.cv].replace(/[+×].*/, ''); ccell.className = ev.cv === 'siege' ? 'flat' : ''; ccell.title = ev.cv === 'siege' ? '공성 세공 ×1.04는 미검증' : ''; }
     filled++; den += u.s;
     const imp = Math.max(0, 1 - ev.T) / nP;              // 이 캐릭터만 이상에서 지금으로 바꿨을 때 팀 점수 손실
     if (cell){
       cell.textContent = (r * 100).toFixed(1) + '%';
-      cell.className = 'num ' + (r >= 0.97 ? 'win' : r >= 0.9 ? 'flat' : 'lose');
+      cell.className = r >= 0.97 ? 'win' : r >= 0.9 ? 'flat' : 'lose';
     }
     if (icell){
       const minor = imp < IMP_MINOR;
-      icell.textContent = minor ? '무시' : '−' + (imp * 100).toFixed(1) + '%p';
-      icell.className = 'num ' + (minor ? 'muted' : imp >= 0.01 ? 'lose' : 'flat');
+      icell.textContent = minor ? '팀 영향 무시' : '팀 −' + (imp * 100).toFixed(1) + '%p';
+      icell.className = 'imp ' + (minor ? 'muted' : imp >= 0.01 ? 'lose' : 'flat');
       icell.title = '나머지는 이상 세팅으로 두고 이 캐릭터만 지금 스펙일 때 팀 점수 손실 ' + (imp * 100).toFixed(2) + '%p (딜 지분 ' + (u.s * 100).toFixed(1) + '%)';
     }
     // 유효 단위 · 장비/배분 분해
@@ -1949,12 +1956,12 @@ function mineEval(){
         : uRound.toFixed(1) + (odd ? ' <span class="muted" title="줄값으로 나눠떨어지지 않음 — 오타, 숨은 수급원, 기본값 미확인 가능">?</span>' : '');
       ucell.className = 'num ' + (un.neg ? '' : un.u >= 31.5 ? 'win' : un.u >= 28 ? 'flat' : 'lose');
     }
-    if (un.neg && ecell){ ecell.textContent = '—'; ecell.className = 'num muted'; }
-    if (!un.neg && ecell){
+    detStat[key] = { u: un.neg ? null : uRound };
+    if (!un.neg){
       const um = Math.min(UNIT_MAX, Math.floor(un.u + 0.15));
       const b32 = bestWithUnits(c, u, k, UNIT_MAX, T), bU = bestWithUnits(c, u, k, um, T);
       const eq = Math.min(bU / b32, 1), al = Math.min(r / bU, 1.05);
-      ecell.textContent = (eq * 100).toFixed(0) + '% · ' + (al * 100).toFixed(0) + '%';
+      Object.assign(detStat[key], { eq, al });
       eqN += u.s * eq; alN += u.s * al;
       if (UNIT_MAX - un.u >= 1) lost.push({ n: u.name, d: Math.round(UNIT_MAX - un.u), imp });
     }
