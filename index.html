@@ -1,12 +1,2887 @@
-<!doctype html>
-<html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sknr-optimizer</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>세나 리버스 세팅 판정기</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* 탭 4개: 목표(결론) · 판정(콘텐츠 편성별) · 비교(후보 줄세우기) · 공략(원문 열람) */
+:root{
+  --ink:#1b1d1a; --ink-2:#56594f; --ink-3:#878a7d;
+  --paper:#f6f5ef; --card:#fffefa; --line:#ddddd0; --line-2:#ececdf;
+  --accent:#4f6b3a; --accent-soft:#e7edde;
+  --win:#2f6b45; --lose:#9a3a2c; --flat:#7a6a2e;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono","IBM Plex Sans KR",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ink:#eceade; --ink-2:#a9ac9d; --ink-3:#7e8174;
+  --paper:#15170f; --card:#1e211a; --line:#343828; --line-2:#272b1f;
+  --accent:#9cc178; --accent-soft:#2a3220;
+  --win:#79c194; --lose:#e08a79; --flat:#d4bd6b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ink:#eceade; --ink-2:#a9ac9d; --ink-3:#7e8174;
+  --paper:#15170f; --card:#1e211a; --line:#343828; --line-2:#272b1f;
+  --accent:#9cc178; --accent-soft:#2a3220;
+  --win:#79c194; --lose:#e08a79; --flat:#d4bd6b; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:24px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em;text-wrap:balance}
+.sub{color:var(--ink-2);font-size:14px;margin:0 0 20px}
+h2{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+h3{font-size:15px;font-weight:600;margin:20px 0 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:18px}
+label{display:block;font-size:12px;color:var(--ink-2);margin-bottom:4px}
+input,select,button,textarea{font-family:var(--sans)}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;
+  background:var(--paper);color:var(--ink);font:500 15px/1.35 var(--mono)}
+select{font-family:var(--sans);font-size:14px}
+textarea{font-size:13px;resize:vertical}
+input:focus-visible,select:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(max-width:600px){.grid3,.grid2{grid-template-columns:1fr}}
+.note{font-size:13px;color:var(--ink-3);margin:0}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:right;padding:8px 6px;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums;vertical-align:middle}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td input{padding:5px 7px;font-size:14px;text-align:right;min-width:60px}
+td input.name{text-align:left;font-family:var(--sans);font-weight:500;min-width:90px}
+td select{padding:5px 7px;font-size:13px;min-width:92px}
+.num{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.win{color:var(--win)}.lose{color:var(--lose)}.flat{color:var(--flat)}
+.muted{color:var(--ink-3)}
+.rank{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;
+  background:var(--line-2);color:var(--ink-2);font:600 12px/1 var(--mono)}
+.rank.top{background:var(--accent);color:var(--card)}
+button{background:var(--paper);border:1px solid var(--line);border-radius:7px;color:var(--ink-2);
+  padding:7px 12px;font-size:13px;font-weight:500;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.ghost{border:none;padding:4px 7px;color:var(--ink-3);font-size:16px;line-height:1;background:none}
+.row-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tabs button{border:none;background:none;border-radius:0;border-bottom:2px solid transparent;
+  padding:9px 12px;font-size:14px;font-weight:500;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.panel[hidden]{display:none}
+.verdict{border:1px solid var(--line);border-radius:10px;padding:18px;background:var(--card)}
+.big{font:600 27px/1.2 var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-wrap:balance}
+.verdict p{margin:8px 0 0;font-size:14px;color:var(--ink-2)}
+details{font-size:13px;color:var(--ink-2)}
+summary{cursor:pointer;color:var(--accent);font-weight:500}
+details p{margin:8px 0 0}
+.tag{display:block;width:fit-content;font-size:10px;font-weight:600;padding:0 5px;border-radius:5px;
+  background:var(--accent-soft);color:var(--accent);margin-top:2px;white-space:nowrap}
+.shared{display:inline-block;font-size:9px;font-weight:600;padding:0 4px;border-radius:4px;
+  background:var(--accent-soft);color:var(--accent);letter-spacing:0;text-transform:none;vertical-align:1px}
+#dRows td:nth-child(2),#dRows td:nth-child(10){white-space:nowrap}
+#dRows td:first-child{white-space:nowrap}
+.chip{display:inline-block;font-size:12px;padding:2px 8px;border:1px solid var(--line);
+  border-radius:20px;color:var(--ink-2);margin:0 4px 4px 0}
+.md h4{font-size:14px;font-weight:600;margin:16px 0 4px}
+.md p{margin:6px 0;font-size:14px}
+.md ul{margin:6px 0;padding-left:20px;font-size:14px}
+.md pre{background:var(--paper);border:1px solid var(--line-2);border-radius:7px;padding:10px 12px;
+  overflow-x:auto;font:500 12.5px/1.75 var(--mono);margin:8px 0}
+.md table{font-size:13px;margin:8px 0}
+.md th,.md td{text-align:left}
+.md strong{font-weight:600;color:var(--ink)}
+.flow{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.set-head{display:flex;gap:8px;flex-wrap:wrap}
+.set-head select{width:auto;flex:0 1 auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:7px 14px;font-size:14px;background:var(--paper)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--card)}
+.set-head #sContent{flex:1 1 220px;font-weight:600}
+.set-tbl td{padding:6px 6px}
+tr.round td{padding:10px 6px 4px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--accent);border-bottom:1px solid var(--line)}
+.set-tbl.safe th:nth-child(7),.set-tbl.safe td:nth-child(7){display:none}
+.set-tbl .v{font:600 15px/1 var(--mono);font-variant-numeric:tabular-nums}
+.set-tbl .sub{font-size:11px;color:var(--ink-3);font-weight:400;margin-left:6px}
+.set-tbl td:first-child{white-space:nowrap}
+.set-ops{margin-top:14px;border-top:1px solid var(--line-2);padding-top:10px;font-size:13.5px}
+.set-ops dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}
+.set-ops dt{color:var(--ink-3);font-size:12px;padding-top:1px;white-space:nowrap}
+.set-ops dd{margin:0}
+mark.sk-y{background:#f3e2a2;color:inherit;border-radius:3px;padding:0 2px}
+mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
+.sk-memo{color:var(--ink-3);font-style:italic}
+.sk-note{display:inline-block}
+.sk-box{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sk-c{display:inline-flex;flex-direction:column;gap:1px;border:1px solid var(--line);border-radius:7px;
+  padding:4px 9px;background:var(--paper);font-size:13px;line-height:1.35;max-width:220px}
+.sk-c .tn{font:500 10.5px/1.2 var(--mono);color:var(--ink-3)}
+.sk-c .nm{font-weight:500;white-space:nowrap}
+.sk-c .alt{font-size:11.5px;margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);color:var(--ink-2)}
+.sk-c .memo{font-size:11px;margin-top:3px;color:var(--ink-3);font-style:italic}
+.sk-c.y{background:#f6e7b0;border-color:#e2cd7c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sk-c.y{background:#4d4118;border-color:#6b5a20}}
+:root[data-theme="dark"] .sk-c.y{background:#4d4118;border-color:#6b5a20}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) mark.sk-y{background:#5b4c16}
+  :root:not([data-theme="light"]) mark.sk-r{background:#5e2b22}}
+:root[data-theme="dark"] mark.sk-y{background:#5b4c16}
+:root[data-theme="dark"] mark.sk-r{background:#5e2b22}
+.set-ops pre{background:var(--paper);border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;
+  overflow-x:auto;font:500 12px/1.7 var(--mono);margin:6px 0 0}
+.flow .big{font-size:22px}
+</style>
+
+<div class="wrap">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+<h1>세나 리버스 세팅 판정기</h1>
+<button type="button" id="themeBtn" style="flex:none" aria-label="화면 테마 전환">테마: 라이트</button>
+</div>
+<p class="sub">치확·치피·약확을 어디에 두는 게 이득인지만 판정합니다. 공격력·스킬 계수는 모든 후보에 똑같이 곱해지는 상수라 비교에서 상쇄되므로 입력받지 않습니다.</p>
+
+
+<div class="tabs" role="tablist">
+  <button role="tab" id="t-set" aria-selected="true" aria-controls="p-set">세팅</button>
+  <button role="tab" id="t-goal" aria-selected="false" aria-controls="p-goal">목표</button>
+  <button role="tab" id="t-diag" aria-selected="false" aria-controls="p-diag">판정</button>
+  <button role="tab" id="t-gear" aria-selected="false" aria-controls="p-gear">장비</button>
+  <button role="tab" id="t-cmp" aria-selected="false" aria-controls="p-cmp">비교</button>
+  <button role="tab" id="t-guide" aria-selected="false" aria-controls="p-guide">공략</button>
+  <button role="tab" id="t-cfg" aria-selected="false" aria-controls="p-cfg">백업</button>
+</div>
+
+<!-- ───────────── 목표 ───────────── -->
+<div class="panel" id="p-set" role="tabpanel" aria-labelledby="t-set">
+<section class="card">
+  <div class="set-head">
+    <select id="sContent" aria-label="콘텐츠"></select>
+    <div class="seg" role="group" aria-label="세팅 방향">
+      <button type="button" id="sSafe" aria-pressed="false">안전</button>
+      <button type="button" id="sPeak" aria-pressed="true">고점</button>
+    </div>
+  </div>
+  <p class="note" id="sMeta" style="margin-top:8px"></p>
+  <div class="scroll" style="margin-top:6px">
+    <table class="set-tbl">
+      <thead><tr><th>캐릭터</th><th>주옵</th><th>세공</th><th>치확</th><th>치피</th><th>약확</th><th>치확 무방</th></tr></thead>
+      <tbody id="sRows"></tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:6px" id="sFoot"></p>
+  <div id="sOps" class="set-ops"></div>
+</section>
+</div>
+
+<div class="panel" id="p-goal" role="tabpanel" aria-labelledby="t-goal" hidden>
+<div class="stack">
+
+<section class="card">
+  <h2>이상 목표 — 마을 기준</h2>
+  <select id="gContent" aria-label="콘텐츠"></select>
+  <p class="note" id="gMeta" style="margin-top:10px"></p>
+  <div class="scroll" style="margin-top:12px">
+  <table>
+    <thead><tr><th>캐릭터</th><th>무기 주옵</th><th>세공</th><th>단위 치확/치피/약확</th>
+      <th>강화 치확/치피/약확</th>
+      <th>치확</th><th>치피</th><th>약확</th><th>치확 구간</th></tr></thead>
+    <tbody id="gTargets"></tbody>
+  </table>
+  </div>
+  <p class="note" style="margin-top:10px"><strong>단위</strong> = 부옵 줄 수(치확 4 · 치피 6 · 약확 5). 부위당 1줄씩 기본 4단위 + 강화 20회 = 32단위. <strong>강화</strong> 열은 그 스탯에 강화가 몇 번 붙어야 하는지이며, 한 스탯 몰빵(최대 20회)까지 허용한 <strong>이론상 최고</strong> 배분입니다 — 강화는 4칸 무작위라 12회를 넘기기는 매우 어렵습니다.</p>
+  <p class="note" style="margin-top:6px"><strong>치확 구간</strong> 안이면 점수 차 1% 미만. 공성전은 2주 누적 베스트 기준. 주옵 치확 24와 치피 36은 둘 다 6단위라 서로 등가이고, 약확 28은 5.6단위라 약확을 꼭 채워야 할 때만 씁니다.</p>
+</section>
+
+<section class="card">
+  <h2>내 스펙 평가</h2>
+  <p class="note">지금 장비의 <strong>마을</strong> 치확·치피·약확을 넣으면, 위 이상 목표 대비 몇 %의 점수가 나오는지 계산합니다. 세공은 넣은 스탯에 가장 유리한 것으로 가정합니다. 입력값은 이 브라우저에 콘텐츠별로 저장됩니다.</p>
+  <div class="scroll" style="margin-top:10px">
+  <table>
+    <thead><tr><th>캐릭터</th><th>이상 치확/치피/약확</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th>이상 대비</th></tr></thead>
+    <tbody id="gMine"></tbody>
+  </table>
+  </div>
+  <div class="verdict" style="margin-top:12px"><div class="big" id="gMineHead">—</div><p id="gMineNote"></p></div>
+</section>
+
+<details class="card">
+  <summary>약확 규칙</summary>
+  <p style="margin:10px 0 6px">스킬 설명에 <strong>“약점 공격 피해 발생 시 ○○% 추가 피해”</strong>가 있느냐로 갈립니다. 약공은 모든 피해 계산 뒤 마지막에 ×1.3이므로 <strong>배율 = 1.3 × (기본 계수 + 추가 계수) ÷ 기본 계수</strong>.</p>
+  <p style="margin:6px 0"><strong style="color:var(--win)">필수</strong> — 일요일(미스 = 딜 0)·강림 1라운드(100만 문턱)는 무조건 전투 100. 약공 추가 피해가 큰 캐릭터(라이언 3.36, 미호 약 2.3)는 약확 1줄이 치확·치피 1줄보다 큽니다.</p>
+  <p style="margin:6px 0"><strong style="color:var(--lose)">선택</strong> — 배율 1.3인 캐릭터는 약확 줄이 없어도 손해가 없습니다(그 자리는 모공이 낫다). 버프로 받는 만큼이면 충분합니다. 미호가 있는 콘텐츠는 아군 전체 약공 피해 ×1.23이라 배율이 1.6이 되지만, 치확을 채운 뒤에는 대개 치피가 더 이득입니다.</p>
+  <p class="note" style="margin-top:6px">역전 지점은 배율 약 1.5 (치확 85 · 치피 330 기준).</p>
+</details>
+
+<details class="card">
+  <summary>외부 게시용 텍스트</summary>
+  <textarea id="exportText" rows="14" readonly style="margin-top:10px"></textarea>
+  <div class="row-actions">
+    <button type="button" id="copyBtn">복사</button>
+    <span class="note" id="copyMsg"></span>
+  </div>
+</details>
+
+<details>
+  <summary>왜 치확 100이 답이 아닌가</summary>
+  <p><strong>1. 균형점은 채점 방식·판정 수·치피 수준만으로 결정됩니다.</strong> 공격력·기본 스탯·스킬 계수는 모든 후보에 같이 곱해지는 상수라 어디가 최적인지를 바꾸지 않습니다.</p>
+  <p><strong>2. 공성전은 베스트1에 점수 이월까지 되니 사실상 누적 베스트제입니다.</strong> 흔들림이 점수를 올려주므로 치확을 낮춰 분산을 키우는 쪽이 이득입니다. 분산계수는 1주 1.163, 2주 누적 1.539, 5주 누적 1.965.</p>
+  <p><strong>3. 1인기는 스킬당 1히트라 판정 수가 3인기의 1/3입니다.</strong> 흔들림이 약 1.7배로 커지므로 치확을 더 낮춥니다. 강림은 1인기지만 상위 3/9라 분산 가치가 작아(계수 1.0) 상쇄되어 89에서 멈춥니다.</p>
+  <p><strong>4. 부옵 1줄 한계가치</strong>(치확 85 / 치피 330, 베스트1 기준): 치확 +4 → 2.0%, 치피 +6 → 1.8%, 약확 +5 → 배율 1.3이면 1.1% · 1.6이면 1.7% · 3.36이면 3.0%.</p>
+</details>
+
+</div>
+</div>
+
+<!-- ───────────── 판정 ───────────── -->
+<div class="panel" id="p-diag" role="tabpanel" aria-labelledby="t-diag" hidden>
+<div class="stack">
+
+
+<section class="card">
+  <h2>콘텐츠</h2>
+  <div class="grid2">
+    <div>
+      <label for="dContent">편성</label>
+      <select id="dContent"></select>
+    </div>
+    <div>
+      <label for="dCarry">점수 이월 (공성전만)</label>
+      <select id="dCarry">
+        <option value="1.163">1주 · 5판 중 베스트1</option>
+        <option value="1.539" selected>2주 누적</option>
+        <option value="1.965">5주 누적</option>
+      </select>
+    </div>
+  </div>
+  <p class="note" id="dMeta" style="margin-top:10px"></p>
+  <div id="dChips" style="margin-top:8px"></div>
+</section>
+
+<section class="card">
+  <h2>전투 기준 스탯</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>캐릭터</th><th>윗/아랫</th><th>역할 <span class="shared">고정</span></th><th>지분 % <span class="shared">고정</span></th><th>치확</th><th>치피</th><th>약확</th>
+        <th>패시브 치확 <span class="shared">고정</span></th><th>버프 약확 <span class="shared">고정</span></th>
+        <th>배율 <span class="shared">고정</span></th>
+        <th>최선 배분</th><th>차이</th>
+      </tr></thead>
+      <tbody id="dRows"></tbody>
+    </table>
+  </div>
+  <div class="row-actions">
+    <button type="button" id="dClear">이 콘텐츠 초기화</button>
+    <span class="note" id="dMsg">입력하면 자동 저장됩니다.</span>
+  </div>
+  <p class="note" style="margin-top:10px">마을 스탯이 아니라 <strong>전투 기준</strong>입니다. 아군 약확 버프(비스킷 +54, 레이첼 +27)를 더한 값을 넣으십시오. <span class="shared">고정</span> 칸은 장비로 바뀌지 않는 값이라 도구에 내장되어 있고 여기서 고칠 수 없습니다 — 값이 틀렸으면 Claude에게 알려 코드를 고치십시오. 이 브라우저에 저장되는 것은 콘텐츠별 치확·치피·약확뿐입니다.</p>
+</section>
+
+<section class="verdict">
+  <div class="big" id="dHead">—</div>
+  <p id="dDetail"></p>
+</section>
+
+<section class="card">
+  <h2>줄 옮기기 안내</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>캐릭터</th><th>조치</th><th>팀 점수</th></tr></thead>
+      <tbody id="dAdvice"></tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:10px">부옵 1줄 = 치확 4 · 치피 6 · 약확 5. 강화 1회도 같은 1줄값이고, 강화는 치확·치피·약확에만 붙여야 합니다. 실제로 그 배분이 안 나오면 <strong>비교</strong> 탭에서 만들 수 있는 조합끼리 줄 세우십시오.</p>
+</section>
+
+</div>
+</div>
+
+<!-- ───────────── 장비 ───────────── -->
+<div class="panel" id="p-gear" role="tabpanel" aria-labelledby="t-gear" hidden>
+<div class="stack">
+
+
+<section class="card">
+  <h2>보유 장비</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>메모</th><th>부위</th><th>주옵</th><th>부옵 치확</th><th>부옵 치피</th><th>부옵 약확</th><th style="width:28px"></th>
+      </tr></thead>
+      <tbody id="gRows"></tbody>
+    </table>
+  </div>
+  <div class="row-actions">
+    <button type="button" id="gAdd">장비 추가</button>
+    <button type="button" id="gPaste">여러 개 붙여넣기</button>
+    <button type="button" id="gWipe">전부 삭제</button>
+    <span class="note" id="gMsg"></span>
+  </div>
+  <p class="note" style="margin-top:10px">부옵은 <strong>강화까지 반영된 현재 수치</strong>를 합산해 넣으십시오. 모공·깡공·잡옵은 모든 후보에 똑같이 들어가거나 계산에 안 쓰이므로 입력하지 않습니다. 전용장비도 캐릭터 고정이라 제외합니다.</p>
+</section>
+
+<section class="card">
+  <h2>콘텐츠별 배정</h2>
+  <div class="grid2">
+    <div><label for="aContent">콘텐츠</label><select id="aContent"></select></div>
+    <div style="display:flex;align-items:flex-end"><button type="button" id="aRun" style="width:100%">배정 계산</button></div>
+  </div>
+  <p class="note" id="aMeta" style="margin-top:10px">딜러 1명당 무기 2 + 방어구 2를 배정합니다. 역할이 버퍼·생존인 캐릭터는 딜에 영향이 없어 제외합니다.</p>
+</section>
+
+<section class="card" id="aResultCard" hidden>
+  <h2>배정 결과</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>캐릭터</th><th>무기 2</th><th>방어구 2</th><th>세공</th><th>치확</th><th>치피</th><th>약확</th><th>목표 대비</th></tr></thead>
+      <tbody id="aRows"></tbody>
+    </table>
+  </div>
+  <div class="row-actions">
+    <button type="button" id="aApply">판정 탭에 반영</button>
+    <span class="note" id="aMsg"></span>
+  </div>
+  <p class="note" id="aNote" style="margin-top:10px"></p>
+</section>
+
+</div>
+</div>
+
+<!-- ───────────── 비교 ───────────── -->
+<div class="panel" id="p-cmp" role="tabpanel" aria-labelledby="t-cmp" hidden>
+<div class="stack">
+
+<section class="card">
+  <h2>조건</h2>
+  <div class="grid3">
+    <div>
+      <label for="content">채점 방식</label>
+      <select id="content">
+        <option value="siege">공성 월~토 · 3인기 · 베스트1</option>
+        <option value="sunday">공성 일요일 · 1인기 · 베스트1</option>
+        <option value="raid2" selected>강림 · 1인기 · 상위 3/9</option>
+      </select>
+    </div>
+    <div>
+      <label for="carry">점수 이월 (공성전)</label>
+      <select id="carry">
+        <option value="1.163">1주 (5판)</option>
+        <option value="1.539">2주 누적</option>
+        <option value="1.965">5주 누적</option>
+      </select>
+    </div>
+    <div>
+      <label for="wm">약공 배율</label>
+      <select id="wm">
+        <option value="1.3" selected>1.30 · 추가 피해 없음</option>
+        <option value="1.6">1.60 · 추가 피해 보통</option>
+        <option value="3.36">3.36 · 추가 피해 큼 (라이언)</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid3" style="margin-top:10px">
+    <div><label for="casts">윗스킬 시전</label><input id="casts" type="number" value="5" min="0" max="40"></div>
+    <div><label for="casts2">아랫스킬 시전</label><input id="casts2" type="number" value="0" min="0" max="40"></div>
+    <div><label for="plains">평타 횟수</label><input id="plains" type="number" value="8.5" step="0.5" min="0" max="60"></div>
+  </div>
+  <div class="grid2" style="margin-top:10px">
+    <div><label for="r2">아랫 ÷ 윗 한 방</label><input id="r2" type="number" value="0.2" step="0.01" min="0.01" max="3"></div>
+    <div><label for="r1">평타 ÷ 윗 한 방</label><input id="r1" type="number" value="0.22" step="0.01" min="0.01" max="3"></div>
+  </div>
+  <p class="note" style="margin-top:10px">기본값은 세인 강림 2라운드 실측(윗 5회, 평타 8.5회, 평타가 윗의 0.22배)입니다. 라이언은 0.08, 타카는 0.18 근처입니다.</p>
+</section>
+
+<section class="card">
+  <h2>후보 세팅 · 전투 기준</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr>
+        <th style="width:36px">순위</th><th>이름</th><th>치확</th><th>치피</th><th>약확</th>
+        <th>평균</th><th>흔들림</th><th>고점</th><th style="width:28px"></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="row-actions">
+    <button type="button" id="add">후보 추가</button>
+    <button type="button" id="reset">기본값으로</button>
+  </div>
+  <p class="note" style="margin-top:10px">실제로 만들 수 있는 조합만 적어 넣으십시오. 평균·고점은 첫 행 대비 비율입니다.</p>
+</section>
+
+<section class="verdict">
+  <div class="big" id="headline">—</div>
+  <p id="detail"></p>
+</section>
+
+<section class="card">
+  <h2>한계 가치 · 1위 후보 기준</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>부옵 1줄 추가</th><th>고점 상승</th><th>판정</th></tr></thead>
+    <tbody>
+      <tr><td>치확 +4</td><td class="num" id="mgC">—</td><td id="mgCt"></td></tr>
+      <tr><td>치피 +6</td><td class="num" id="mgD">—</td><td id="mgDt"></td></tr>
+      <tr><td>약확 +5</td><td class="num" id="mgW">—</td><td id="mgWt"></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note" style="margin-top:10px">다음에 올려야 할 스탯입니다. 줄을 옮길 때는 뺀 줄 수와 더한 줄 수가 같아야 공정한 비교입니다.</p>
+</section>
+
+<details>
+  <summary>계산 근거</summary>
+  <p>히트마다 치명과 약공을 독립 판정합니다. 치명 시 피해 ×(치피÷100), 약공 시 ×약공 배율이고 두 판정은 곱해집니다. 상태이상(화상·출혈·중독)은 통제 불가 변수라 제외했습니다.</p>
+  <p>고점 = 평균 + 계수 × 표준편차. 약공 전역 배율 1.30은 파스칼 단독 측정으로 확인했습니다 — 치명만 123,494 vs 치명+약공 160,543 = 1.30001.</p>
+  <p>약확이 99처럼 상한에 붙으면 결과가 거의 확정적이 되어 흔들림이 0.8%까지 줄어듭니다. 약확을 낮추면 평균은 떨어지지만 흔들림이 5배로 커져 베스트제에서는 역전될 수 있으니, 평균만 보고 판단하면 안 됩니다.</p>
+</details>
+
+</div>
+</div>
+
+<!-- ───────────── 백업 ───────────── -->
+<div class="panel" id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden>
+<div class="stack">
+<section class="card">
+  <h2>설정 백업 · 기기 간 이동</h2>
+  <p class="note">콘텐츠별 치확·치피·약확, 내 스펙 입력, 장비 인벤토리, 초월 예외는 <strong>이 브라우저에만</strong> 저장됩니다 (배율·지분 같은 고정값은 도구에 내장).
+    노트북과 데스크탑을 번갈아 쓰면 따라오지 않으니, 쓰던 쪽에서 <strong>내보내기</strong> 후
+    다른 쪽에 붙여넣고 <strong>가져오기</strong> 하세요.</p>
+  <textarea id="stateText" rows="6" placeholder="내보내기를 누르면 여기에 나옵니다. 다른 기기에서는 이 칸에 붙여넣고 가져오기."></textarea>
+  <div class="row-actions">
+    <button type="button" id="stateOut">내보내기</button>
+    <button type="button" id="stateCopy">복사</button>
+    <button type="button" id="stateIn">가져오기</button>
+    <span class="note" id="stateMsg"></span>
+  </div>
+</section>
+</div>
+</div>
+
+<!-- ───────────── 공략 ───────────── -->
+<div class="panel" id="p-guide" role="tabpanel" aria-labelledby="t-guide" hidden>
+<div class="stack">
+<section class="card">
+  <h2>공략 원문</h2>
+  <label for="gSel">콘텐츠</label>
+  <select id="gSel"></select>
+  <p class="note" style="margin-top:10px">출처: 유튜브 <strong>래밍</strong> · <a href="https://www.youtube.com/@%EB%9E%98%EB%B0%8D-r5j/videos" style="color:var(--accent)">채널 바로가기</a> · 수집일 2026-09-30. 공략은 1~2주 단위로 갱신되며 편성 자체가 바뀝니다.</p>
+</section>
+<section class="card md" id="gBody"></section>
+</div>
+</div>
+
+<details class="card" id="baseCard" style="margin-top:24px">
+  <summary id="baseSum">기본값</summary>
+  <div class="scroll" style="margin-top:10px">
+    <table>
+      <thead><tr><th>캐릭터</th><th>무기 속성</th><th>기본 치확</th><th>기본 치피</th><th>기본 약확</th><th>패시브 치확</th><th>약공 배율</th><th style="text-align:left;padding-left:14px">팀 효과</th></tr></thead>
+      <tbody id="cRows"></tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:10px"><strong>기본</strong> = 장비를 전부 뺀 마을 화면 수치 · <strong>패시브</strong> = 전투에 들어가야 붙는 치확 · <strong>약공 배율</strong> = 1.3 × (기본 계수 + 약공 추가 계수) ÷ 기본 계수. 장비와 무관한 값이라 도구에 내장되어 있습니다.</p>
+  <h3>초월 예외</h3>
+  <p class="note">표는 전부 <strong>6초월 이상 기준</strong>입니다. 6초 미만인 캐릭터만 여기서 지정하십시오 — 이 브라우저에 저장되고 백업에 포함됩니다. 4초(스탯 증가)처럼 숫자로 떨어지는 차이만 반영하며, 2초·6초 스킬 강화는 6초 기준으로 고정합니다.</p>
+  <div class="row-actions" style="margin-top:8px">
+    <select id="trName" style="width:auto"></select>
+    <select id="trLv" style="width:auto">
+      <option value="4">4~5초</option><option value="2">2~3초</option><option value="0">0~1초</option>
+    </select>
+    <button type="button" id="trAdd">지정</button>
+  </div>
+  <div id="trList" style="margin-top:8px"></div>
+  <p class="note" style="margin-top:10px"><strong>빈칸 = 미확인.</strong> 계산은 빈칸을 물리 · 치확 23 · 치피 150 · 약확 0 · 패시브 0 · 배율 1.3으로 가정해 돌립니다. 팀 효과는 지금은 표시만 하며, 계산은 콘텐츠별로 적어 둔 버프 약확을 그대로 씁니다. 같은 스탯의 효과가 겹치면 치확·약확은 더하고 피해 배율은 곱한다고 가정합니다(곱셈 쪽은 미검증).</p>
+</details>
+</div>
+
+<script id="guidemd" type="text/markdown"># 공성전 콘텐츠 데이터 수집본
+
+- 출처: 유튜브 **래밍** — https://www.youtube.com/@%EB%9E%98%EB%B0%8D-r5j/videos
+- 수집일: 2026-09-30
+- 공략은 1~2주 단위로 갱신됨
+- 공통: 보스 3체 / 채점 5판 중 베스트1 / 총 68턴 / 스킬 20회
+
+각 요일은 두 부분으로 구성한다.
+- **계산용**: 엔진이 쓰는 값 (편성, 시전 횟수, 버프 라우팅, 반지 고정)
+- **열람용 공략**: 화면에 그대로 표시할 원문 (진형, 속공, 세팅 지침, 주의, 스킬 순서)
+
+콘텐츠 스키마에 추가할 필드: `source`(출처명·링크), `updated`(수집일), `guide`(열람용 텍스트 블록, 엔진 미사용)
+
+---
+
+# 금요일 (신규 공략 — 기존 타카 편성 폐기)
+
+## 계산용
+- 편성: 라이언 / 레이첼 / 지크 / 아일린 / 비스킷
+- 반지 고정: **지크 = 권능(생존)**
+- 비스킷 약확 버프 대상: 라이언·레이첼
+- 최적화 제외: 비스킷(생존 세팅)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 라이언 | 4 | 3 | 7 |
+| 레이첼 | 3 | 4 | 7 |
+| 아일린 | 0 | 3 | 3 |
+| 비스킷 | 0 | 2 | 2 (버프) |
+| 지크 | 1 | 0 | 1 |
+
+## 열람용 공략
+**진형 추천**: 4·5 후열 = 라이언·레이첼 / 1~3 전열 = 지크·아일린·비스킷
+
+**속공 이상적인 그림**: 비스킷(31) – 지크(29) = 아일린(29) – 라이언(29) – 레이첼(29)
+
+**주의**: 반격 때문에 딜러들 터질 확률 높음. 방·생 잠재 뚫어주기.
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 라이언 | 후열 · 속공 4순위 | 복수자 치확치피공공 | 치확 100%, 약공 19%에 가깝게, 치피 최대한 땡기기 |
+| 레이첼 | 후열 · 속공 5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 땡기기 |
+| 지크 | 전열 · 속공 1~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 · **권능 반지 필수** |
+| 아일린 | 전열 · 속공 1~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 |
+| 비스킷 | 전열 · 속공 1~3순위 | 토템용 방방막받 | 탱템 아무거나 세팅, 단단해서 죽을 일 X |
+
+**스킬 순서**
+```
+레이첼 아래[1라] - 라이언 위[2라] - 라이언 아래[0턴] - 아일린 아래[4턴] - 비스킷 아래[8턴]
+레이첼 위[12턴] - 레이첼 아래[16턴] - 라이언 위[20턴] - 아일린 아래[24턴] - 라이언 아래[28턴]
+레이첼 위[32턴] - 레이첼 아래[36턴] - 비스킷 아래[40턴] - 라이언 위[44턴] - 라이언 아래[48턴]
+레이첼 위[52턴] - 레이첼 아래[56턴] - 지크 위[60턴] - 아일린 아래[64턴] - 라이언 위[68턴]
+```
+
+---
+
+# 토요일
+
+## 계산용
+- 편성: 라이언 / 레이첼 / 풍연 / 아일린 / 비스킷
+- 반지 고정: **레이첼·풍연 = 권능(생존)**
+- 라우팅(격차형): 레이첼 공격력 ≥ 풍연·아일린 + 130
+- 비스킷 약확 버프 대상: 라이언·레이첼
+- 최적화 제외: 비스킷
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 라이언 | 3 | 4 | 7 |
+| 레이첼 | 3 | 3 | 6 |
+| 풍연 | 3 | 0 | 3 |
+| 아일린 | 0 | 2 | 2 |
+| 비스킷 | 0 | 2 | 2 (버프) |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 라이언 / 1~4 전열
+
+**속공 이상적인 그림**: 비스킷(31) – 풍연(29) = 아일린(29) – 라이언(29) – 레이첼(25)
+
+**주의**: 레이첼이 풍연·아일린보다 공 130 정도 높아야 함
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 라이언 | 후열 · 속공 4순위 | 복수자 치확치피공공 | 치확 100%, 약공 19%에 가깝게, 치피 최대한 땡기기 |
+| 레이첼 | 전열 · 속공 5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 땡기기 · **권능 반지 필수** |
+| 풍연 | 전열 · 속공 1~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 · **권능 반지 필수** |
+| 아일린 | 전열 · 속공 1~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 |
+| 비스킷 | 전열 · 속공 1~3순위 | 토템용 방방막받 | 탱템 아무거나 세팅, 단단해서 죽을 일 X |
+
+**스킬 순서**
+```
+라이언 아래[1라] - 풍연 위[2라] - 아일린 아래[0턴] - 비스킷 아래[4턴] - 레이첼 위[8턴]
+레이첼 아래[12턴] - 라이언 위[16턴] - 라이언 아래[20턴] - 아일린 아래[24턴] - 레이첼 위[28턴]
+레이첼 아래[32턴] - 풍연 위[36턴] - 라이언 위[40턴] - 비스킷 아래[44턴] - 라이언 아래[48턴]
+레이첼 위[52턴] - 레이첼 아래[56턴] - 풍연 위[60턴] - 라이언 위[64턴] - 라이언 아래[68턴]
+```
+
+---
+
+# 목요일
+
+## 계산용
+- 편성: 라이언 / 레이첼 / 돼오 / 아일린 / 비스킷
+- 반지 고정: 없음
+- 라우팅(격차형): 레이첼 공격력 ≥ 아일린·돼오 + 150
+- 비스킷 약확 버프 대상: 라이언·레이첼
+- 최적화 제외: 비스킷
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 라이언 | 3 | 4 | 7 |
+| 레이첼 | 3 | 2 | 5 |
+| 돼오 | 1 | 3 | 4 |
+| 아일린 | 0 | 2 | 2 |
+| 비스킷 | 0 | 2 | 2 (버프) |
+
+## 열람용 공략
+**진형 추천**: 보호 진형(5 / 1 2 3 4) **또는** 밸런스 진형(4 5 / 1 2 3) — 레이첼 공조절 어려울 경우
+
+**속공 이상적인 그림**: 비스킷(31) – 돼오(29) – 라이언(29) – 레이첼(25) – 아일린(25)
+
+**주의**: 레이첼이 아일린·돼오보다 공 150 정도 높아야 함
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 라이언 | 후열 · 속공 3순위 | 복수자 치확치피공공 | 치확 100%, 약공 19%에 가깝게, 치피 최대한 땡기기 · 속공템 X |
+| 레이첼 | 전열 · 속공 4순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 땡기기 · 속공템 X |
+| 돼오 | 전열 · 속공 2순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 · 속공템 X |
+| 아일린 | 전열 · 속공 5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 · 속공템 X |
+| 비스킷 | 전열 · 속공 1순위 | 토템용 방방막받 | 탱템 아무거나 세팅, 단단해서 죽을 일 X |
+
+**스킬 순서**
+```
+라이언 아래[1라] - 돼오 위[2라] - 아일린 아래[0턴] - 비스킷 아래[4턴] - 돼오 아래[8턴]
+레이첼 위[12턴] - 라이언 위[16턴] - 레이첼 아래[20턴] - 라이언 아래[24턴] - 아일린 아래[28턴]
+돼오 아래[32턴] - 레이첼 위[36턴] - 라이언 위[40턴] - 비스킷 아래[44턴] - 라이언 아래[48턴]
+레이첼 아래[52턴] - 돼오 아래[56턴] - 레이첼 위[60턴] - 라이언 위[64턴] - 라이언 아래[68턴]
+```
+
+---
+
+# 월요일 A안 (쥬리 2초월 보유)
+
+## 계산용
+- 편성: 나타 / 쥬리 / 미호 / 에반 / 비스킷
+- 반지 고정: 없음
+- 라우팅: 미호 공격력 < 쥬리 (비스킷 버프 54가 나타·쥬리에게 가도록)
+- 비스킷 약확 버프 대상: 나타·쥬리 (둘 다 46 + 54 = 100)
+- 최적화 제외: 에반(토템용). 비스킷은 딜러로 포함
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 나타 | 4 | 4 | 8 |
+| 비스킷 | 2 | 3 | 5 |
+| 미호 | 1 | 3 | 4 |
+| 쥬리 | 0 | 3 | 3 |
+| 에반 | 0 | 0 | 0 |
+
+- 대체 스킬 반영 시: 나타 아래[68턴] → 미호 위[68턴] (나타 7, 미호 5)
+
+## 열람용 공략
+**진형 추천**: 보호 진형(5 / 1 2 3 4) **또는** 밸런스 진형(4 5 / 1 2 3) — 쥬리 공 조절이 어려운 경우
+
+**속공 이상적인 그림**: 쥬리(33) – 미호(33) – 에반(32) – 비스킷(31) – 나타(29)
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 나타 | 후열 · 속공 5순위 | 복수자 **치피치피**공공 | 치확 67%, 약공 46%에 가깝게, 치피 최대한 땡기기 |
+| 쥬리 | 전열 · 속공 1순위 | 복수자 치확치피공공 | 치확 100%, 약공 46%에 가깝게, 치피 최대한 땡기기 (**2초월 필수**) |
+| 미호 | 전열 · 속공 2순위 | 복수자 **치확약확**공공 | 치확·약공 100%에 가깝게 · **중요: 쥬리보다 공 낮게** |
+| 에반 | 전열 · 속공 3~4순위 | 토템용 아무거나 | 속공 순서만 지켜줄 것 |
+| 비스킷 | 전열 · 속공 3~4순위 | 복수자 치확치피공공 | 치확 100% 필수, 치피 최대한 챙기기 |
+
+**스킬 순서** (노란색 = 협공 때문에 순서 자유 변경 / 빨간색 = 쿨 안 돌 때 대체)
+```
+미호 위[1라] - 나타 아래[2라] - 나타 위[0턴] - 비스킷 위[4턴] - 비스킷 아래[8턴]
+쥬리 아래[12턴] - 미호 아래[16턴] - [노랑]나타 위[20턴] - [노랑]나타 아래[24턴] - [노랑]비스킷 위[28턴]
+쥬리 아래[32턴] - 미호 아래[36턴] - 나타 위[40턴] - [노랑]나타 아래[44턴] - 비스킷 아래[48턴]
+[노랑]비스킷 위[52턴] - 쥬리 아래[56턴] - 미호 아래[60턴] - 나타 위[64턴] - 나타 아래[68턴]
+                                                              [빨강 대체] 미호 위[68턴]
+```
+
+---
+
+# 월요일 B안 (쥬리 없음)
+
+## 계산용
+- 편성: 나타 / 미호 / 에반 / 리나 / 비스킷
+- 반지: 에반·리나·비스킷 = 도트 반지 추천 (효과 미확인 → 확인 후 고정 여부 결정)
+- 최적화 제외: 에반
+- 비스킷 약확 버프 대상: 미정 (나타·미호 추정 — 둘 다 46 지침)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 나타 | 4 | 4 | 8 |
+| 비스킷 | 3 | 2 | 5 |
+| 미호 | 2 | 3 | 5 |
+| 리나 | 2 | 0 | 2 |
+| 에반 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 보호 진형 (5 / 1 2 3 4)
+
+**속공 이상적인 그림**: 미호(29) – 나타(29) – 리나(19) – 비스킷(19) – 에반(16)
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 나타 | 후열 · 속공 2순위 | 복수자 **치피치피**공공 | 치확 67%, 약공 46%에 가깝게, 치피 최대한 땡기기 |
+| 미호 | 전열 · 속공 1순위 | 복수자 치확치피공공 | 치확 100%, 약공 46%에 가깝게, 치피 최대한 땡기기 |
+| 에반 | 전열 · 속공템 X | 주술사 아무거나 | 아무거나 줘도 상관 X · **도트 반지 추천** |
+| 리나 | 전열 · 속공템 X | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 · **도트 반지 추천(고점용)** · 복수자템 부족할 경우 성기사 추천 |
+| 비스킷 | 전열 · 속공템 X | 복수자 치확치피공공 | 치확 100% 필수, 치피 최대한 챙기기 · **도트 반지 추천** · 혹여나 죽는 경우 공받 or 받받 or 권능 반지 권장 |
+
+**스킬 순서**
+```
+비스킷 아래[1라] - 미호 위[1라(4턴)] - 나타 아래[2라(4턴)] - 나타 위[4턴] - 비스킷 위[8턴]
+리나 위[12턴] - 미호 아래[16턴] - 미호 위[20턴] - 나타 아래[24턴] - 나타 위[28턴]
+비스킷 위[32턴] - 비스킷 아래[36턴] - 미호 아래[40턴] - 나타 아래[44턴] - 나타 위[48턴]
+      ↑ 여기서 도트 걸려있어야 마지막에 쿨 딱 될 듯
+리나 위[52턴] - 비스킷 위[56턴] - 미호 아래[60턴] - 나타 아래[64턴] - 나타 위[68턴]
+```
+
+---
+
+# 일요일 (현행) — 공략 날짜 2026-09-20
+
+일요일은 **미스=딜0형 약공** 콘텐츠. 다수 캐릭터에 "약공 100% 필수" 지침이 붙는 것과 일치.
+
+## 계산용
+- 편성: 세인 / 헤브니아 / 아일린 / 샤오 / 비스킷
+- 반지: 비스킷 = **출혈 반지 추천** (효과 미확인)
+- 라우팅(격차형, 초고점용): 샤오 공격력 ≥ 아일린 + 120
+- 최적화 제외: 없음 (전원 딜러)
+- 헤브니아 각성 슬롯 사용
+
+| 캐릭터 | 윗 | 아랫 | 각성 | 합계 |
+|---|---|---|---|---|
+| 세인 | 6 | 0 | - | 6 |
+| 헤브니아 | 3 | 2 | 1 | 6 |
+| 샤오 | 1 | 2 | - | 3 |
+| 비스킷 | 1 | 2 | - | 3 |
+| 아일린 | 0 | 2 | - | 2 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 세인 / 1~4 전열
+
+**속공 이상적인 그림**: 비스킷(31) – 아일린(29) = 샤오(29) – 세인(29) – 헤브니아(25)
+
+**초 고점 디테일**: 아일린보다 샤오가 공 120 정도 높으면 좋음
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 세인 | 후열 · 4순위 | 복수자 **치피치피**공공 | 치확 59%, 약공 46% 가깝게, 치피 최대한 땡기기 |
+| 헤브니아 | 전열 · 5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 약공 46% 필수, 치피 최대한 땡기기 |
+| 아일린 | 전열 · 2~3순위 | 복수자 **치확약확**공공 | 약공 100% 필수, 치확 최대한 챙겨주기 |
+| 샤오 | 전열 · 2~3순위 | 복수자 **치확약확**공공 | 약공 100% 필수, 치확 최대한 챙겨주기 |
+| 비스킷 | 전열 · 1순위 | 복수자 **약확약확**공공 | 약공 100% 필수, 치확 최대한 챙겨주기 · **출혈 반지 추천** |
+
+**스킬 순서**
+```
+비스킷 위[1라] - 헤브니아 아래[2라] - 비스킷 아래[0턴] - 아일린 아래[4턴] - 세인 위[8턴]
+헤브니아 위[12턴] - 샤오 아래[16턴] - 세인 위[20턴] - 헤브니아 각성[24턴] - 아일린 아래[28턴]
+세인 위[32턴] - 비스킷 아래[36턴] - 헤브니아 위[40턴] - 세인 위[44턴] - 샤오 위[48턴]
+샤오 아래[52턴] - 세인 위[56턴] - 헤브니아 위[60턴] - 헤브니아 아래[64턴] - 세인 위[68턴]
+```
+
+---
+
+# 수요일
+
+## 계산용
+- 편성: 나타 / 미호 / 리나 / 라이언 / 비스킷
+- 최적화 대상: 나타, 미호, 비스킷
+- 최적화 제외: 리나(선봉장 공%형 버퍼), 라이언(수문장 탱커)
+- 반지: 죽는 경우 권능 권장 (리나·라이언·비스킷), 미호가 버프를 받아버리면 받받 or 공받
+- 라우팅(격차형): 리나 공격력 >= 미호 + 300 (윈디 72% 기준), 미호는 리나보다 반드시 낮게
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 나타 | 5 | 4 | 9 |
+| 미호 | 3 | 3 | 6 |
+| 비스킷 | 1 | 2 | 3 |
+| 리나 | 2 | 0 | 2 |
+| 라이언 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 나타 / 1~4 전열
+
+**속공**: 리나 1~2순위 – 비스킷 1~2순위 – 라이언 3순위 – 미호 4순위 – 나타 5순위
+
+**주의**: 미호보다 리나 공격력이 넉넉잡아 300 정도 높으면 될 듯 (윈디 72% 기준)
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 나타 | 후열 · 5순위 | 복수자 **치피치피**공공 | 치확 67%에 가깝게, 약공 46% 필수, 치피 최대한 땡기기 |
+| 미호 | 전열 · 4순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 약공·치피 최대한 땡겨주기 · **리나보다 공 낮게 세팅(필수)** · 그래도 버프를 미호가 받으면 받받 or 공받 추천 |
+| 리나 | 전열 · 1~2순위 | **선봉장 공공공공** | 공% 최대한 챙겨주기 · 혹여나 죽는 경우 권능 or 방·생 잠재 · **미호보다 공 높게 세팅(필수)** |
+| 라이언 | 전열 · 3순위 | **수문장 방방막받** | 막기 확률 100% 권장, 단단하게 세팅할 것 · 혹여나 죽는 경우 권능 or 방·생 잠재 |
+| 비스킷 | 전열 · 1~2순위 | 복수자 치확치피공공 | 치확 100% 필수, 치피 최대한 땡기기 · 혹여나 죽는 경우 권능 반지 |
+
+**스킬 순서**
+```
+비스킷 위[1라] - 미호 위[2라] - 비스킷 아래[0턴] - 나타 위[4턴] - 미호 아래[8턴]
+나타 아래[12턴] - 리나 위[16턴] - 나타 위[20턴] - 미호 위[24턴] - 나타 아래[28턴]
+미호 아래[32턴] - 나타 위[36턴] - 비스킷 아래[40턴] - 나타 아래[44턴] - 리나 위[48턴]
+나타 위[52턴] - 미호 아래[56턴] - 나타 아래[60턴] - 미호 위[64턴] - 나타 위[68턴]
+```
+
+---
+
+# 화요일
+
+## 계산용
+- 편성: 나타 / 미호 / 리나 / 클로에 / 비스킷
+- 최적화 대상: 나타, 미호, 비스킷
+- 최적화 제외: 리나(성기사 생명형), 클로에(수문장 탱커)
+- 반지: 나타 = 권능 권장(초월 낮으면 사망), 비스킷 = 죽으면 권능
+- 라우팅: 리나를 팀 공격력 2위 이내로 (아래 메커니즘 참조)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 나타 | 3 | 4 | 7 |
+| 미호 | 2 | 3 | 5 |
+| 비스킷 | 1 | 2 | 3 |
+| 클로에 | 3 | 0 | 3 |
+| 리나 | 2 | 0 | 2 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 나타 / 1~4 전열
+
+**속공**: 리나 1~3순위 – 클로에 1~3순위 – 비스킷 1~3순위 – 나타 4순위 – 미호 5순위
+
+**주의**: 딜러들 주옵·부옵을 다 고려해서 요구 치확·약확이 충족 가능하면, 무기 주옵을 **치피치피**로 놓아도 됨
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 나타 | 후열 · 4순위 | 복수자 **치피치피**공공 | 치확 40%에 가깝게, 약공 46% 필수, 치피 최대한 땡기기 · 초월 낮은 경우 죽을 각 많음, **권능 주는 걸 권장** |
+| 미호 | 전열 · 5순위 | 복수자 치확치피공공 | 치확 73%에 가깝게, 약공 46% 필수, 치피 최대한 땡기기 |
+| 리나 | 전열 · 1~3순위 | **성기사 생생생생** | 생명력% 최대한, 최대한 단단하게 세팅 |
+| 클로에 | 전열 · 1~3순위 | **수문장 방방막받** | 막확 100% 권장, 최대한 단단하게 세팅 |
+| 비스킷 | 전열 · 1~3순위 | 복수자 치확치피공공 | 치확 73% 필수, 치피 최대한 챙겨주기 · 혹여나 죽는 경우 **권능** |
+
+**스킬 순서**
+```
+비스킷 아래[1라] - 나타 아래[1라(4턴)] - 클로에 위[2라(4턴)] - 비스킷 위[2라(8턴)] - 리나 위[8턴]
+미호 아래[12턴] - 나타 위[16턴] - 미호 위[20턴] - 나타 아래[24턴] - 미호 아래[28턴]
+클로에 위[32턴] - 비스킷 아래[36턴] - 나타 위[40턴] - 나타 아래[44턴] - 미호 위[48턴]
+리나 위[52턴] - 클로에 위[56턴] - 미호 아래[60턴] - 나타 위[64턴] - 나타 아래[68턴]
+```
+
+---
+
+# 강림 — 구조 (중요)
+
+- **1라운드 = 문턱 구조**: 누적 **100만 딜**을 넣으면 2라운드로 넘어감. 점수가 아니라 **통과 여부**가 목적
+- **2라운드 = 딜 최대화**: 실제 점수가 나오는 구간
+- **턴은 공유 자원**: 전체 68턴 중 1라운드에서 쓴 턴만큼 2라운드가 짧아짐
+  (4턴 Ver → 2R이 4턴부터, 8턴 Ver → 2R이 8턴부터)
+  → **1라운드를 빨리 끝낼수록 총점이 올라감**
+- 따라서 최적화 목적함수가 라운드별로 다름
+  - 1R: **P(누적 딜 >= 100만) 최대화** (현 엔진 미지원 — `mechanic: "threshold"`)
+  - 2R: 점수 기대값 최대화 (채점 계수 필요)
+- **채점: 9판 중 상위 3판 합산** (확인됨). 분산 계수는 베스트1의 1.163이 아니라 상위3/9 값을 써야 함 — 현재 1.0 잠정, 실측 보정 필요
+- **1R 문턱 100만 = 팀 누적 딜** (확인됨)
+
+---
+
+# 강림 1라운드 (4턴 Ver)
+
+## 계산용
+- 편성: 파스칼 / 소교 / 레긴 / 선란 / 미호
+- **총 4턴** — 극단적 버스트 구조. 스킬 2회뿐이라 평타 판정이 거의 없음
+- 펫: **제오 필수** (잠재 50% 이상 권장) — 펫 시스템 미모델링, 확인 필요
+- 최적화 제외: 선란(장비 아무것도 안 낌)
+- 라우팅: 레긴·미호 공격력 < 소교
+- 레긴은 바네사로 대체 가능
+- 채점: 9판 중 상위 3판 합산
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 소교 | 1 | 0 | 1 |
+| 파스칼 | 1 | 0 | 1 |
+| 레긴 | 0 | 0 | 0 |
+| 선란 | 0 | 0 | 0 |
+| 미호 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 파스칼 / 1~4 전열
+
+**속공**: 소교 1~3순위 – 레긴 1~3순위 – 미호 1~3순위 – 파스칼 4~5순위 – 선란 4~5순위
+
+**꿀팁**: 스펙 애매한 경우 파스칼 치피치피로 약공 도박 트라이 추천
+
+**펫**: 제오 필수! 잠재 50% 이상 권장
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 파스칼 | 후열 · 4~5순위 | 복수자 **치피약확**공공 | 치피 290% 이상 권장, 약공 100% 필수 |
+| 소교 | 전열 · 1~3순위 | 복수자 치확치피공공 | 치확 100%, 약공 61% 권장, 치피 220% 이상 권장 |
+| 레긴 | 전열 · 1~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 (**바네사로 대체 가능**) · **주의: 소교보다 공 낮게** |
+| 선란 | 전열 · 4~5순위 | 토템용 **장비 X** | 템 아무것도 끼지 않기, 반지도 X, 전용장비도 X |
+| 미호 | 전열 · 1~3순위 | 복수자 **치확약확**공공 | 치확·약확 100% 권장, 치피는 최대한 챙겨주기 · **주의: 소교보다 공 낮게** |
+
+**스킬 순서**
+```
+소교 위[0턴] - 파스칼 위[4턴]
+```
+
+---
+
+# 강림 2라운드
+
+## 계산용
+- 편성: 세인 / 헤브니아 / 아일린 / 샤오 / 비스킷
+- 스킬 4턴~68턴, 총 17회
+- 반지: 아일린·비스킷 = 출혈 반지 추천
+- 최적화 제외: 비스킷(주술사 방방받받 탱커)
+- 라우팅(격차형, 초고점용): 샤오 공격력 >= 아일린 + 120
+- 헤브니아 각성 슬롯 사용
+
+| 캐릭터 | 윗 | 아랫 | 각성 | 합계 |
+|---|---|---|---|---|
+| 세인 | 5 | 0 | - | 5 |
+| 헤브니아 | 3 | 1 | 1 | 5 |
+| 샤오 | 0 | 3 | - | 3 |
+| 아일린 | 0 | 2 | - | 2 |
+| 비스킷 | 0 | 2 | - | 2 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 세인 / 1~4 전열
+
+**속공 이상적인 그림**: 비스킷(31) – 아일린(29) = 샤오(29) – 세인(29) – 헤브니아(25)
+
+**초 고점 디테일**: 아일린보다 샤오가 공 120 정도 높으면 좋음
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 세인 | 후열 · 4~5순위 | 복수자 **치피치피**공공 | 치확 59%, 약공 46% 가깝게, 치피 최대한 챙겨주기 |
+| 헤브니아 | 전열 · 4~5순위 | 복수자 치확치피공공 | 치확 100%, 약공 46% 가깝게, 치피 최대한 챙겨주기 |
+| 아일린 | 전열 · 2~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 · **출혈 반지 추천** |
+| 샤오 | 전열 · 2~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 |
+| 비스킷 | 전열 · 1순위 | **주술사 방방받받** | 막기 최대한 챙겨주기, 단단해서 죽을 일 X · **출혈 반지 추천** |
+
+**스킬 순서**
+```
+아일린 아래[4턴] - 헤브니아 위[8턴] - 샤오 아래[12턴] - 비스킷 아래[16턴] - 세인 위[20턴] - 아일린 아래[24턴]
+헤브니아 위[28턴] - 세인 위[32턴] - 샤오 아래[36턴] - 헤브니아 각성[40턴] - 세인 위[44턴] - 비스킷 아래[48턴]
+헤브니아 위[52턴] - 세인 위[56턴] - 샤오 아래[60턴] - 헤브니아 아래[64턴] - 세인 위[68턴]
+```
+
+---
+
+# 강림 1라운드 (8턴 Ver)
+
+4턴 컷이 안 될 때의 안전 버전. 2라운드가 4턴 짧아지므로 총점은 4턴 Ver보다 낮음.
+
+## 계산용
+- 편성: 파스칼 / 소교 / 하연 / 선란 / 미호
+- 총 8턴, 스킬 3회
+- 최적화 제외: 선란(장비 아무것도 안 낌)
+- 라우팅: 미호 공격력 < 소교
+- 대체: 하연 → 바네사·레긴, 선란 → 밀리아(공 조절 어려울 경우)
+- 목적: 누적 100만 딜 달성
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 소교 | 1 | 1 | 2 |
+| 파스칼 | 1 | 0 | 1 |
+| 하연 | 0 | 0 | 0 |
+| 선란 | 0 | 0 | 0 |
+| 미호 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 파스칼 / 1~4 전열
+
+**속공**: 파스칼·소교·하연·미호 1~4순위 – 선란 5순위
+
+**꿀팁**: 스펙 애매한 경우 소교 치확 or 약확 좀 낮추고 치피 올려서 트라이 추천
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 파스칼 | 후열 · 1~4순위 | 복수자 **치피약확**공공 | 치피 270% 이상 권장, 약공 100% 필수 (**제오 보유 시 널널하게 세팅해도 가능**) |
+| 소교 | 전열 · 1~4순위 | 복수자 치확치피공공 | 치확 100%, 약공 61% 권장, 치피 최대한 챙겨주기 (**제오 보유 시 널널하게 세팅해도 가능**) |
+| 하연 | 전열 · 1~4순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 챙겨주기 (**바네사·레긴으로 대체 가능**) |
+| 선란 | 전열 · 5순위 | 토템용 **장비 X** | 템 아무것도 끼지 않기, 반지도 X, 전용장비도 X (공 조절 어려울 경우 **밀리아로 대체 가능**) |
+| 미호 | 전열 · 1~4순위 | 복수자 **치확약확**공공 | 치확·약확 100% 권장, 치피는 최대한 챙겨주기 · **주의: 소교보다 공 낮게** |
+
+**스킬 순서**
+```
+소교 위[0턴] - 파스칼 위[4턴] - 소교 아래[8턴]
+```
+
+---
+
+# 강림 2라운드 (1R 8턴 Ver에 이어지는 경우)
+
+## 계산용
+- 편성: 세인 / 헤브니아 / 아일린 / 샤오 / 비스킷
+- 스킬 8턴~68턴, 총 16회 (4턴 Ver보다 1회 적음)
+- 반지: 아일린·비스킷 = 출혈 반지 추천
+- 최적화 제외: 비스킷(주술사 방방받받)
+- 라우팅(초고점): 샤오 공격력 >= 아일린 + 120
+
+| 캐릭터 | 윗 | 아랫 | 각성 | 합계 |
+|---|---|---|---|---|
+| 세인 | 5 | 0 | - | 5 |
+| 헤브니아 | 2 | 1 | 1 | 4 |
+| 샤오 | 0 | 3 | - | 3 |
+| 아일린 | 0 | 2 | - | 2 |
+| 비스킷 | 0 | 2 | - | 2 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 세인 / 1~4 전열
+
+**속공 이상적인 그림**: 세인(29) – 비스킷(27) – 아일린(25) – 샤오(25) – 헤브니아(25)
+(4턴 Ver과 속공 순위가 다름: 4턴 Ver은 비스킷 31 – 아일린 29 = 샤오 29 – 세인 29 – 헤브니아 25)
+
+**초 고점 디테일**: 아일린보다 샤오가 공 120 정도 높으면 좋음
+
+**장비 세팅 추천**: 강림 2라운드(4턴 Ver)과 동일
+
+**스킬 순서**
+```
+아일린 아래[8턴] - 샤오 아래[12턴] - 비스킷 아래[16턴] - 세인 위[20턴] - 헤브니아 위[24턴] - 아일린 아래[28턴]
+세인 위[32턴] - 샤오 아래[36턴] - 헤브니아 각성[40턴] - 세인 위[44턴] - 비스킷 아래[48턴] - 헤브니아 위[52턴]
+세인 위[56턴] - 샤오 아래[60턴] - 헤브니아 아래[64턴] - 세인 위[68턴]
+```
+
+---
+
+# 강림 태오 1라운드
+
+## 계산용
+- 편성: 파스칼 / 에스파다 / 바네사 / 리나 / 린
+- 1라운드 문턱 구조 (12턴 전후 통과, 11턴까지 평타로 잡혀도 OK)
+- 최적화 제외: 린(스킬 순서에 없음)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 파스칼 | 1 | 0 | 1 |
+| 리나 | 1 | 0 | 1 |
+| 에스파다 | 0 | 1 | 1 |
+| 바네사 | 0 | 1 | 1 |
+| 린 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 파스칼 / 1~4 전열
+
+**속공**: 전원 속공 상관 X
+
+**주의**: 파스칼 말고도 약확 100%를 맞출 수 있으면 맞추는 걸 추천 (약확 세팅이 더 셈) · 1라운드 11턴까지 평타로 잡혀도 OK
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 파스칼 | 후열 · 속공 상관 X | 복수자 **치피약확**공공 | 약공 100% 권장, 치피 280% 이상 권장 |
+| 에스파다 | 전열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100% 추천, 치피 최대한 챙겨주기 |
+| 바네사 | 전열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100% 추천, 치피 최대한 · 템 부족한 경우 아무거나 OK |
+| 리나 | 전열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100% 추천, 치피 최대한 · 템 부족한 경우 아무거나 OK |
+| 린 | 전열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100% 추천, 치피 최대한 · 템 부족한 경우 아무거나 OK |
+
+**스킬 순서**
+```
+에스파다 아래[0턴] - 리나 위[4턴] - 파스칼 위[8턴] - 바네사 아래[12턴]
+```
+
+---
+
+# 강림 태오 2라운드
+
+## 계산용
+- 편성: 소교 / 데이지 / 미호 / 오를리 / 비스킷
+- 스킬 12턴~60턴 (대부분 60턴 전에 끝남)
+- 비스킷 약확 버프 대상: 데이지(약공 46% 필수 = 46 + 54) · 소교(추정)
+- 미호 패시브: 아군 전체 약공 피해 ×1.23
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 소교 | 2 | 2 | 4 |
+| 데이지 | 1 | 2 | 3 |
+| 미호 | 1 | 1 | 2 |
+| 오를리 | 0 | 2 | 2 |
+| 비스킷 | 0 | 2 | 2 |
+
+## 열람용 공략
+**진형 추천**: 4·5 후열 = 소교·데이지 / 1~3 전열
+
+**속공**: 미호 · 오를리 · 비스킷 1~3순위 – 소교 · 데이지 4~5순위 (소교·데이지 속공템 X)
+
+**주의**: 대부분 60턴 전에 끝남
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 소교 | 후열 · 속공 4~5순위 | 복수자 치확치피공공 | 치확 83%, 치피 최대한 · 속공템 X |
+| 데이지 | 후열 · 속공 4~5순위 | 복수자 치확치피공공 | 치확 83%, 약공 46% 필수, 치피 최대한 · 속공템 X |
+| 미호 | 전열 · 속공 1~3순위 | 복수자 **치확약확**공공 | 치확 83%, 약확 100% 권장, 치피 최대한 · 템 부족한 경우 아무거나 OK |
+| 오를리 | 전열 · 속공 1~3순위 | 복수자 치확치피공공 | 치확 83% 추천, 치피 최대한 · 템 부족한 경우 아무거나 OK |
+| 비스킷 | 전열 · 속공 1~3순위 | 복수자 치확치피공공 | 치확 100% 추천, 치피 최대한 · 템 부족한 경우 아무거나 OK |
+
+**스킬 순서**
+```
+비스킷 아래[12턴] - 오를리 아래[16턴] - 소교 위[20턴] - 데이지 아래[24턴] - 소교 아래[28턴] - 데이지 위[32턴]
+미호 위[36턴] - 오를리 아래[40턴] - 미호 아래[44턴] - 비스킷 아래[48턴]
+소교 위[52턴] - 데이지 아래[56턴] - 소교 아래[60턴]
+```
+
+---
+
+# 강림 카일 1라운드
+
+## 계산용
+- 편성: 세인 / 란드 / 여포 / 레이첼 / 관우
+- 1라운드 문턱 구조, 스킬 0~8턴 3회
+- 약확 버프: 레이첼 패시브 아군 전체 +27
+- 여포·관우는 스킬 순서에 없음 (평타만)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 란드 | 1 | 0 | 1 |
+| 레이첼 | 1 | 0 | 1 |
+| 세인 | 1 | 0 | 1 |
+| 여포 | 0 | 0 | 0 |
+| 관우 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 4·5 후열 = 세인·란드 / 1~3 전열
+
+**속공**: 세인 · 란드 1~2순위 (둘 다 속공 30 이상 필수) – 여포 · 레이첼 · 관우 3~5순위
+
+**주의**: 세인·란드 속공 30 이상 필수!
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 세인 | 후열 · 속공 1~2순위 | 복수자 **치피치피**공공 | 치확 59% 필수, 치피 300% 이상 권장 · **속공 30 이상 필수** |
+| 란드 | 후열 · 속공 1~2순위 | 복수자 **치확약확**공공 | 치확 100%, 약확 61% 필수, 치피 최대한 · **속공 30 이상 필수** |
+| 여포 | 전열 · 속공 3~5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 |
+| 레이첼 | 전열 · 속공 3~5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 |
+| 관우 | 전열 · 속공 3~5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 |
+
+**스킬 순서**
+```
+란드 위[0턴] - 레이첼 위[4턴] - 세인 위[8턴]
+```
+
+---
+
+# 강림 카일 2라운드
+
+## 계산용
+- 편성: 백룡 / 파이 / 헤브니아 / 비스킷 / 리나
+- 스킬 8턴~68턴, 헤브니아 각성 1회
+- 비스킷(수문장 탱커) 약확 버프 대상: 백룡·파이 (둘 다 약공 46% 필수 = 46 + 54)
+- 라우팅: 헤브니아 공격력 < 파이
+- 최적화 제외: 비스킷(수문장 방방막받), 리나(성기사 생생생생)
+
+| 캐릭터 | 윗 | 아랫 | 각성 | 합계 |
+|---|---|---|---|---|
+| 백룡 | 4 | 3 | - | 7 |
+| 파이 | 2 | 0 | - | 2 (+대체 1) |
+| 헤브니아 | 2 | 0 | 1 | 3 |
+| 비스킷 | 0 | 2 | - | 2 (버프) |
+| 리나 | 2 | 0 | - | 2 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 백룡 / 1~4 전열
+
+**속공**: 헤브니아 1순위 – 백룡 · 파이 2~3순위 – 비스킷 · 리나 4~5순위 (비스킷·리나 속공템 X)
+
+**주의**: 헤브니아는 파이보다 공 낮게 세팅! (비스킷 버프가 백룡·파이에게 가도록)
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 백룡 | 후열 · 속공 2~3순위 | 복수자 **치피치피**공공 | 치확 67%, 약공 46% 필수, 치피 최대한 |
+| 파이 | 전열 · 속공 2~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 약공 46% 필수, 치피 최대한 |
+| 비스킷 | 전열 · 속공 4~5순위 | **수문장 방방막받** | 막기 확률 100% 권장, 최대한 단단하게 · 속공템 X |
+| 리나 | 전열 · 속공 4~5순위 | **성기사 생생생생** | 생명력% 최대한, 단단해서 잘 안 죽음 · 속공템 X |
+| 헤브니아 | 전열 · 속공 1순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 · **파이보다 공 낮게 세팅!** |
+
+**스킬 순서** (노란색 = 영상 컷 이후 스킬 순서 / 빨간색 = 보스 체력 적은 경우 대체 스킬)
+```
+비스킷 아래[8턴] - 백룡 위[12턴] - 백룡 아래[16턴] - 리나 위[20턴] - 파이 위[24턴] - 백룡 위[28턴]
+헤브니아 위[32턴] - 헤브니아 각성[36턴] - 백룡 아래[40턴] - 백룡 위[44턴] - [노랑]비스킷 아래[48턴]
+[빨강 대체] 파이 위[48턴]
+[노랑]리나 위[52턴] - [노랑]파이 위[56턴] - [노랑]헤브니아 위[60턴] - [노랑]백룡 위[64턴] - [노랑]백룡 아래[68턴]
+```
+
+---
+
+# 강림 연희 1라운드
+
+## 계산용
+- 편성: 루리 / 클로에 / 바네사 / 밀리아 / 오를리
+- 1라운드 문턱 구조, 스킬 0~12턴 — 딜은 루리 단독
+- 최적화 제외: 클로에(조율자), 바네사·밀리아·오를리(토템용)
+- 대체: 밀리아 → 성진우·키리엘·연희
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 루리 | 1 | 1 | 2 |
+| 클로에 | 1 | 0 | 1 |
+| 오를리 | 0 | 1 | 1 |
+| 바네사 | 0 | 0 | 0 |
+| 밀리아 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 루리 / 1~4 전열
+
+**속공**: 루리 · 바네사 · 밀리아 · 오를리 1~4순위 – 클로에 5순위 (클로에는 속공만 안 주면 OK)
+
+**주의**: 바네사·밀리아·오를리는 토템용 — 템 안 줘도 됨 · 밀리아는 성진우·키리엘·연희로 대체 가능
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 루리 | 후열 · 속공 1~4순위 | 복수자 **치피치피**공공 | 치확 56%, 약공 61% 필수, 치피 270% 이상 권장 |
+| 클로에 | 전열 · 속공 5순위 | **조율자** 아무거나 | 속공만 안 주면 OK |
+| 바네사 | 전열 · 속공 1~4순위 | 토템용 아무거나 | 템 아무거나 상관 X, 템 안 줘도 됨 |
+| 밀리아 | 전열 · 속공 1~4순위 | 토템용 아무거나 | 템 아무거나 상관 X, 성진우·키리엘·연희로 대체 가능 |
+| 오를리 | 전열 · 속공 1~4순위 | 토템용 아무거나 | 템 아무거나 상관 X, 템 안 줘도 됨 |
+
+**스킬 순서**
+```
+오를리 아래[0턴] - 클로에 위[4턴] - 루리 위[8턴] - 루리 아래[12턴]
+```
+
+---
+
+# 강림 연희 2라운드
+
+## 계산용
+- 편성: 나타 / 미호 / 비스킷 / 데이지 / 리나
+- 스킬 12턴~64턴 (대부분 64턴에서 마무리)
+- 비스킷(수문장 탱커) 약확 버프 대상: 나타·미호 (둘 다 약공 46% 필수 = 46 + 54)
+- 미호 패시브: 아군 전체 약공 피해 ×1.23
+- 최적화 제외: 비스킷·데이지(수문장 방방막받), 리나(성기사 생생생생)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 나타 | 3 | 2 | 5 (+대체 1) |
+| 미호 | 2 | 2 | 4 |
+| 데이지 | 1 | 0 | 1 |
+| 비스킷 | 0 | 2 | 2 (버프) |
+| 리나 | 2 | 0 | 2 |
+
+## 열람용 공략
+**진형 추천**: 3·4·5 후열 = 비스킷·데이지·리나 / 1·2 전열 = 나타·미호
+
+**속공**: 비스킷 · 데이지 · 리나 1~3순위 (후열, 속공 30 이상) – 미호 4순위 – 나타 5순위
+
+**주의**: 후열 애들 속공 30 이상!!! 헷갈리지 말기 · 데이지 공격력이 너무 높으면 비스킷 버프를 뺏길 수 있음 — 공 조절 필수
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 나타 | 전열 · 속공 5순위 | 복수자 **치피치피**공공 | 치확 67%에 가깝게, 약공 46% 필수, 치피 최대한 |
+| 미호 | 전열 · 속공 4순위 | 복수자 치확치피공공 | 치확 100% 권장, 약공 46% 필수, 치피 최대한 |
+| 비스킷 | 후열 · 속공 1~3순위 | **수문장 방방막받** | 막확 100% 추천, 최대한 단단하게 |
+| 데이지 | 후열 · 속공 1~3순위 | **수문장 방방막받** | 막확 100% 권장 · **공격력 너무 높으면 비스킷 버프 뺏길 수 있음, 공 조절 필수** |
+| 리나 | 후열 · 속공 1~3순위 | **성기사 생생생생** | 생명력% 최대한, 단단해서 잘 안 죽음 |
+
+**스킬 순서** (노란색 = 영상 컷 이후 스킬 순서 / 빨간색 = 보스 체력 적은 경우 대체 스킬)
+```
+비스킷 아래[12턴] - 미호 아래[16턴] - 리나 위[20턴] - 나타 위[24턴] - 나타 아래[28턴] - 미호 위[32턴]
+데이지 위[36턴] - 미호 아래[40턴] - 나타 위[44턴] - [노랑]비스킷 아래[48턴] - [노랑]나타 아래[52턴]
+[빨강 대체] 나타 아래[48턴]
+[노랑]미호 위[56턴] - [노랑]리나 위[60턴] - [노랑]나타 위[64턴]
+```
+
+---
+
+# 강림 카르마 1라운드
+
+## 계산용
+- 편성: 풍연 / 타카 / 칼헤론 / 란드 / 선란
+- 1라운드 문턱 구조, 스킬 0~12턴
+- 란드·선란은 스킬 순서에 없음 (평타만)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 풍연 | 1 | 1 | 2 |
+| 칼헤론 | 0 | 1 | 1 |
+| 타카 | 1 | 0 | 1 |
+| 란드 | 0 | 0 | 0 |
+| 선란 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 3·4·5 후열 = 풍연·타카·칼헤론 / 1·2 전열 = 란드·선란
+
+**속공**: 전원 속공 상관 X
+
+**주의**: 제오 있으면 좀 더 널널하게 세팅 가능 · 풍연·칼헤론 치피 기준은 12턴 이린 펫 기준
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 풍연 | 후열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 270% 이상 권장 (12턴 이린 펫 기준) |
+| 타카 | 후열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 |
+| 칼헤론 | 후열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 250% 이상 권장 (12턴 이린 펫 기준) |
+| 란드 | 전열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100%, 약공 61%에 가깝게, 치피 챙길 수 있을 만큼 |
+| 선란 | 전열 · 속공 상관 X | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 |
+
+**스킬 순서**
+```
+칼헤론 아래[0턴] - 풍연 아래[4턴] - 풍연 위[8턴] - 타카 위[12턴]
+```
+
+---
+
+# 강림 카르마 2라운드
+
+## 계산용
+- 편성: 라이언 / 레이첼 / 비스킷 / 관우 / 여포
+- 스킬 12턴~60턴
+- 약확 버프: 레이첼 패시브 아군 전체 +27, 비스킷 +54 대상 = 라이언·레이첼 (약공 19% 필수 = 19 + 27 + 54)
+- 라우팅: 여포 공격력 < 레이첼 (받받 or 공받으로 조절)
+- 최적화 제외: 비스킷(토템용), 관우(스킬 순서에 없음)
+
+| 캐릭터 | 윗 | 아랫 | 합계 |
+|---|---|---|---|
+| 라이언 | 3 | 2 | 5 |
+| 레이첼 | 2 | 2 | 4 |
+| 여포 | 1 | 1 | 2 |
+| 비스킷 | 0 | 2 | 2 (버프) |
+| 관우 | 0 | 0 | 0 |
+
+## 열람용 공략
+**진형 추천**: 5 후열 = 라이언 / 1~4 전열
+
+**속공**: 여포 1순위 – 라이언 · 레이첼 2~3순위 – 비스킷 · 관우 4~5순위
+
+**주의**: 여포 6초 필수! 받받 or 공받으로 조절해 레이첼보다 공 낮게 세팅 · 비스킷은 속공 순서만 잘 지켜주기
+
+**장비 세팅 추천**
+| 캐릭터 | 열/속공 | 세트·주옵 | 지침 |
+|---|---|---|---|
+| 라이언 | 후열 · 속공 2~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 약공 19% 필수, 치피 최대한 |
+| 레이첼 | 전열 · 속공 2~3순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 약공 19% 필수, 치피 최대한 |
+| 비스킷 | 전열 · 속공 4~5순위 | 토템용 아무거나 | 아무거나 줘도 상관 X, 속공 순서만 잘 지켜주기 |
+| 관우 | 전열 · 속공 4~5순위 | 복수자 치확치피공공 | 치확 100%에 가깝게, 치피 최대한 |
+| 여포 | 전열 · 속공 1순위 | 복수자 **치확치피받받** | 치확 100%에 가깝게, **6초 필수**, 받받 or 공받 조절 (레이첼보다 공 낮게) |
+
+**스킬 순서** (노란색 = 영상 컷 이후 스킬 순서)
+```
+레이첼 위[12턴] - 비스킷 아래[16턴] - 라이언 위[20턴] - 레이첼 아래[24턴] - 라이언 아래[28턴] - 여포 위[32턴]
+레이첼 위[36턴] - 라이언 위[40턴] - [노랑]레이첼 아래[44턴] - [노랑]라이언 아래[48턴] - [노랑]여포 아래[52턴]
+[노랑]비스킷 아래[56턴] - [노랑]라이언 위[60턴]
+```
+
+---
+
+## 장비 세트 종류 (수집된 것)
+| 세트 | 성격 | 효과 | 등장 |
+|---|---|---|---|
+| 복수자 | 딜러용 | 2세트 주는 피해량 15% / 4세트 주는 피해량 30% + 보스 대상 피해량 40% | 전 요일 딜러 |
+| 토템용 | (세트명 아님, 역할 표기) | 탱템 아무거나 | 금·토·목 비스킷, 월A 에반 |
+| 수문장 | 탱커 | **미확인** (방방막받 주옵과 함께 사용) | 수·화 라이언·클로에 |
+| 성기사 | 생존 | **미확인** (생생생생 주옵) | 화 리나, 월B 리나 대안 |
+| 선봉장 | 공격력 버퍼 | **미확인** (공공공공 주옵) | 수 리나 |
+| 주술사 | 도트/유틸 | **미확인** | 월B 에반, 강림2R 비스킷 |
+
+## 무기 주옵 조합 표기
+공략의 "치확치피공공" 등은 **무기 2개 주옵 + 방어구 2개 주옵(공% 고정)**을 뜻함.
+- 치확치피공공 = 무기 치확 + 무기 치피
+- 치피치피공공 = 무기 치피 + 무기 치피
+- 치확약확공공 = 무기 치확 + 무기 약확
+- 약확약확공공 = 무기 약확 + 무기 약확
+- 공공공공 / 생생생생 / 방방막받 = 딜 목적이 아닌 세팅 (최적화 제외 캐릭터)
+
+## 확인된 공통 메커니즘
+- **나타 패시브(쿨감)**: 나타의 평타 가격 시, 팀 공격력 **2위 이내** 아군의 스킬 쿨타임 감소.
+  화요일·수요일에서 리나를 딜러가 아닌데도 공격력 상위로 올리는 이유.
+  쿨감 효과는 스킬 순서(시전 횟수)에 이미 반영되므로 엔진에서 별도 계산하지 않음.
+  다만 **라우팅 조건으로 반드시 표시**해야 함(공 조절 실패 시 스킬 횟수가 달라짐).
+- **비스킷 약확 버프**: 팀 공격력 상위 2명에게 약확 +54
+- **레이첼 패시브**: 아군 전체 약확 +27 (자신 포함)
+
+---
+
+# 미수집 항목
+
+## 요일
+없음 (금·토·일·월A·월B·화·수 수집 완료)
+
+## 캐릭터 정보 (기본 스탯 / 타수 / 치확·치피·약확 버프)
+아일린, 풍연, 돼오, 쥬리, 리나, 나타, 미호, 에반, 세인, 헤브니아, 샤오, 클로에, 파스칼, 소교, 레긴, 선란, 하연 (+대체 바네사·밀리아)
+(파이·백룡은 현행 공략에서 빠짐 — 재등장 시 수집)
+
+## 강림 미확인 사항
+- 상위3/9 분산 계수 실측값 (현재 1.0 잠정)
+- 시즌 주기 2주가 맞는지
+- 라운드별 보스 수
+- 1라운드 총 턴이 4턴이면 평타 판정이 거의 없음 → 분산 구조가 공성전과 크게 다름
+- **펫 시스템 미모델링**: 강림 1R에 "제오 필수, 잠재 50% 이상". 펫이 치확·치피·약확에 영향을 주는지 확인 필요
+
+## 스키마 확장 필요
+- **각성 스킬 슬롯**: `SkillSlot`에 `"awaken"` 추가.
+  각성기 = 각성 게이지가 차면 사용, 특수한 경우가 아니면 **전투당 1회**.
+  모든 캐릭터가 보유하지만 **쓰지 않는 경우도 있음**(예: 아일린) → 사용 여부는 콘텐츠 스킬 순서가 결정.
+  캐릭터 DB에는 각성기 타수·효과를 기록하고, 스킬 순서에 없으면 0회로 계산.
+- **미스=딜0형 약공**: 일요일 전용 메커니즘. `mechanic: "missZero"` 구현 필요
+
+## 반지 종류 효과 (장신구 세공)
+| 반지 | 효과 | 상태 |
+|---|---|---|
+| 치확 | 전투 치확 +10 | 확인됨 |
+| 약확 | 전투 약확 +12 | 확인됨 |
+| 공성 | 1~3인기 딜 +10% 표기, 실효 약 ×1.04 | 커뮤니티 실측, 미검증 |
+| 권능 | 치명적 피해 시 생명 1로 생존 + 보호막 | 확인됨, 딜 기여 0 |
+| 도트 | ? | **미확인** |
+| 출혈 | ? | **미확인** (도트와 같은 계열로 추정) |
+| 공받 / 받받 | ? | **미확인** (생존형 추정) |
+
+## 히트 크기
+라이언·타카·레이첼만 측정됨(금요일 구 편성 기준). 미측정 캐릭터는 균등 가정으로 대체 가능.
+</script>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ══════════ 콘텐츠 프리셋 ══════════
+   lu = [이름, 윗 시전, 아랫 시전, 최적화 대상(1/0)]
+   tg = 타격 대상 수, pl = 평타 횟수, sc = 'siege' | 'raid'
+   wm = 약공 배율 기본값 (확인된 캐릭터만 1.3 외 값) */
+/* 약공 배율 = 1.3 × (스킬 기본 계수 + 약공 추가 계수) ÷ 기본 계수.
+   약공은 모든 피해가 산정된 뒤 마지막에 ×1.3 되므로 추가 피해에도 1.3이 곱해진다(사용자 확인).
+   추가가 0이면 1.3 → 파스칼 단독 실측 1.30001과 정합.
+   라이언 광풍참 170%+270% → 1.3×440/170 = 3.36
+   미호 윗 185%+85% → 1.90, 아랫 170%+75% → 1.87 (평균 1.89, 여기에 콘텐츠 보정 1.23이 따로 곱해짐) */
+/* ══════════ 캐릭터 기본값 — 장비로 바뀌지 않는 값은 전부 여기 한 곳 ══════════
+   [무기 속성, 기본 치확, 기본 치피, 기본 약확, 패시브 치확, 약공 배율]
+   null = 미확인 → 계산은 FALLBACK 값으로 돌리고, 화면에는 빈칸으로 표시 */
+const CHARS = {
+  //         속성    치확  치피  약확  패시브 배율
+  나타:     ['mag', null, 150, null,  33,  null],
+  돼오:     [null,  null, 150, null, null, null],
+  라이언:   [null,  null, 150, null, null, 3.36],
+  레긴:     [null,  null, 150, null, null, null],
+  레이첼:   [null,     5, 150,   20, null, 1.3 ],
+  리나:     [null,  null, 150, null, null, null],
+  미호:     ['mag',    5, 150,   20, null, 1.89],
+  비스킷:   ['mag',    5, 150,    0, null, null],
+  샤오:     [null,  null, 150, null, null, null],
+  선란:     [null,  null, 150, null, null, null],
+  세인:     [null,  null, 150, null,  41,  1.3 ],
+  소교:     [null,  null, 150, null, null, null],
+  아일린:   [null,     5, 150,    0, null, 1.3 ],
+  에반:     [null,  null, 150, null, null, null],
+  쥬리:     ['mag',   23, 150,    0, null, null],   // 6초 기준 (4초 스탯 증가 치확 +18 포함)
+  지크:     [null,  null, 150, null, null, null],
+  클로에:   [null,  null, 150, null, null, null],
+  파스칼:   [null,  null, 150, null, 100,  1.3 ],
+  풍연:     [null,  null, 150, null, null, null],
+  하연:     [null,  null, 150, null, null, null],
+  헤브니아: [null,    19, 150, null, null, null]
+};
+const CFIELD = ['atk', 'bc', 'bd', 'bq', 'pf', 'wm'];
+
+/* 팀 효과 — [스탯, 값, 대상]. 값이 '×'로 시작하면 피해 배율(곱), 아니면 확률(더하기).
+   누가 받는지가 편성마다 다른 효과(상위 N인)는 콘텐츠 데이터의 버프 약확에서 지정한다. */
+const TEAM = {
+  레이첼: [['약확', '+27', '아군 전체 (자신 포함)']],
+  비스킷: [['약확', '+54', '공격력 상위 2인']],
+  미호:   [['약공 피해', '×1.23', '아군 전체']],
+  클로에: [['치확', '+27', '아군 전체 (위스킬)']]
+};
+
+/* 초월 단계별 차이 — 표 값은 6초 기준. [이 단계에 도달하면 붙는, 필드, 증가량]
+   사용자 단계가 그 아래면 증가량을 뺀다. */
+const TRANS = {
+  쥬리: [[4, 'bc', 18]]
+};
+const TKEY = 'sknr-judge-trans';
+let trans = {};
+try { trans = JSON.parse(localStorage.getItem(TKEY) || '{}') || {}; } catch { trans = {}; }
+const tPersist = () => { try { localStorage.setItem(TKEY, JSON.stringify(trans)); } catch {} };
+const TLABEL = { 4:'4~5초', 2:'2~3초', 0:'0~1초' };
+const FALLBACK = { atk:'phy', bc:23, bd:150, bq:0, pf:0, wm:1.3 };
+const rawOf = name => {
+  const r = CHARS[name] || [], o = {};
+  CFIELD.forEach((f, i) => o[f] = r[i] ?? null);
+  const lv = trans[name];
+  if (lv !== undefined) (TRANS[name] || []).forEach(([th, f, d]) => { if (lv < th && o[f] != null) o[f] -= d; });
+  return o;
+};
+const valOf = (name, f) => rawOf(name)[f] ?? FALLBACK[f];
+const CONTENTS = [
+  { id:'fri',  n:'금요일',              g:'금요일', tg:3, pl:8.5, sc:'siege', qb:81,
+    lu:[['라이언',4,3,1,81],['레이첼',3,4,1,81],['아일린',0,3,1,27],['지크',1,0,1,27],['비스킷',0,2,0,27]] },
+  { id:'sat',  n:'토요일',              g:'토요일', tg:3, pl:8.5, sc:'siege', qb:81,
+    lu:[['라이언',3,4,1,81],['레이첼',3,3,1,81],['풍연',3,0,1,27],['아일린',0,2,1,27],['비스킷',0,2,0,27]] },
+  { id:'thu',  n:'목요일',              g:'목요일', tg:3, pl:8.5, sc:'siege', qb:81,
+    lu:[['라이언',3,4,1,81],['레이첼',3,2,1,81],['돼오',1,3,1,27],['아일린',0,2,1,27],['비스킷',0,2,0,27]] },
+  { id:'mona', wmTeam:1.23, n:'월요일 A안 (쥬리 보유)', g:'월요일 A안', tg:3, pl:8.5, sc:'siege', qb:54,
+    lu:[['나타',4,4,1,54],['비스킷',2,3,1,0],['미호',1,3,1,0],['쥬리',0,3,1,54],['에반',0,0,0,0]] },
+  { id:'monb', wmTeam:1.23, n:'월요일 B안 (쥬리 없음)', g:'월요일 B안', tg:3, pl:8.5, sc:'siege', qb:54,
+    lu:[['나타',4,4,1,54],['비스킷',3,2,1,0],['미호',2,3,1,54],['리나',2,0,1,0],['에반',0,0,0,0]] },
+  /* cb = 아군 전체 전투 치확 버프. 화요일 클로에 위스킬 +27 — 공략 치확(나타 40·미호 73·비스킷 73)이 전부 +27로 전투 100이 됨 */
+  { id:'tue', wmTeam:1.23, cb:27, n:'화요일',              g:'화요일', tg:3, pl:8.5, sc:'siege', qb:54,
+    lu:[['나타',3,4,1,54],['미호',2,3,1,54],['비스킷',1,2,1,0],['클로에',3,0,0,0],['리나',2,0,0,0]] },
+  { id:'wed', wmTeam:1.23,  n:'수요일',              g:'수요일', tg:3, pl:8.5, sc:'siege', qb:54,
+    // 수요일: 공격력 상위 2명 = 나타·리나(선봉장 공공공공). 미호는 '리나보다 공 낮게'라 비스킷 버프를 받지 않음
+    lu:[['나타',5,4,1,54],['미호',3,3,1,0],['비스킷',1,2,1,0],['리나',2,0,0,0],['라이언',0,0,0,0]] },
+  { id:'sun',  n:'일요일 · 1인기',       g:'일요일', tg:1, pl:8.5, sc:'siege', qb:54, forceQ:true, missZero:true,
+    lu:[['세인',6,0,1,54],['헤브니아',3,2,1,54],['샤오',1,2,1,0],['비스킷',1,2,1,0],['아일린',0,2,1,0]] },
+  { id:'r1a', wmTeam:1.23,  n:'강림 1R · 4턴 Ver',    g:'강림 1라운드 (4턴', tg:1, pl:0.5, sc:'raid', qb:0, forceQ:true,
+    lu:[['파스칼',1,0,1,0],['소교',1,0,1,0],['레긴',0,0,0,0],['선란',0,0,0,0],['미호',0,0,0,0]] },
+  { id:'r1b', wmTeam:1.23,  n:'강림 1R · 8턴 Ver',    g:'강림 1라운드 (8턴', tg:1, pl:1,   sc:'raid', qb:0, forceQ:true,
+    lu:[['파스칼',1,0,1,0],['소교',1,1,1,0],['하연',0,0,0,0],['선란',0,0,0,0],['미호',0,0,0,0]] },
+  { id:'r2a',  n:'강림 2R · 4턴에 이어서', g:'강림 2라운드', tg:1, pl:8, sc:'raid', qb:54,
+    lu:[['세인',5,0,1,54],['헤브니아',3,1,1,54],['샤오',0,3,1,0],['아일린',0,2,1,0],['비스킷',0,2,0,0]] },
+  { id:'r2b',  n:'강림 2R · 8턴에 이어서', g:'강림 2라운드 (1R 8턴', tg:1, pl:7.5, sc:'raid', qb:54,
+    lu:[['세인',5,0,1,54],['헤브니아',2,1,1,54],['샤오',0,3,1,0],['아일린',0,2,1,0],['비스킷',0,2,0,0]] },
+  /* 강림 태오 — 래밍 공략 2026-10-06 수령. 1R ~12턴(11턴까지 평타로 잡혀도 OK), 2R 12~60턴.
+     평타 횟수는 턴÷8로 추정. 비스킷 약확 버프 대상은 데이지(약공 46% 필수 = 46+54)·소교(추정) */
+  { id:'t1', n:'강림 태오 1R', g:'강림 태오 1라운드', tg:1, pl:1.5, sc:'raid', qb:0, forceQ:true,
+    lu:[['파스칼',1,0,1,0],['에스파다',0,1,1,0],['바네사',0,1,1,0],['리나',1,0,1,0],['린',0,0,0,0]] },
+  { id:'t2', wmTeam:1.23, n:'강림 태오 2R', g:'강림 태오 2라운드', tg:1, pl:6, sc:'raid', qb:0,
+    lu:[['소교',2,2,1,54],['데이지',1,2,1,54],['미호',1,1,1,0],['오를리',0,2,1,0],['비스킷',0,2,1,0]] },
+  /* 강림 카일 — 래밍 공략 2026-10-06 수령. 1R 0~8턴(스킬 3회), 2R 8~68턴.
+     1R 약확 버프 = 레이첼 패시브 아군 전체 +27. 2R 비스킷(수문장 탱커) 버프 대상 = 백룡·파이(둘 다 '약공 46% 필수' = 46+54).
+     헤브니아 각성 1회는 기존 파괴신 편성과 같이 시전 수에서 제외 */
+  { id:'k1', n:'강림 카일 1R', g:'강림 카일 1라운드', tg:1, pl:1, sc:'raid', qb:27, forceQ:true,
+    lu:[['세인',1,0,1,27],['란드',1,0,1,27],['레이첼',1,0,1,27],['여포',0,0,0,27],['관우',0,0,0,27]] },
+  { id:'k2', n:'강림 카일 2R', g:'강림 카일 2라운드', tg:1, pl:7.5, sc:'raid', qb:0,
+    lu:[['백룡',4,3,1,54],['파이',2,0,1,54],['헤브니아',2,0,1,0],['비스킷',0,2,0,0],['리나',2,0,0,0]] },
+  /* 강림 연희 — 래밍 공략 2026-10-06 수령. 1R 0~12턴(루리 단독 딜), 2R 12~64턴(대부분 64턴에서 마무리).
+     2R 비스킷(수문장) 버프 대상 = 나타·미호(둘 다 '약공 46% 필수' = 46+54), 데이지는 공 조절로 버프를 뺏지 않게 */
+  { id:'y1', n:'강림 연희 1R', g:'강림 연희 1라운드', tg:1, pl:1.5, sc:'raid', qb:0, forceQ:true,
+    lu:[['루리',1,1,1,0],['클로에',1,0,0,0],['오를리',0,1,0,0],['바네사',0,0,0,0],['밀리아',0,0,0,0]] },
+  { id:'y2', wmTeam:1.23, n:'강림 연희 2R', g:'강림 연희 2라운드', tg:1, pl:6.5, sc:'raid', qb:0,
+    lu:[['나타',3,2,1,54],['미호',2,2,1,54],['데이지',1,0,0,0],['비스킷',0,2,0,0],['리나',2,0,0,0]] },
+  /* 강림 카르마 — 래밍 공략 2026-10-06 수령. 1R 0~12턴, 2R 12~60턴.
+     2R 약확 버프: 레이첼 패시브 아군 전체 +27, 비스킷 +54 대상 = 라이언·레이첼('약공 19% 필수' = 19+27+54)
+     여포는 레이첼보다 공 낮게(받받·공받으로 조절) */
+  { id:'m1', n:'강림 카르마 1R', g:'강림 카르마 1라운드', tg:1, pl:1.5, sc:'raid', qb:0, forceQ:true,
+    lu:[['풍연',1,1,1,0],['칼헤론',0,1,1,0],['타카',1,0,1,0],['란드',0,0,0,0],['선란',0,0,0,0]] },
+  { id:'m2', n:'강림 카르마 2R', g:'강림 카르마 2라운드', tg:1, pl:6, sc:'raid', qb:27,
+    lu:[['라이언',3,2,1,81],['레이첼',2,2,1,81],['여포',1,1,1,27],['관우',0,0,0,27],['비스킷',0,2,0,27]] }
+];
+const RAID1 = id => ['r1a', 'r1b', 't1', 'k1', 'y1', 'm1'].includes(id);   // 강림 1라운드(문턱 구조)
+
+/* 세팅·목표 탭 드롭다운 — 공성전 월~일, 강림 보스 순. parts = 한 화면에 이어 붙일 콘텐츠(라운드) */
+const SET_OPTS = [
+  { id:'mona', n:'공성전 · 월요일 A안 (쥬리 보유)', parts:['mona'] },
+  { id:'monb', n:'공성전 · 월요일 B안 (쥬리 없음)', parts:['monb'] },
+  { id:'tue',  n:'공성전 · 화요일', parts:['tue'] },
+  { id:'wed',  n:'공성전 · 수요일', parts:['wed'] },
+  { id:'thu',  n:'공성전 · 목요일', parts:['thu'] },
+  { id:'fri',  n:'공성전 · 금요일', parts:['fri'] },
+  { id:'sat',  n:'공성전 · 토요일', parts:['sat'] },
+  { id:'sun',  n:'공성전 · 일요일', parts:['sun'] },
+  { id:'teo',  n:'강림 · 태오', parts:['t1','t2'] },
+  { id:'kyle', n:'강림 · 카일', parts:['k1','k2'] },
+  { id:'yeon', n:'강림 · 연희', parts:['y1','y2'] },
+  { id:'karma',n:'강림 · 카르마', parts:['m1','m2'] },
+  { id:'pg4',  n:'강림 · 파괴신 4턴 ver', parts:['r1a','r2a'] },
+  { id:'pg8',  n:'강림 · 파괴신 8턴 ver', parts:['r1b','r2b'] }
+];
+const ROUND_LABEL = { r1a:'1라운드 · 100만 문턱', r1b:'1라운드 · 100만 문턱', r2a:'2라운드 · 4턴부터', r2b:'2라운드 · 8턴부터', t1:'1라운드 · 문턱', t2:'2라운드 · 12턴부터', k1:'1라운드 · 문턱', k2:'2라운드 · 8턴부터', y1:'1라운드 · 문턱', y2:'2라운드 · 12턴부터', m1:'1라운드 · 문턱', m2:'2라운드 · 12턴부터' };
+
+
+/* ══════════ 모델 ══════════ */
+// H = [[가중치, 히트 수], ...]  치명·약공은 히트마다 독립 판정
+function calc(p, cd, q, k, wm, H){
+  p = Math.min(Math.max(p, 0), 100) / 100;
+  q = Math.min(Math.max(q, 0), 100) / 100;
+  cd = Math.max(cd, 100) / 100;
+  const Ec = 1 + p * (cd - 1), Ec2 = (1 - p) + p * cd * cd;
+  const Ew = 1 + (wm - 1) * q, Ew2 = (1 - q) + q * wm * wm;
+  const EX = Ec * Ew, VX = Math.max(Ec2 * Ew2 - EX * EX, 0);
+  let mu = 0, va = 0;
+  for (const [w, n] of H){ mu += w * n * EX; va += w * w * n * VX; }
+  const sd = Math.sqrt(va);
+  return { mu, sd, j: mu + k * sd };
+}
+const pct = x => (x >= 0 ? '+' : '') + x.toFixed(1) + '%';
+const LINE = { c: 4, d: 6, w: 5 };   // 부옵 1줄값
+
+// 같은 줄 수를 유지한 채 치확·약확 ↔ 치피 교환을 전수 탐색
+// pFix·qFix = 패시브·버프로 받는 몫 (장비가 아니라서 치피로 옮길 수 없음)
+function bestSwap(p0, cd0, q0, k, wm, H, pFix, qFix){
+  const base = calc(p0, cd0, q0, k, wm, H).j;
+  let best = { t: 0, u: 0, p: p0, cd: cd0, q: q0, gain: 0 };
+  for (let t = -5; t <= 5; t++) for (let u = -5; u <= 5; u++){
+    const p = p0 - LINE.c * t, q = q0 - LINE.w * u, cd = cd0 + LINE.d * (t + u);
+    if (p < (pFix || 0) || p > 100 || q < (qFix || 0) || q > 100 || cd < 100) continue;
+    const gain = calc(p, cd, q, k, wm, H).j / base - 1;
+    if (gain > best.gain + 1e-9) best = { t, u, p, cd, q, gain };
+  }
+  return best;
+}
+
+/* ══════════ 목표 탭 — 장비 예산 전수탐색 ══════════
+   부옵: 부위당 치확·치피·약확·모공 4줄 → 각 스탯 기본 4줄
+   강화: 20회를 치확·치피·약확에만 배분 (손실 강화만큼 차감)
+   무기 주옵: 치확 24 / 치피 36 / 약확 28 중 2개 (방어구 주옵은 모공 고정 = 상수) */
+const MAIN = { c:[24,0,0], d:[0,36,0], w:[0,0,28] };
+const MKEY = ['c','d','w'], MLABEL = { c:'치확', d:'치피', w:'약확' };
+
+/* 장신구 세공. 공성(×1.04)은 커뮤니티 실측 가정이라 미검증 */
+const CARVES = { crit:[10, 0, 1], weak:[0, 12, 1], siege:[0, 0, 1.04] };
+const CARVENAME = { crit:'치확+10', weak:'약확+12', siege:'공성×1.04' };
+
+function solveBudget(base, H, k, wm, lost, forceQ){
+  const up = Math.max(20 - lost, 0);
+  let best = null;
+  for (const cv of Object.keys(CARVES)){
+    const [cp, cq, mult] = CARVES[cv];
+    for (const m1 of MKEY) for (const m2 of MKEY){
+      const mp = MAIN[m1][0] + MAIN[m2][0], md = MAIN[m1][1] + MAIN[m2][1], mq = MAIN[m1][2] + MAIN[m2][2];
+      for (let kc = 0; kc <= up; kc++) for (let kd = 0; kd <= up - kc; kd++){
+        const kw = up - kc - kd;
+        const p = base.p + cp + mp + 4 * (4 + kc);
+        const cd = base.cd + md + 6 * (4 + kd);
+        const q = base.q + cq + mq + 5 * (4 + kw);
+        if (p >= 100 + LINE.c && kc > 0) continue;       // 치확에 버려진 강화
+        if (q >= 100 + LINE.w && kw > 0) continue;       // 약확에 버려진 강화
+        if (forceQ && q < 100) continue;                 // 미스 = 딜 0 / 문턱 구조
+        const j = calc(p, cd, q, k, wm, H).j * mult;
+        if (!best || j > best.j) best = { j, p, cd, q, m1, m2, kc, kd, kw, cv };
+      }
+    }
+  }
+  return best;
+}
+
+/* 콘텐츠의 편성 전원을 유효 단위 기준으로 푼다.
+   유효 단위 32 = 부옵 12줄 + 강화 20회. 각 스탯 최소 4단위(부위당 1줄)는 고정.
+   강화는 붙는 칸을 고를 수 없으므로 결과는 "목표"가 아니라 "맞추면 좋은 배분"이다. */
+const UNIT_MAX = 32, UNIT_MIN = 4;
+
+function solveOne(c, k, opt, noW){
+  const out = [];
+  const carves = opt.carves || Object.keys(CARVES);
+  // 약공 배율이 역전선(1.5) 아래고 약확 강제 콘텐츠가 아니면 약확은 선택:
+  // 약확 줄 자리를 모공으로 쓰는 게 낫고 강화도 붙일 필요가 없으므로 약확 0단위로 푼다.
+  const wOpt = !noW && opt.safe && !opt.forceQ && (c.wm < 1.5 || !c.main);   // 안전: 배율 낮은 캐릭터·서브 딜러는 약확 줄 없음
+  for (const cv of carves){
+    const [cp, cq, mult] = CARVES[cv];
+    for (const m1 of MKEY) for (const m2 of MKEY){
+      if (MKEY.indexOf(m2) < MKEY.indexOf(m1)) continue;
+      const mp = MAIN[m1][0] + MAIN[m2][0], md = MAIN[m1][1] + MAIN[m2][1], mq = MAIN[m1][2] + MAIN[m2][2];
+      if (wOpt && (mq > 0 || cq > 0)) continue;      // 약확을 안 쓰는 세팅이면 약확 주옵·약확 세공도 쓰지 않는다
+      for (let uc = UNIT_MIN; uc <= UNIT_MAX; uc++) for (let ud = UNIT_MIN; ud <= UNIT_MAX - uc; ud++){
+        let uw = UNIT_MAX - uc - ud;
+        if (wOpt){ if (uw !== UNIT_MIN) continue; uw = 0; }   // 약확 줄 대신 모공
+        else if (uw < UNIT_MIN) continue;
+        const vc = c.bc + mp + LINE.c * uc;          // 마을 치확
+        const vd = c.bd + md + LINE.d * ud;          // 마을 치피
+        const vq = c.bq + mq + LINE.w * uw;          // 마을 약확
+        const p = vc + c.pf + cp, q = vq + c.qb + cq;
+        if (p >= 100 + LINE.c && uc > UNIT_MIN) continue;
+        if (q >= 100 + LINE.w && uw > UNIT_MIN) continue;
+        if (opt.forceQ && q < 100) continue;         // 미스 = 딜 0 / 문턱 구조
+        const mx = opt.maxEnh ?? 20;                 // 한 스탯에 몰 수 있는 강화 한계
+        if (uc - UNIT_MIN > mx || ud - UNIT_MIN > mx || uw - UNIT_MIN > mx) continue;
+        const r = opt.missZero
+          ? calcMiss(Math.min(p,100), vd, Math.min(q,100), k, c.H)
+          : calc(Math.min(p,100), vd, Math.min(q,100), k, c.wm, c.H);
+        out.push({ j:r.j * mult, vc, vd, vq, p, q, uc, ud, uw, cv, main:m1+m2 });
+      }
+    }
+  }
+  // 약확 줄을 빼면 강화 20회를 치확·치피(각 12회 한계)에만 붙여야 하는데, 치확이 패시브로 이미 높으면
+  // 갈 곳이 없어 후보가 사라진다(세인 등). 그때는 약확 줄을 두고 남는 강화를 받게 한다.
+  if (wOpt && !out.length) return solveOne(c, k, opt, true);
+  out.sort((a, b) => b.j - a.j);
+  if (opt.safe){
+    // 안전: 전투 치확 99에 가장 가까운 후보만 남기고 평균을 극대화한다.
+    // 약확은 강제하지 않는다 — 약공 추가 피해가 큰 캐릭터(라이언·미호)는 평균 극대화만으로 100 근처가 되고,
+    // 배율 1.3~1.6인 캐릭터는 약확보다 치피가 평균을 더 올린다. 미스=딜0·문턱 콘텐츠는 forceQ로 이미 100.
+    // 주딜러(지분 20% 이상)이면서 약확이 가치 있는 캐릭터(배율 1.5 이상)는 약확도 99 이상으로 묶는다.
+    const qToo = opt.qForce || (c.main && c.wm >= 1.5);
+    const gap = a => Math.max(0, 99 - a.p) + (qToo ? Math.max(0, 99 - a.q) : 0);
+    const best = Math.min(...out.map(gap));
+    const kept = out.filter(a => gap(a) === best);
+    kept.forEach(a => { a.qFree = !qToo && !opt.forceQ; });       // 약확을 묶지 않은 결과 = 화면에 '선택'
+    return kept;
+  }
+  return out;
+}
+
+/* 미스 = 딜 0: 약공항이 Bernoulli(q). 위로 막힌 분포라 분산을 보상으로 쳐주면 안 되므로
+   약확 100을 강제하고 흔들림 계산에서는 약공항을 상수로 둔다. */
+function calcMiss(p, cd, q, k, H){
+  const Q = Math.min(Math.max(q,0),100)/100;
+  const r = calc(p, cd, 0, k, 1, H);               // 약공항 제거한 순수 치명 분포
+  return { mu: r.mu * Q, sd: r.sd * Q, j: r.j * Q };
+}
+
+/* 콘텐츠 하나를 푼다 — 목표 탭과 세팅 탭이 같이 쓴다 */
+function solveContent(c, carry, maxEnh, safe){
+  const k = safe || RAID1(c.id) ? 0 : (c.sc === 'siege' ? carry : 1.0);   // 안전 = 평균 극대화
+  const gs = guessShare(c);
+  const opt = { forceQ: !!c.forceQ, missZero: !!c.missZero, maxEnh: maxEnh || 20, safe: !!safe };
+
+  /* 편성 전원을 팀 목적함수로 함께 푼다.
+     팀 평균 = Σ 지분 × (μ / μ기준), 팀 분산 = Σ (지분 × σ / μ기준)²
+     지분이 작은 캐릭터는 흔들림이 지분²로 줄어 자동으로 기댓값형(치확 높게)이 된다. */
+  const U = [];
+  c.lu.forEach(([name, up, dn, optFlag, qbuff], i) => {
+    const ch = charFull(name);
+    const role = roleOf(c, i, gs);
+    if (role === 'buff' || (up + dn) === 0){ U.push({ name, skip:true }); return; }
+    const share = gs[i] / 100;
+    const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb || 0), wm: ch.wm * (c.wmTeam || 1),
+                 qb: qbuff ?? c.qb, H: dHits(c, up, dn) };
+    let cand = solveOne(cc, k, opt);
+    /* 안전 모드의 약확은 둘 중 하나로만 낸다 — 99 이상으로 채우거나, 약확 줄을 빼고 '선택'.
+       서브 딜러 중 약확이 쓸모 있는 캐릭터(배율 1.5 이상)는 두 안을 만들어 평균이 높은 쪽을 고른다. */
+    const ref = (opt.missZero ? calcMiss(100, 300, 100, k, cc.H)
+                              : calc(100, 300, Math.min(100, cc.qb + 20), k, cc.wm, cc.H)).mu;
+    U.push({ name, cc, cand, ref, s: share, pick: cand[0] });
+  });
+
+  const live = U.filter(u => !u.skip && u.cand.length);
+  const teamJ = () => {
+    let m = 0, v = 0;
+    live.forEach(u => {
+      const a = u.pick;
+      const r = opt.missZero ? calcMiss(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, u.cc.H)
+                             : calc(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, u.cc.wm, u.cc.H);
+      const mult = CARVES[a.cv][2];
+      m += u.s * mult * r.mu / u.ref;
+      v += Math.pow(u.s * mult * r.sd / u.ref, 2);
+    });
+    return m + k * Math.sqrt(v);
+  };
+  for (let pass = 0; pass < 3; pass++){
+    let moved = false;
+    live.forEach(u => {
+      let bestA = u.pick, bestJ = -Infinity;
+      for (const a of u.cand){ const keep = u.pick; u.pick = a; const j = teamJ(); u.pick = keep;
+        if (j > bestJ){ bestJ = j; bestA = a; } }
+      if (bestA !== u.pick){ u.pick = bestA; moved = true; }
+    });
+    if (!moved) break;
+  }
+
+  // 팀 J 기준 1% 이내 치확 밴드
+  U.forEach(u => {
+    if (u.skip || !u.pick) return;
+    const b = u.pick, base = teamJ(), band = [];
+    for (const a of u.cand){
+      if (a.cv !== b.cv || a.main !== b.main) continue;
+      const keep = u.pick; u.pick = a; const j = teamJ(); u.pick = keep;
+      if (j >= base - (base - 0) * 0.01 * u.s) band.push(a.vc);   // 그 캐릭터 기여 기준 1%
+    }
+    u.lo = band.length ? Math.min(...band) : b.vc;
+    u.hi = band.length ? Math.max(...band) : b.vc;
+  });
+  return { k, U, opt };
+}
+
+const GOAL_CARRY = 1.539, GOAL_MAXENH = 20;     // 목표 탭 = 이론상 최고 (한 스탯 강화 몰빵 허용)
+const MKEY_MINE = 'sknr-goal-mine';
+let mine = {};
+try { mine = JSON.parse(localStorage.getItem(MKEY_MINE) || '{}') || {}; } catch { mine = {}; }
+const mPersist = () => { try { localStorage.setItem(MKEY_MINE, JSON.stringify(mine)); } catch {} };
+
+/* 내 스탯(마을) → 그 캐릭터 점수. 세공은 셋 중 가장 유리한 것으로 가정 */
+function scoreMine(u, c, k, vc, vd, vq){
+  let best = -Infinity;
+  for (const cv of Object.keys(CARVES)){
+    const [cp, cq, mult] = CARVES[cv];
+    const p = Math.min(vc + u.cc.pf + cp, 100), q = Math.min(vq + u.cc.qb + cq, 100);
+    const r = c.missZero ? calcMiss(p, vd, q, k, u.cc.H) : calc(p, vd, q, k, u.cc.wm, u.cc.H);
+    best = Math.max(best, r.j * mult);
+  }
+  return best;
+}
+
+let goalLast = [];
+function goalRun(){
+  const opt = SET_OPTS.find(x => x.id === $('gContent').value);
+  const parts = opt.parts.map(id => CONTENTS.find(c => c.id === id));
+  const tb = $('gTargets'), mb = $('gMine');
+  const multi = parts.length > 1;
+  if (!parts.length){
+    tb.innerHTML = '<tr><td colspan="9" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다.</td></tr>';
+    mb.innerHTML = ''; $('gMeta').textContent = '공략 미입력';
+    $('gMineHead').textContent = '—'; $('gMineNote').textContent = ''; $('exportText').value = '';
+    goalLast = []; return;
+  }
+  let rows = '', mrows = '', lines = [];
+  goalLast = [];
+  parts.forEach(c => {
+    const { U, k } = solveContent(c, GOAL_CARRY, GOAL_MAXENH);
+    goalLast.push({ c, U, k });
+    if (multi){
+      rows += '<tr class="round"><td colspan="9">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
+      mrows += '<tr class="round"><td colspan="6">' + (ROUND_LABEL[c.id] || c.n) + '</td></tr>';
+      lines.push(' [' + (ROUND_LABEL[c.id] || c.n) + ']');
+    }
+    U.forEach(u => {
+      if (u.skip || !u.pick){
+        rows += '<tr><td>' + u.name + '</td><td colspan="8" class="muted">생존·토템 세팅 (딜 계산 제외)</td></tr>';
+        lines.push('  ' + u.name.padEnd(8, '·') + ' 생존 세팅');
+        return;
+      }
+      const b = u.pick, lo = u.lo, hi = u.hi;
+      const mainTxt = MLABEL[b.main[0]] + '+' + MLABEL[b.main[1]];
+      rows += '<tr><td>' + u.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span></td>' +
+        '<td class="muted">' + mainTxt + '</td>' +
+        '<td class="muted">' + CARVENAME[b.cv] + '</td>' +
+        '<td class="num">' + b.uc + ' / ' + b.ud + ' / ' + b.uw + '</td>' +
+        '<td class="num muted">' + (b.uc-UNIT_MIN) + ' / ' + (b.ud-UNIT_MIN) + ' / ' + Math.max(0, b.uw-UNIT_MIN) + '</td>' +
+        '<td class="num"><strong>' + b.vc + '</strong></td>' +
+        '<td class="num">' + b.vd + '</td>' +
+        '<td class="num">' + b.vq + '</td>' +
+        '<td class="muted">' + (lo === hi ? '—' : lo + '~' + hi) + '</td></tr>';
+      lines.push('  ' + u.name.padEnd(8, '·') +
+        ' 치확 ' + b.vc + ' / 치피 ' + b.vd + ' / 약확 ' + b.vq +
+        '  [주옵 ' + mainTxt + ', 세공 ' + CARVENAME[b.cv] +
+        ', 강화 ' + (b.uc-UNIT_MIN) + '·' + (b.ud-UNIT_MIN) + '·' + Math.max(0, b.uw-UNIT_MIN) + ']' +
+        (lo === hi ? '' : '  치확 ' + lo + '~' + hi + ' 무방'));
+      const my = (mine[c.id] || {})[u.name] || [];
+      const inp = (i, ph) => '<td><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="' + ph + '" min="0" max="999"></td>';
+      mrows += '<tr><td>' + u.name + '</td><td class="num muted">' + b.vc + ' / ' + b.vd + ' / ' + b.vq + '</td>' +
+        inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
+        '<td class="num" data-out="' + c.id + '|' + u.name + '">—</td></tr>';
+    });
+  });
+  tb.innerHTML = rows; mb.innerHTML = mrows;
+  mb.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
+    const { c, n, i } = e.target.dataset;
+    mine[c] ||= {}; mine[c][n] ||= [];
+    mine[c][n][+i] = e.target.value === '' ? null : +e.target.value;
+    mPersist(); mineEval();
+  }));
+  mineEval();
+
+  const c0 = parts[0];
+  $('gMeta').innerHTML =
+    (multi ? '강림 · 1인기 · 1R 문턱 → 2R 상위 3/9' :
+      (c0.tg === 3 ? '3인기' : '1인기') + ' · ' + (c0.sc === 'siege' ? '공성전 · 2주 누적 베스트 기준' : '강림 · 상위 3/9판')) +
+    (c0.wmTeam ? ' · 미호 패시브로 아군 전체 약공 피해 ×' + c0.wmTeam : '') +
+    (c0.cb ? ' · 클로에 버프로 아군 전체 치확 +' + c0.cb : '') +
+    (c0.missZero ? ' · <strong class="lose">미스 = 딜 0</strong> → 전투 약확 100 강제' : '') +
+    ' · 딜 지분 ' + (parts.every(c => /^실측/.test(SHARE_SRC[c.id] || ''))
+        ? '<strong>' + parts.map(c => SHARE_SRC[c.id]).join(' / ') + '</strong>'
+        : '편성 가중치 추정');
+
+  $('exportText').value = EXPORT_HEAD + '\n\n■ ' + opt.n + '  (이론상 최고 · 2주 누적 기준)\n' +
+    lines.join('\n') + EXPORT_TAIL;
+}
+
+/* 이상 대비 % — 캐릭터별, 그리고 딜 지분 가중 팀 합계 */
+function mineEval(){
+  let num = 0, den = 0, filled = 0, total = 0;
+  goalLast.forEach(({ c, U, k }) => U.forEach(u => {
+    if (u.skip || !u.pick) return;
+    total++;
+    const cell = document.querySelector('[data-out="' + c.id + '|' + u.name + '"]');
+    const my = (mine[c.id] || {})[u.name] || [];
+    if (my[0] == null || my[1] == null || my[2] == null){ if (cell){ cell.textContent = '—'; cell.className = 'num'; } return; }
+    const ideal = u.pick.j;
+    const r = scoreMine(u, c, k, my[0], my[1], my[2]) / ideal;
+    filled++; num += u.s * r; den += u.s;
+    if (cell){
+      cell.textContent = (r * 100).toFixed(1) + '%';
+      cell.className = 'num ' + (r >= 0.97 ? 'win' : r >= 0.9 ? 'flat' : 'lose');
+    }
+  }));
+  if (!filled){
+    $('gMineHead').className = 'big'; $('gMineHead').textContent = '—';
+    $('gMineNote').textContent = '캐릭터별로 치확·치피·약확 세 칸을 모두 넣으면 계산됩니다.';
+    return;
+  }
+  const t = num / den;
+  $('gMineHead').className = 'big ' + (t >= 0.97 ? 'win' : t >= 0.9 ? 'flat' : 'lose');
+  $('gMineHead').textContent = '이상 대비 ' + (t * 100).toFixed(1) + '%';
+  $('gMineNote').textContent = '입력한 ' + filled + '/' + total + '명 기준, 딜 지분 가중 평균입니다. ' +
+    '97% 이상이면 사실상 종결, 90% 미만이면 장비 교체·재분배 여지가 큽니다. 공격력·스킬 레벨은 반영하지 않으므로 치확·치피·약확 배분의 완성도만 봅니다.';
+}
+
+const EXPORT_HEAD = `[세나 리버스] PVE 콘텐츠별 목표 치확·치피·약확`;
+
+const EXPORT_TAIL = `
+
+■ 약확
+  스킬 설명에 "약점 공격 피해 발생 시 X% 추가 피해"가
+   - 있으면 → 전투 약확 100까지 채우기가 1순위 (라이언 광풍참 배율 3.36)
+   - 없으면 → 장비 약확 0, 버프로 받는 만큼만. 남는 줄은 전부 치피 (세인·파스칼)
+  예외: 일요일(미스=딜0)과 강림 1R(문턱)은 무조건 100
+  역전 지점은 약공 배율 약 1.5
+
+■ 근거
+  1. 균형점은 채점 방식·판정 수·치피 수준만으로 결정됨.
+     공격력·스킬 계수는 모든 후보에 같이 곱해지는 상수.
+  2. 공성전은 점수 이월이 되어 사실상 누적 베스트제 → 분산이 점수를 올림.
+     분산계수 1주 1.163 / 2주 1.539 / 5주 1.965.
+  3. 1인기는 판정 수가 3인기의 1/3 → 흔들림 약 1.7배 → 치확 더 낮춤.
+     강림은 상위 3/9라 분산 가치가 작아(계수 1.0) 상쇄되어 89.
+  4. 부옵 1줄 한계가치 (치확 85 / 치피 330, 베스트1):
+     치확 +4 → 2.0% / 치피 +6 → 1.8% / 약확 +5 → 배율 1.3이면 1.1%, 3.36이면 3.0%
+
+■ 도트 반지 (출혈 + 중독)
+  피해용이 아니라 턴 순서 보험. 상대에게 상태이상이 묻으면 상대 기본공격 전후로
+  약 0.n초 딜레이가 생겨, 내 스킬 턴이 밀리는 사고(약 10%)를 막아 준다. (월 B안 전용)
+  평타 시에만 15% 확률 / 2턴 / 단일 대상. 출혈·중독은 따로 굴러 동시에 묻을 수 있다.
+  밀림 기대 손실 = 10% × 나타 윗스킬 1턴(팀의 13.6%) = 팀의 1.36%
+  → 지분이 작아 치확 세공을 포기해도 싼 캐릭에게만 준다. 주딜러는 절대 금지.
+    월 B안 기준 비용: 비스킷 −33,382 / 리나 0(이미 치확 100) / 에반 0 / 미호 −188,870
+
+■ 검증된 값
+  약공 전역 배율 1.30 — 파스칼 단독 측정, 치명만 123,494 vs 치명+약공 160,543 (1.30001)
+  모델 평균 예측 오차 ±3% 이내 (금요일 공성 10판)
+  분산 모델 — 월 B안 5판. 실측 CV / 모델 CV = 나타 0.91, 미호 0.91 (딜 지분 95%)
+    모델이 흔들림을 9% 과대추정하나 목표 수치는 움직이지 않음
+  치확 99 / 약확 99 (미호)에서 23.5히트 전부 최대일 확률 62.4% → 5판 중 3판 동일값, 실측 3판 일치
+  월요일 B안(리나) 13,178,823 > A안(쥬리) 11,389,437 — +15.7%
+
+출처 공략: 유튜브 래밍 채널`;
+
+$('gContent').addEventListener('input', goalRun);
+$('copyBtn').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('exportText').value); $('copyMsg').textContent = '복사했습니다.'; }
+  catch { $('exportText').select(); $('copyMsg').textContent = '직접 복사하십시오.'; }
+  setTimeout(() => { $('copyMsg').textContent = ''; }, 2500);
+});
+
+/* ══════════ 판정 탭 ══════════ */
+/* 저장 원칙 (v19~)
+   장비로 바뀌지 않는 값 — 약공 배율·패시브·기본 치확/약확·무기 속성·역할·딜 지분·버프 약확 — 은
+   전부 코드 상수에서만 읽는다. 브라우저에는 콘텐츠별 치확·치피·약확과 장비 목록만 저장한다.
+   (예전에는 고정값을 처음 열 때 복사해 두어서, 코드를 고쳐도 반영되지 않는 문제가 있었다.) */
+const KEY = 'sknr-judge-v3', CKEY = 'sknr-judge-chars';
+let dState = {};
+try { dState = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { dState = {}; }
+const charOf = name => ({ wm: valOf(name, 'wm'), pf: valOf(name, 'pf') });
+function persist(){
+  try { localStorage.setItem(KEY, JSON.stringify(dState)); } catch { /* 저장 불가 환경이면 세션 동안만 유지 */ }
+}
+
+CONTENTS.forEach(c => {
+  ['dContent','gSel','aContent'].forEach(id => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.n; $(id).appendChild(o);
+  });
+});
+SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.n; $('gContent').appendChild(o); });
+$('dContent').value = 'r2a'; $('aContent').value = 'r2a';
+$('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
+
+const curContent = () => CONTENTS.find(c => c.id === $('dContent').value);
+function dCoef(c){ return c.sc === 'siege' ? +$('dCarry').value : 1.0; }
+
+/* 딜 지분. 실측값이 있으면 항상 실측을 쓰고, 없을 때만 시전 가중치로 추정한다.
+   SRC 에 측정 판수·날짜·평균 총점을 남겨 두면 목표 탭 머리말에 그대로 표시된다. */
+const SHARE = {
+  r1a: [71, 24, 1, 0, 1], r1b: [71, 24, 1, 0, 1],
+  mona:[61,  4,  9, 26, 0],   // 나타 / 비스킷 / 미호 / 쥬리 / 에반
+  monb:[73,  4, 22,  1, 0],   // 나타 / 비스킷 / 미호 / 리나 / 에반
+  fri: [61, 29,  7,  3, 0],   // 라이언 / 레이첼 / 아일린 / 지크 / 비스킷
+  tue: [71.4, 27.2, 0.8, 0.2, 0.3],   // 나타 / 미호 / 비스킷 / 클로에 / 리나
+  wed: [71, 27, 1, 0, 0],             // 나타 / 미호 / 비스킷 / 리나 / 라이언 — 화요일 실측 준용(편성 구조 동일)
+  y1:  [100, 0,  0,  0, 0]    // 연희 1R은 루리 단독 딜 (구조상)
+};
+const SHARE_SRC = {
+  mona: '실측 1판 · 2026-10-06 · 총 11,389,437',
+  monb: '실측 5판 · 2026-10-06 · 평균 13,178,823 / 최고 13,691,479',
+  fri : '실측 10판 · 2026-10-03 · 총 19,342,527',
+  r1a : '추정', r1b: '추정',
+  tue : '실측 5판 · 2026-10-07 · 평균 11,494,295 / 최고 11,986,535',
+  wed : '추정 (화요일 실측 준용)',
+  y1  : '구조상 단독 딜'
+};
+function guessShare(c){
+  if (SHARE[c.id]) return SHARE[c.id].slice();
+  const w = c.lu.map(([, up, dn]) => up + dn * 0.2);
+  const s = w.reduce((a, b) => a + b, 0) || 1;
+  return w.map(x => Math.round(x / s * 100));
+}
+const roleOf = (c, i, gs) => !c.lu[i][3] ? 'buff' : gs[i] >= 20 ? 'main' : 'sub';
+const qbOf = (c, i) => c.lu[i][4] ?? c.qb;
+const ROLE_LABEL = { main:'주딜', sub:'부딜', buff:'버퍼·생존' };
+
+function dRowsInit(){
+  const c = curContent();
+  const saved = dState[c.id] || [];
+  const gs = guessShare(c);
+  const tb = $('dRows'); tb.innerHTML = '';
+  c.lu.forEach(([name, up, dn, opt], i) => {
+    const s = saved[i] || {}, ch = charOf(name);
+    const role = roleOf(c, i, gs);
+    const qf = qbOf(c, i);
+    const p  = s.p  ?? 100;
+    const cd = s.cd ?? 300;
+    const q  = s.q  ?? Math.min(100, qf + 20);
+    const tr = document.createElement('tr');
+    const dis = role === 'buff' ? ' disabled' : '';
+    tr.innerHTML =
+      '<td>' + name + (role !== 'buff' && rawOf(name).wm == null ? '<span class="tag">배율 미확인</span>' : '') + '</td>' +
+      '<td class="num muted">' + up + ' / ' + dn + '</td>' +
+      '<td class="muted" data-f="role" data-v="' + role + '">' + ROLE_LABEL[role] + '</td>' +
+      '<td class="num muted" data-f="s" data-v="' + gs[i] + '">' + gs[i] + '</td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="p"  value="' + p  + '" min="0" max="100"' + dis + '></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="cd" value="' + cd + '" min="100" max="700"' + dis + '></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="q"  value="' + q  + '" min="0" max="100"' + dis + '></td>' +
+      '<td class="num muted">' + ch.pf + '</td>' +
+      '<td class="num muted" data-f="qf" data-v="' + qf + '">' + qf + '</td>' +
+      '<td class="num muted">' + ch.wm.toFixed(2) + (c.wmTeam ? ' ×' + c.wmTeam : '') + '</td>' +
+      '<td class="num" data-out="best"></td><td class="num" data-out="diff"></td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(el => el.addEventListener('input', dRun));
+}
+
+function dHits(c, up, dn){
+  const r2 = 0.2, r1 = 0.22;
+  return [[1, up * c.tg], [r2, dn * c.tg], [r1, c.pl]];
+}
+
+function dRun(){
+  const c = curContent(), k = dCoef(c);
+  $('dCarry').disabled = c.sc !== 'siege';
+  $('dMeta').textContent =
+    (c.tg === 3 ? '3인기' : '1인기') + ' · 평타 ' + c.pl + '회 · ' +
+    (c.sc === 'siege' ? '베스트1 + 이월, 분산계수 ' + k.toFixed(3)
+                      : '상위 3 / 9판, 분산계수 1.000') +
+    (RAID1(c.id) ? ' · 100만 문턱 구조라 평균 극대화 = 치확·약확 100' : '');
+
+  const chips = [];
+  if (RAID1(c.id)) chips.push('목표 치확 100');
+  else if (c.id === 'sun') chips.push('목표 치확 75', '약확 100 고정 (미스 = 딜 0)');
+  else if (c.sc === 'siege') chips.push('목표 치확 80');
+  else chips.push('목표 치확 89');
+  $('dChips').innerHTML = chips.map(t => '<span class="chip">' + t + '</span>').join('');
+
+  const rows = $('dRows').children;
+  const U = [];
+  c.lu.forEach(([name, up, dn], i) => {
+    const tr = rows[i]; if (!tr) return;
+    const g = f => tr.querySelector('[data-f="' + f + '"]');
+    const ch = charOf(name);
+    const v = { role: g('role').dataset.v, s: +g('s').dataset.v || 0,
+                p: +g('p').value || 0, cd: +g('cd').value || 100, q: +g('q').value || 0,
+                qf: +g('qf').dataset.v || 0,
+                pf: ch.pf, wm: ch.wm * (c.wmTeam || 1) };   // 콘텐츠 전체 보정 포함
+    U.push({ name, up, dn, opt: v.role !== 'buff', v, tr, H: dHits(c, up, dn) });
+  });
+  const vals = U.map(u => ({ p: u.v.p, cd: u.v.cd, q: u.v.q }));   // 장비로 바뀌는 값만 저장
+  const sSum = U.reduce((a, u) => a + u.v.s, 0) || 1;
+  U.forEach(u => { u.s = u.v.s / sSum; u.cur = calc(u.v.p, u.v.cd, u.v.q, k, u.v.wm, u.H); });
+
+  /* 팀 목적함수.
+     캐릭터 c의 기여를 현재 평균 대비 비율로 보고 딜 지분으로 가중한다.
+       팀 평균 = Σ 지분 × (μ / μ_현재)        → 현재 상태에서 1
+       팀 분산 = Σ (지분 × σ / μ_현재)²       → 캐릭터 간 독립 가정
+     이러면 지분이 작은 캐릭터의 흔들림은 지분²으로 줄어들어, 버퍼·토템은
+     자동으로 기댓값형(치확 100)이 최적이 된다. */
+  function teamJ(cfg){
+    let m = 0, va = 0;
+    U.forEach((u, i) => {
+      const a = cfg[i] || u.v;
+      const r = calc(a.p, a.cd, a.q, k, u.v.wm, u.H);
+      m += u.s * r.mu / u.cur.mu;
+      va += Math.pow(u.s * r.sd / u.cur.mu, 2);
+    });
+    return m + k * Math.sqrt(va);
+  }
+  const cfg = U.map(u => ({ p: u.v.p, cd: u.v.cd, q: u.v.q }));
+  const j0 = teamJ(cfg);
+
+  // 좌표 하강: 캐릭터마다 치확·약확 ↔ 치피 교환을 전수 스캔 (2회 반복)
+  const move = U.map(() => ({ t: 0, u: 0 }));
+  for (let pass = 0; pass < 2; pass++) U.forEach((u, i) => {
+    if (!u.opt || (u.up + u.dn) === 0) return;
+    const qFloor = c.forceQ ? 100 : u.v.qf;
+    const p0 = u.v.p, cd0 = u.v.cd, q0 = u.v.q;
+    let best = { j: teamJ(cfg), t: move[i].t, u: move[i].u, p: cfg[i].p, cd: cfg[i].cd, q: cfg[i].q };
+    for (let t = -5; t <= 5; t++) for (let w = -5; w <= 5; w++){
+      const p = p0 - LINE.c * t, q = q0 - LINE.w * w, cd = cd0 + LINE.d * (t + w);
+      if (p < u.v.pf || p > 100 || q < qFloor || q > 100 || cd < 100) continue;
+      const keep = cfg[i];
+      cfg[i] = { p, cd, q };
+      const j = teamJ(cfg);
+      cfg[i] = keep;
+      if (j > best.j + 1e-12) best = { j, t, u: w, p, cd, q };
+    }
+    cfg[i] = { p: best.p, cd: best.cd, q: best.q };
+    move[i] = { t: best.t, u: best.u };
+  });
+
+  // 캐릭터별 기여도: 그 캐릭터만 되돌렸을 때 팀 J가 얼마나 떨어지는지
+  const adv = [];
+  U.forEach((u, i) => {
+    const bc = cfg[i];
+    if (!u.opt || (u.up + u.dn) === 0){
+      u.tr.querySelector('[data-out="best"]').textContent = '치확 100';
+      u.tr.querySelector('[data-out="diff"]').textContent = '—';
+      return;
+    }
+    const keep = cfg[i];
+    cfg[i] = { p: u.v.p, cd: u.v.cd, q: u.v.q };
+    const without = teamJ(cfg);
+    cfg[i] = keep;
+    const gain = teamJ(cfg) / Math.max(without, 1e-9) - 1;
+
+    u.tr.querySelector('[data-out="best"]').textContent = bc.p + ' / ' + bc.cd + ' / ' + bc.q;
+    const dc = u.tr.querySelector('[data-out="diff"]');
+    if (gain < 0.00005){ dc.textContent = '최선'; dc.className = 'num win'; }
+    else { dc.textContent = pct(gain * 100); dc.className = 'num lose'; }
+
+    if (gain >= 0.00005){
+      const m = move[i], moves = [];
+      if (m.t > 0) moves.push('치확 ' + m.t + '줄 → 치피');
+      if (m.t < 0) moves.push('치피 ' + (-m.t) + '줄 → 치확');
+      if (m.u > 0) moves.push('약확 ' + m.u + '줄 → 치피');
+      if (m.u < 0) moves.push('치피 ' + (-m.u) + '줄 → 약확');
+      adv.push([u.name, moves.join(', ') || '유지', gain]);
+    }
+  });
+
+  const teamGain = (teamJ(cfg) / j0 - 1) * 100;
+  const head = $('dHead'), det = $('dDetail');
+  if (adv.length === 0){
+    head.className = 'big win';
+    head.textContent = RAID1(c.id) ? '문턱 구조 — 치확·약확 100이 정답' : '지금이 최선입니다';
+    det.textContent = RAID1(c.id)
+      ? '1라운드는 팀 누적 100만 딜을 넘기는 것이 목적이라 고점이 아니라 평균을 극대화해야 합니다. 치확·약확을 100으로 채우고 남는 줄을 치피에 쓰십시오.'
+      : '적어 넣은 스탯에서 줄을 옮겨 이득 보는 조합이 없습니다. 더 올리려면 장비 자체를 바꿔야 합니다.';
+  } else {
+    head.className = 'big lose';
+    head.textContent = '팀 점수 ' + pct(teamGain) + ' 여지';
+    det.textContent = adv.length + '명의 배분을 바꾸면 그만큼 올라갑니다. 괄호 안 수치는 그 캐릭터 하나만 바꿨을 때의 팀 점수 상승폭이라, 딜 지분이 반영된 값입니다.';
+  }
+
+  const ab = $('dAdvice'); ab.innerHTML = '';
+  if (adv.length === 0){
+    ab.innerHTML = '<tr><td colspan="3" class="muted">옮길 줄이 없습니다.</td></tr>';
+  } else {
+    adv.sort((x, y) => y[2] - x[2]).forEach(([n, m, gn]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + n + '</td><td>' + m + '</td><td class="num win">' + pct(gn * 100) + '</td>';
+      ab.appendChild(tr);
+    });
+  }
+  dState[curContent().id] = vals;
+  persist();
+}
+
+$('dContent').addEventListener('change', () => { dRowsInit(); dRun(); });
+$('dCarry').addEventListener('change', dRun);
+function dFlash(t){
+  $('dMsg').textContent = t;
+  setTimeout(() => { $('dMsg').textContent = '입력하면 자동 저장됩니다.'; }, 2500);
+}
+$('dClear').addEventListener('click', () => {
+  delete dState[curContent().id]; dRowsInit(); dRun(); dFlash('이 콘텐츠를 초기화했습니다.');
+});
+
+/* ══════════ 설정 백업 — localStorage 3개 키를 한 덩어리로 ══════════ */
+const sMsg = t => { $('stateMsg').textContent = t; setTimeout(() => $('stateMsg').textContent = '', 3000); };
+$('stateOut').addEventListener('click', () => {
+  $('stateText').value = JSON.stringify(
+    { v: 1, at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      contents: dState, gear, trans, mine });
+  sMsg('내보냈습니다. 복사해서 다른 기기에 붙여넣으세요.');
+});
+$('stateCopy').addEventListener('click', async () => {
+  if (!$('stateText').value) { sMsg('먼저 내보내기를 누르세요.'); return; }
+  try { await navigator.clipboard.writeText($('stateText').value); sMsg('복사했습니다.'); }
+  catch { $('stateText').select(); sMsg('Ctrl+C 로 복사하세요.'); }
+});
+$('stateIn').addEventListener('click', () => {
+  let o; try { o = JSON.parse($('stateText').value); }
+  catch { sMsg('형식이 올바르지 않습니다.'); return; }
+  if (!o || typeof o !== 'object'){ sMsg('형식이 올바르지 않습니다.'); return; }
+  if (!confirm('현재 기기의 설정을 덮어씁니다. 진행할까요?')) return;
+  if (o.contents && typeof o.contents === 'object') dState = stripFixed(o.contents);   // 고정값은 버림
+  if (Array.isArray(o.gear)) gear = o.gear;
+  if (o.trans && typeof o.trans === 'object') { trans = o.trans; tPersist(); }
+  if (o.mine && typeof o.mine === 'object') { mine = o.mine; mPersist(); }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(dState));
+    localStorage.setItem(GKEY, JSON.stringify(gear));
+  } catch {}
+  dRowsInit(); dRun(); gRowsInit(); gRender(); goalRun(); cRowsInit();
+  sMsg('가져왔습니다' + (o.at ? ' (' + o.at + ' 저장본)' : '') + '.');
+});
+
+/* ══════════ 장비 탭 ══════════ */
+const GKEY = 'sknr-judge-gear';
+let gear = [];
+try { gear = JSON.parse(localStorage.getItem(GKEY) || '[]'); } catch { gear = []; }
+const gPersist = () => { try { localStorage.setItem(GKEY, JSON.stringify(gear)); } catch {} };
+
+const SLOTS = [['wp','무기 · 물리'],['wm','무기 · 마법'],['ar','방어구']];
+const MAINV = { c:[24,0,0], d:[0,36,0], w:[0,0,28], none:[0,0,0] };
+const MAINOPT = {
+  wp: [['c','치확 24'],['d','치피 36'],['w','약확 28']],
+  wm: [['c','치확 24'],['d','치피 36'],['w','약확 28']],
+  ar: [['none','모공 / 받피감']]
+};
+const CARVE = [['c','치확 +10'],['w','약확 +12'],['siege','공성 ×1.04'],['surv','생존']];
+
+const ALLCHARS = [...new Set(CONTENTS.flatMap(c => c.lu.map(l => l[0])))].sort();
+function charFull(name){
+  const ch = charOf(name);
+  ch.atk = valOf(name, 'atk');
+  ch.bc = valOf(name, 'bc');                       // 장비 없는 마을 치확
+  ch.bd = valOf(name, 'bd');                       // 장비 없는 마을 치피
+  ch.bq = valOf(name, 'bq');                       // 장비 없는 마을 약확
+  return ch;
+}
+
+function cRowsInit(){
+  const tb = $('cRows'); tb.innerHTML = '';
+  const names = [...new Set([...Object.keys(CHARS), ...ALLCHARS])].sort();
+  let blank = 0;
+  const cell = (v, f) => {
+    if (v == null){ blank++; return '<td></td>'; }
+    if (f === 'atk') return '<td class="muted">' + (v === 'mag' ? '마법' : '물리') + '</td>';
+    if (f === 'wm') return '<td class="num">' + v.toFixed(2) + '</td>';
+    return '<td class="num">' + v + '</td>';
+  };
+  names.forEach(name => {
+    const r = rawOf(name);
+    const tr = document.createElement('tr');
+    const lv = trans[name];
+    const tag = lv === undefined ? '' : '<span class="tag">' + TLABEL[lv] + (TRANS[name] ? '' : ' · 차이 미입력') + '</span>';
+    const team = (TEAM[name] || []).map(([st, v, tg]) => st + ' ' + v + ' · ' + tg).join('<br>');
+    tr.innerHTML = '<td>' + name + tag + '</td>' + CFIELD.map(f => cell(r[f], f)).join('') +
+      '<td style="text-align:left;white-space:nowrap;font-size:13px;padding-left:14px;width:1%">' + team + '</td>';
+    tb.appendChild(tr);
+  });
+  const nT = Object.keys(trans).length;
+  $('baseSum').textContent = '기본값 — 캐릭터 ' + names.length + '명' + (blank ? ' · 미확인 ' + blank + '칸' : '') +
+    (nT ? ' · 초월 예외 ' + nT + '명' : '');
+  // 초월 예외 목록
+  const sel = $('trName');
+  if (!sel.options.length) names.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  $('trList').innerHTML = nT
+    ? Object.entries(trans).map(([n, lv]) => '<span class="chip">' + esc(n) + ' ' + TLABEL[lv] +
+        ' <button type="button" class="ghost" data-tr="' + esc(n) + '" aria-label="해제" style="font-size:13px;padding:0 2px">×</button></span>').join('')
+    : '<span class="note">지정된 예외 없음 — 전원 6초 이상으로 계산합니다.</span>';
+  $('trList').querySelectorAll('[data-tr]').forEach(b => b.addEventListener('click', () => {
+    delete trans[b.dataset.tr]; tPersist(); trChanged();
+  }));
+}
+function trChanged(){ cRowsInit(); goalRun(); dRowsInit(); dRun(); if (typeof setRun === 'function') setRun(); }
+$('trAdd').addEventListener('click', () => {
+  trans[$('trName').value] = +$('trLv').value; tPersist(); trChanged();
+});
+
+function gRowsInit(){
+  const tb = $('gRows'); tb.innerHTML = '';
+  if (!gear.length){
+    tb.innerHTML = '<tr><td colspan="7" class="muted">등록된 장비가 없습니다. “장비 추가”로 하나씩 넣거나 “여러 개 붙여넣기”를 쓰십시오.</td></tr>';
+    return;
+  }
+  gear.forEach((g, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input class="name" data-i="' + i + '" data-f="nm" value="' + String(g.nm || '').replace(/"/g,'&quot;') + '" placeholder="복수자 검"></td>' +
+      '<td><select data-i="' + i + '" data-f="slot">' +
+        SLOTS.map(([v,l]) => '<option value="' + v + '"' + (g.slot === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+      '</select></td>' +
+      '<td><select data-i="' + i + '" data-f="main">' +
+        MAINOPT[g.slot].map(([v,l]) => '<option value="' + v + '"' + (g.main === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+      '</select></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="c" value="' + g.c + '" min="0" max="200"></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="d" value="' + g.d + '" min="0" max="300"></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="w" value="' + g.w + '" min="0" max="200"></td>' +
+      '<td><button type="button" class="ghost" data-del="' + i + '" aria-label="삭제">×</button></td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input,select').forEach(el => el.addEventListener('input', e => {
+    const i = +e.target.dataset.i, f = e.target.dataset.f;
+    gear[i][f] = (f === 'nm' || f === 'slot' || f === 'main') ? e.target.value : (+e.target.value || 0);
+    if (f === 'slot'){ gear[i].main = MAINOPT[gear[i].slot][0][0]; gRowsInit(); }
+    gPersist();
+  }));
+  tb.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', e => {
+    gear.splice(+e.target.dataset.del, 1); gPersist(); gRowsInit();
+  }));
+}
+
+$('gAdd').addEventListener('click', () => {
+  gear.push({ nm:'', slot:'wp', main:'c', c:0, d:0, w:0 }); gPersist(); gRowsInit();
+});
+$('gWipe').addEventListener('click', () => { gear = []; gPersist(); gRowsInit(); });
+$('gPaste').addEventListener('click', () => {
+  const t = prompt('한 줄에 장비 하나씩. 쉼표로 구분\n메모, 부위(물리/마법/방어구), 주옵(치확/치피/약확/없음), 부옵치확, 부옵치피, 부옵약확\n\n예) 복수자 검, 물리, 치확, 8, 18, 5');
+  if (!t) return;
+  let n = 0;
+  t.split('\n').forEach(line => {
+    const p = line.split(',').map(s => s.trim());
+    if (p.length < 6) return;
+    const slot = /마법/.test(p[1]) ? 'wm' : /방어/.test(p[1]) ? 'ar' : 'wp';
+    const main = slot === 'ar' ? 'none' : /치확/.test(p[2]) ? 'c' : /치피/.test(p[2]) ? 'd' : /약확/.test(p[2]) ? 'w' : 'c';
+    gear.push({ nm:p[0], slot, main, c:+p[3]||0, d:+p[4]||0, w:+p[5]||0 });
+    n++;
+  });
+  gPersist(); gRowsInit();
+  $('gMsg').textContent = n + '개 추가했습니다.';
+  setTimeout(() => { $('gMsg').textContent = ''; }, 3000);
+});
+
+/* ── 배정 ── */
+const pieceStat = g => [MAINV[g.main][0] + g.c, MAINV[g.main][1] + g.d, MAINV[g.main][2] + g.w];
+const CARVEV = { c:[10,0], w:[0,12], siege:[0,0], surv:[0,0] };
+const carveMult = v => v === 'siege' ? 1.04 : 1;
+
+function buildAssign(c){
+  const gs = guessShare(c);
+  const k = c.sc === 'siege' ? +$('dCarry').value : 1.0;
+  const chars = [];
+  c.lu.forEach(([name, up, dn], i) => {
+    const role = roleOf(c, i, gs);
+    if (role === 'buff' || (up + dn) === 0) return;
+    const ch = charFull(name);
+    const H = dHits(c, up, dn), qf = qbOf(c, i);
+    chars.push({ name, ch, H, qf, share: gs[i] / 100,
+                 need: ch.atk === 'mag' ? 'wm' : 'wp',
+                 ref: calc(100, 300, Math.min(100, qf + 20), k, ch.wm, H).mu });
+  });
+  return { chars, k };
+}
+
+// 캐릭터 한 명의 장비 묶음 → 전투 스탯
+function statsOf(ch, pieces, carve, qf){
+  let p = ch.ch.bc + ch.ch.pf + CARVEV[carve][0], cd = ch.ch.bd, q = ch.ch.bq + qf + CARVEV[carve][1];
+  pieces.forEach(g => { if (!g) return; const [a, b, w] = pieceStat(g); p += a; cd += b; q += w; });
+  return { p, cd, q };
+}
+
+function evalAssign(A, state, k){
+  let m = 0, va = 0;
+  A.chars.forEach((ch, i) => {
+    const s = statsOf(ch, state.pieces[i], state.carve[i], ch.qf);
+    const r = calc(s.p, s.cd, s.q, k, ch.ch.wm, ch.H);
+    const mult = carveMult(state.carve[i]);
+    m += ch.share * mult * r.mu / ch.ref;
+    va += Math.pow(ch.share * mult * r.sd / ch.ref, 2);
+  });
+  return m + k * Math.sqrt(va);
+}
+
+function optimizeAssign(c){
+  const A = buildAssign(c), k = A.k;
+  if (!A.chars.length) return { A, err: '이 콘텐츠에 배정할 딜러가 없습니다. 판정 탭에서 역할을 확인하십시오.' };
+
+  const arms = gear.filter(g => g.slot === 'ar');
+  const need = A.chars.length;
+  const short = [];
+  if (arms.length < need * 2) short.push('방어구 ' + (need * 2 - arms.length) + '개');
+  ['wp','wm'].forEach(t => {
+    const want = A.chars.filter(ch => ch.need === t).length * 2;
+    const have = gear.filter(g => g.slot === t).length;
+    if (want && have < want) short.push((t === 'wp' ? '물리' : '마법') + ' 무기 ' + (want - have) + '개');
+  });
+
+  // 슬롯 목록 (캐릭터 i, 무기/방어구)
+  const slots = [];
+  A.chars.forEach((ch, i) => { slots.push({ i, t: ch.need }, { i, t: ch.need }, { i, t:'ar' }, { i, t:'ar' }); });
+
+  const state = { pieces: A.chars.map(() => [null, null, null, null]), carve: A.chars.map(() => 'c') };
+  const slotOf = (i, t, n) => (t === 'ar' ? 2 : 0) + n;
+  const used = new Set();
+
+  // 1) 탐욕 배정: 지분 큰 캐릭터부터 그 자리에 가장 좋은 장비를
+  const order = A.chars.map((ch, i) => [ch.share, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+  order.forEach(i => {
+    const ch = A.chars[i];
+    [[ch.need, 0], [ch.need, 1], ['ar', 0], ['ar', 1]].forEach(([t, n]) => {
+      let bi = -1, bj = -Infinity;
+      gear.forEach((g, gi) => {
+        if (used.has(gi) || g.slot !== t) return;
+        const keep = state.pieces[i][slotOf(i, t, n)];
+        state.pieces[i][slotOf(i, t, n)] = g;
+        const j = evalAssign(A, state, k);
+        state.pieces[i][slotOf(i, t, n)] = keep;
+        if (j > bj){ bj = j; bi = gi; }
+      });
+      if (bi >= 0){ state.pieces[i][slotOf(i, t, n)] = gear[bi]; used.add(bi); }
+    });
+  });
+
+  // 2) 세공 선택
+  A.chars.forEach((ch, i) => {
+    let best = state.carve[i], bj = -Infinity;
+    CARVE.forEach(([v]) => {
+      if (v === 'surv') return;
+      const keep = state.carve[i]; state.carve[i] = v;
+      const j = evalAssign(A, state, k); state.carve[i] = keep;
+      if (j > bj){ bj = j; best = v; }
+    });
+    state.carve[i] = best;
+  });
+
+  // 3) 교환 개선: 배정된 자리를 미사용 장비 또는 다른 자리와 바꿔 본다
+  const flat = () => slots.map((s, n) => ({ ...s, n, idx: Math.floor(n / 4) === s.i ? n % 4 : 0 }));
+  for (let pass = 0; pass < 12; pass++){
+    let moved = false;
+    A.chars.forEach((ch, i) => {
+      [[ch.need, 0], [ch.need, 1], ['ar', 0], ['ar', 1]].forEach(([t, n]) => {
+        const si = slotOf(i, t, n), cur = state.pieces[i][si];
+        const base = evalAssign(A, state, k);
+        let bj = base, bg = null, bSwap = null;
+        // 미사용 장비로 교체
+        gear.forEach(g => {
+          if (g.slot !== t || used.has(gear.indexOf(g))) return;
+          state.pieces[i][si] = g;
+          const j = evalAssign(A, state, k);
+          if (j > bj + 1e-12){ bj = j; bg = g; bSwap = null; }
+          state.pieces[i][si] = cur;
+        });
+        // 다른 캐릭터의 같은 종류 자리와 맞교환
+        A.chars.forEach((ch2, i2) => {
+          if (i2 === i) return;
+          [0, 1].forEach(n2 => {
+            const t2 = t === 'ar' ? 'ar' : ch2.need;
+            if (t2 !== t) return;
+            const sj = slotOf(i2, t2, n2), other = state.pieces[i2][sj];
+            state.pieces[i][si] = other; state.pieces[i2][sj] = cur;
+            const j = evalAssign(A, state, k);
+            state.pieces[i][si] = cur; state.pieces[i2][sj] = other;
+            if (j > bj + 1e-12){ bj = j; bg = null; bSwap = [i2, sj, other]; }
+          });
+        });
+        if (bg){
+          used.delete(gear.indexOf(cur)); used.add(gear.indexOf(bg));
+          state.pieces[i][si] = bg; moved = true;
+        } else if (bSwap){
+          const [i2, sj, other] = bSwap;
+          state.pieces[i][si] = other; state.pieces[i2][sj] = cur; moved = true;
+        }
+      });
+    });
+    // 세공 재선택
+    A.chars.forEach((ch, i) => {
+      let best = state.carve[i], bj = -Infinity;
+      CARVE.forEach(([v]) => {
+        if (v === 'surv') return;
+        const keep = state.carve[i]; state.carve[i] = v;
+        const j = evalAssign(A, state, k); state.carve[i] = keep;
+        if (j > bj){ bj = j; best = v; }
+      });
+      if (best !== state.carve[i]){ state.carve[i] = best; moved = true; }
+    });
+    if (!moved) break;
+  }
+  return { A, state, k, short };
+}
+
+function aRun(){
+  const c = CONTENTS.find(x => x.id === $('aContent').value);
+  const r = optimizeAssign(c);
+  $('aResultCard').hidden = false;
+  const tb = $('aRows'); tb.innerHTML = '';
+  if (r.err){ $('aNote').textContent = r.err; return; }
+  const { A, state, k } = r;
+  const label = g => g ? (g.nm || (SLOTS.find(s => s[0] === g.slot)[1] + ' ' + (gear.indexOf(g) + 1))) : '없음';
+  const carveName = v => CARVE.find(x => x[0] === v)[1];
+
+  A.chars.forEach((ch, i) => {
+    const s = statsOf(ch, state.pieces[i], state.carve[i], ch.qf);
+    const p = Math.min(s.p, 100), q = Math.min(s.q, 100);
+    const best = bestSwap(p, s.cd, q, k, ch.ch.wm, ch.H, ch.ch.pf + ch.ch.bc, c.forceQ ? 100 : ch.qf);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + ch.name + '</td>' +
+      '<td class="muted">' + label(state.pieces[i][0]) + ' · ' + label(state.pieces[i][1]) + '</td>' +
+      '<td class="muted">' + label(state.pieces[i][2]) + ' · ' + label(state.pieces[i][3]) + '</td>' +
+      '<td class="muted">' + carveName(state.carve[i]) + '</td>' +
+      '<td class="num">' + p + '</td><td class="num">' + s.cd + '</td><td class="num">' + q + '</td>' +
+      '<td class="num ' + (best.gain < 0.005 ? 'win' : 'flat') + '">' +
+        (best.gain < 0.005 ? '최선' : pct(-best.gain * 100)) + '</td>';
+    tb.appendChild(tr);
+    aLast = { c, A, state };
+  });
+  const usedSiege = A.chars.some((_, i) => state.carve[i] === 'siege');
+  $('aNote').innerHTML = (r.short.length
+      ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “없음”으로 둡니다. '
+      : '') +
+    '“목표 대비”는 이 장비로 만든 스탯이 같은 줄 수로 가능한 최선 배분에서 얼마나 떨어져 있는지입니다. ' +
+    '0%에 가까우면 배분은 끝났고 장비 자체를 올려야 한다는 뜻입니다.' +
+    (usedSiege ? ' <strong>공성 세공(×1.04)은 커뮤니티 실측 가정이라 아직 검증되지 않았습니다</strong> — 치확이 이미 100에 붙은 캐릭터라면 거의 항상 이게 1위로 나오니, 실제로 쓰기 전에 한 번 재보십시오.' : '');
+}
+let aLast = null;
+$('aRun').addEventListener('click', aRun);
+$('aApply').addEventListener('click', () => {
+  if (!aLast) return;
+  const { c, A, state } = aLast;
+  const cur = dState[c.id] || (dState[c.id] = []);
+  c.lu.forEach(([name], i) => {
+    const ci = A.chars.findIndex(x => x.name === name);
+    if (ci < 0) return;
+    const s = statsOf(A.chars[ci], state.pieces[ci], state.carve[ci], A.chars[ci].qf);
+    cur[i] = Object.assign({}, cur[i], { p: Math.min(s.p, 100), cd: s.cd, q: Math.min(s.q, 100) });
+  });
+  persist();
+  $('dContent').value = c.id; dRowsInit(); dRun();
+  $('aMsg').textContent = '판정 탭에 넣었습니다.';
+  setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
+});
+
+/* ══════════ 비교 탭 ══════════ */
+const DEFAULTS = [
+  ['현재', 100, 306, 99],
+  ['약확 강화 → 치피', 100, 336, 74],
+  ['치확도 낮춤', 89, 352, 74]
+];
+let cand = DEFAULTS.map(r => r.slice());
+
+function hits(){
+  const up = +$('casts').value || 0, dn = +$('casts2').value || 0;
+  const plains = +$('plains').value || 0;
+  const r2 = +$('r2').value || 0.2, r1 = +$('r1').value || 0.22;
+  const tg = $('content').value === 'siege' ? 3 : 1;
+  return [[1, up * tg], [r2, dn * tg], [r1, plains]];
+}
+const coef = () => $('content').value === 'raid2' ? 1.0 : +$('carry').value;
+
+function draw(){
+  const tb = $('rows'); tb.innerHTML = '';
+  cand.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><span class="rank">–</span></td>' +
+      '<td><input class="name" data-i="' + i + '" data-f="0" value="' + String(c[0]).replace(/"/g, '&quot;') + '"></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="1" value="' + c[1] + '" min="0" max="100"></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="2" value="' + c[2] + '" min="100" max="700"></td>' +
+      '<td><input type="number" data-i="' + i + '" data-f="3" value="' + c[3] + '" min="0" max="100"></td>' +
+      '<td class="num" data-out="mu"></td><td class="num" data-out="sd"></td><td class="num" data-out="j"></td>' +
+      '<td><button type="button" class="ghost" data-del="' + i + '" aria-label="후보 삭제">×</button></td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(el => el.addEventListener('input', e => {
+    const i = +e.target.dataset.i, f = +e.target.dataset.f;
+    cand[i][f] = f === 0 ? e.target.value : (+e.target.value || 0);
+    run();
+  }));
+  tb.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', e => {
+    if (cand.length <= 1) return;
+    cand.splice(+e.target.dataset.del, 1); draw(); run();
+  }));
+}
+
+function run(){
+  const H = hits(), k = coef(), wm = +$('wm').value;
+  $('carry').disabled = $('content').value === 'raid2';
+
+  const res = cand.map(c => calc(c[1], c[2], c[3], k, wm, H));
+  const ref = res[0];
+  const order = res.map((r, i) => [r.j, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+  const bestI = order[0];
+
+  const rows = $('rows').children;
+  res.forEach((r, i) => {
+    const tr = rows[i]; if (!tr) return;
+    tr.querySelector('[data-out="mu"]').textContent = (r.mu / ref.mu * 100).toFixed(1) + '%';
+    tr.querySelector('[data-out="sd"]').textContent = (r.sd / r.mu * 100).toFixed(1) + '%';
+    const jc = tr.querySelector('[data-out="j"]');
+    jc.textContent = (r.j / ref.j * 100).toFixed(1) + '%';
+    jc.className = 'num ' + (i === bestI ? 'win' : r.j < ref.j ? 'lose' : '');
+    const badge = tr.querySelector('.rank');
+    badge.textContent = order.indexOf(i) + 1;
+    badge.className = 'rank' + (i === bestI ? ' top' : '');
+  });
+
+  const gain = (res[bestI].j / ref.j - 1) * 100;
+  const head = $('headline'), det = $('detail');
+  if (bestI === 0){
+    head.className = 'big flat';
+    head.textContent = '지금이 최선입니다';
+    det.textContent = '적어 넣은 후보 중 첫 행보다 나은 것이 없습니다. 더 올리려면 장비 자체를 바꿔야 합니다.';
+  } else {
+    head.className = 'big win';
+    head.textContent = '“' + (cand[bestI][0] || '후보 ' + (bestI + 1)) + '” ' + pct(gain);
+    det.textContent = '치확 ' + cand[bestI][1] + ' / 치피 ' + cand[bestI][2] + ' / 약확 ' + cand[bestI][3]
+      + ' — 평균은 ' + pct(res[bestI].mu / ref.mu * 100 - 100)
+      + ', 흔들림은 ' + (ref.sd / ref.mu * 100).toFixed(1) + '% → ' + (res[bestI].sd / res[bestI].mu * 100).toFixed(1) + '%.';
+  }
+
+  const b = cand[bestI], base = res[bestI].j;
+  const d = {
+    mgC: calc(b[1] + LINE.c, b[2], b[3], k, wm, H).j / base - 1,
+    mgD: calc(b[1], b[2] + LINE.d, b[3], k, wm, H).j / base - 1,
+    mgW: calc(b[1], b[2], b[3] + LINE.w, k, wm, H).j / base - 1
+  };
+  const top = Math.max(...Object.values(d));
+  for (const [id, v] of Object.entries(d)){
+    $(id).textContent = pct(v * 100);
+    const t = $(id + 't');
+    if (v <= 0.00005){ t.textContent = '상한 도달'; t.className = 'lose'; }
+    else if (v >= top - 1e-9){ t.textContent = '1순위'; t.className = 'win'; }
+    else { t.textContent = ''; t.className = ''; }
+  }
+}
+
+$('add').addEventListener('click', () => {
+  const last = cand[cand.length - 1];
+  cand.push(['후보 ' + (cand.length + 1), last[1], last[2], last[3]]);
+  draw(); run();
+});
+$('reset').addEventListener('click', () => { cand = DEFAULTS.map(r => r.slice()); draw(); run(); });
+['content','carry','wm','casts','casts2','plains','r2','r1'].forEach(id => $(id).addEventListener('input', run));
+
+/* ══════════ 공략 탭 ══════════ */
+const RAW = $('guidemd').textContent;
+const SECTIONS = RAW.split(/\n(?=# )/).map(s => {
+  const nl = s.indexOf('\n');
+  return { title: s.slice(0, nl < 0 ? s.length : nl).replace(/^#\s*/, '').trim(),
+           body: nl < 0 ? '' : s.slice(nl + 1) };
+});
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const inl = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  .replace(/노란색/g, '<mark class="sk-y">노란색</mark>').replace(/빨간색/g, '<mark class="sk-r">빨간색</mark>');
+
+function md(src){
+  const out = [];
+  const lines = src.replace(/\r/g, '').split('\n');
+  let i = 0;
+  while (i < lines.length){
+    const L = lines[i];
+    if (/^```/.test(L)){
+      const buf = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; out.push(skillHTML(buf.join('\n'))); continue;
+    }
+    if (/^\|/.test(L)){
+      const rows = [];
+      while (i < lines.length && /^\|/.test(lines[i])) rows.push(lines[i++]);
+      const cells = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      const head = cells(rows[0]);
+      const body = rows.slice(/^\|[\s:|-]+\|?$/.test(rows[1] || '') ? 2 : 1);
+      out.push('<div class="scroll"><table><thead><tr>' +
+        head.map(h => '<th>' + inl(h) + '</th>').join('') + '</tr></thead><tbody>' +
+        body.map(r => '<tr>' + cells(r).map(c => '<td>' + inl(c) + '</td>').join('') + '</tr>').join('') +
+        '</tbody></table></div>');
+      continue;
+    }
+    if (/^##+\s/.test(L)){ out.push('<h4>' + inl(L.replace(/^#+\s*/, '')) + '</h4>'); i++; continue; }
+    if (/^[-*]\s/.test(L)){
+      const buf = [];
+      while (i < lines.length && /^[-*]\s/.test(lines[i])) buf.push(lines[i++].replace(/^[-*]\s*/, ''));
+      out.push('<ul>' + buf.map(b => '<li>' + inl(b) + '</li>').join('') + '</ul>'); continue;
+    }
+    if (/^---+$/.test(L.trim())){ i++; continue; }
+    if (!L.trim()){ i++; continue; }
+    out.push('<p>' + inl(L) + '</p>'); i++;
+  }
+  return out.join('\n');
+}
+
+/* 목표 탭 하단 — 고른 콘텐츠의 '열람용 공략'(진형·속공·주의·스킬 순서)을 그대로 끌어온다.
+   SECTIONS 가 이 함수보다 뒤에 정의되므로 goalRun 쪽에서는 존재 확인 후 호출한다. */
+function gOpsRender(){
+  const el = $('gOps'); if (!el) return;
+  const c = CONTENTS.find(x => x.id === $('gContent').value);
+  const sec = c && SECTIONS.find(s => s.title.startsWith(c.g));
+  if (!sec){ el.innerHTML = '<p class="muted">이 콘텐츠의 운용 지침 원문이 아직 없습니다.</p>'; return; }
+  const i = sec.body.indexOf('## 열람용 공략');
+  const body = i < 0 ? sec.body : sec.body.slice(i + '## 열람용 공략'.length);
+  el.innerHTML = '<h3>' + esc(sec.title) + '</h3>' + md(body);
+}
+
+function gRender(){
+  const c = CONTENTS.find(x => x.id === $('gSel').value);
+  const sec = SECTIONS.find(s => s.title.startsWith(c.g));
+  $('gBody').innerHTML = sec
+    ? '<h3>' + esc(sec.title) + '</h3>' + md(sec.body)
+    : '<p class="muted">이 콘텐츠의 공략 원문이 아직 없습니다.</p>';
+  alignNotes($('gBody'));
+}
+$('gSel').addEventListener('change', gRender);
+
+/* ══════════ 세팅 탭 — 한 화면 요약 ══════════ */
+SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.n; $('sContent').appendChild(o); });
+// 공성전은 09시(KST) 리셋 = UTC 자정 → UTC 요일이 곧 오늘의 공성전
+$('sContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
+
+/* 스킬 순서 표시: [노랑]X = 순서 자유(협공) · [빨강 대체] = 쿨 안 돌 때 대체 · ↑ 메모 */
+/* 스킬 순서 → 칩 목록. 원문의 줄 구분은 영상 화면 배치일 뿐이라 버리고, 스킬 하나 = 칩 하나로 흘려 놓는다.
+   [노랑] = 노란 칩 · [빨강 …] 줄 = 같은 턴 칩 안에 '대체' 줄 · ↑ 메모 = 윗줄 마지막 칩 안에 메모 줄 */
+function skillHTML(txt){
+  const lines = txt.split('\n');
+  const chips = [];                       // {turn, name, yellow, alt, memo}
+  let lastIdxOfLine = -1;
+  lines.forEach(L => {
+    if (!L.trim()) return;
+    const red = L.match(/^\s*\[빨강[^\]]*\]\s*(.+)$/);
+    if (red){
+      const body = red[1].trim();
+      const turn = (body.match(/\[([^\]]+)\]/) || [, ''])[1];
+      const tgt = [...chips].reverse().find(c => c.turn === turn) || chips[chips.length - 1];
+      if (tgt) tgt.alt = body.replace(/\[[^\]]+\]/, '').trim();
+      return;
+    }
+    if (/^\s*↑/.test(L)){
+      if (chips[lastIdxOfLine]) chips[lastIdxOfLine].memo = L.trim().replace(/^↑\s*/, '');
+      return;
+    }
+    L.split(' - ').forEach(t => {
+      t = t.trim(); if (!t) return;
+      const yellow = /^\[노랑\]/.test(t); t = t.replace(/^\[노랑\]/, '');
+      const m = t.match(/^(.*?)\s*\[([^\]]+)\]\s*$/);
+      chips.push({ name: m ? m[1] : t, turn: m ? m[2] : '', yellow });
+    });
+    lastIdxOfLine = chips.length - 1;
+  });
+  return '<div class="sk-box">' + chips.map(c =>
+    '<span class="sk-c' + (c.yellow ? ' y' : '') + '">' +
+      '<span class="tn">' + esc(c.turn) + '</span>' +
+      '<span class="nm">' + esc(c.name) + '</span>' +
+      (c.alt ? '<span class="alt">대체 <mark class="sk-r">' + esc(c.alt) + '</mark></span>' : '') +
+      (c.memo ? '<span class="memo">' + esc(c.memo) + '</span>' : '') +
+    '</span>').join('') + '</div>';
+}
+/* 메모 줄을 기준 스킬의 실제 가로 위치에 맞춘다 (한글 폭이 고정이 아니라 공백 정렬은 틀어짐) */
+function alignNotes(root){
+  (root || document).querySelectorAll('pre').forEach(pre => {
+    pre.querySelectorAll('.sk-note').forEach(n => {
+      const a = pre.querySelector('[data-anchor-for="' + n.dataset.anchor + '"]');
+      if (!a || !pre.offsetParent) return;
+      n.style.marginLeft = '0px';
+      const dx = a.getBoundingClientRect().left - n.getBoundingClientRect().left;
+      n.style.marginLeft = Math.max(0, dx) + 'px';
+    });
+  });
+}
+window.addEventListener('resize', () => alignNotes());
+function skillLegend(note){
+  return esc(note).replace(/노란색/g, '<mark class="sk-y">노란색</mark>').replace(/빨간색/g, '<mark class="sk-r">빨간색</mark>');
+}
+function opsOf(c){
+  const sec = SECTIONS.find(s => s.title.startsWith(c.g));
+  if (!sec) return null;
+  const body = sec.body;
+  const line = re => { const m = body.match(re); return m ? m[1].trim() : ''; };
+  const code = body.match(/\*\*스킬 순서\*\*([^\n]*)\n```\n([\s\S]*?)```/);
+  return {
+    form: line(/\*\*진형[^*]*\*\*:?\s*(.+)/),
+    speed: line(/\*\*속공[^*]*\*\*:?\s*(.+)/),
+    warn: line(/\*\*(?:주의|초 고점 디테일|꿀팁)\*\*:?\s*(.+)/),
+    pet: line(/\*\*펫\*\*:?\s*(.+)/),
+    skill: code ? code[2].replace(/\s+$/, '') : '',
+    skillNote: code ? code[1].trim().replace(/^\(|\)$/g, '') : ''
+  };
+}
+
+
+function setRows(c, safe){
+  const { U } = solveContent(c, GOAL_CARRY, GOAL_MAXENH, safe);   // 세팅 탭도 이론상 최고 (강화 몰빵 허용, 2주 누적)
+  return U.map(u => {
+    if (u.skip || !u.pick)
+      return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">생존·토템 세팅</td></tr>';
+    const b = u.pick;
+    const main = MLABEL[b.main[0]] + MLABEL[b.main[1]];
+    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span></td>' +
+      '<td class="muted">' + main + '</td><td class="muted">' + CARVENAME[b.cv] + '</td>' +
+      '<td class="v">' + b.vc + (safe && b.p < 99 ? '<span class="sub" title="약확 100을 채우면 장비 예산(32단위)으로는 치확 99까지 못 감 — 닿을 수 있는 최대치">최대</span>' : '') + '</td>';
+    if (safe){
+      // 안전: 치확만 숫자, 치피는 최대한, 약확은 맞춰야 할 때만 숫자
+      const qNum = c.forceQ || (u.cc.main && !b.qFree) ? b.vq : null;   // 마을 기준 (필수 콘텐츠는 전투 100이 되는 마을 값)
+      return head + '<td class="muted" style="text-align:right">최대한</td>' +
+        (qNum == null ? '<td class="muted" style="text-align:right">—</td>' : '<td class="v">' + qNum + '</td>') +
+        '<td class="num muted">—</td></tr>';
+    }
+    return head + '<td class="v">' + b.vd + '</td><td class="v">' + b.vq + '</td>' +
+      '<td class="num muted">' + (u.lo === u.hi ? '—' : u.lo + '~' + u.hi) + '</td></tr>';
+  }).join('');
+}
+
+function setOps(c){
+  const o = opsOf(c);
+  if (!o) return '';
+  const row = (k, v) => v ? '<dt>' + k + '</dt><dd>' + inl(v) + '</dd>' : '';
+  // 속공: 공략에 이상 수치가 있으면 그대로(예: 나타(29)), 순위만 있으면 수치 미입력 표시
+  const hasNum = /\(\d+\)/.test(o.speed) || /상관 ?X/.test(o.speed);   // '속공 상관 X'면 수치 불필요
+  const speed = o.speed ? inl(o.speed) + (hasNum ? '' : ' <span class="tag" style="display:inline-block">속공 수치 미입력</span>') : '';
+  return '<dl>' + row('진형', o.form) + (speed ? '<dt>속공</dt><dd>' + speed + '</dd>' : '') + row('주의', o.warn) + row('펫', o.pet) + '</dl>' +
+    (o.skill ? '<details open style="margin-top:8px"><summary>스킬 순서</summary>' +
+      (o.skillNote ? '<p class="note" style="margin:6px 0 0">' + skillLegend(o.skillNote) + '</p>' : '') +
+      skillHTML(o.skill) + '</details>' : '');
+}
+
+function setRun(){
+  const opt = SET_OPTS.find(x => x.id === $('sContent').value);
+  const parts = opt.parts.map(id => CONTENTS.find(c => c.id === id));
+  const safe = $('sSafe').getAttribute('aria-pressed') === 'true';
+  document.querySelector('.set-tbl').classList.toggle('safe', safe);
+  const multi = parts.length > 1;
+
+  if (!parts.length){
+    $('sRows').innerHTML = '<tr><td colspan="7" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다 — 편성·시전 횟수·속공·스킬 순서를 주시면 채웁니다.</td></tr>';
+    $('sMeta').textContent = '공략 미입력';
+    $('sOps').innerHTML = '';
+    $('sFoot').textContent = '';
+    return;
+  }
+
+  const band = t => '<tr class="round"><td colspan="7">' + t + '</td></tr>';
+  $('sRows').innerHTML = parts.map(c => (multi ? band(ROUND_LABEL[c.id] || c.n) : '') + setRows(c, safe)).join('');
+  $('sFoot').textContent = safe
+    ? '마을 기준 · 무기 주옵 2개 · 약확 — = 약확 줄 없어도 됨(그 자리는 모공) · 이론상 최고 배분이라 강화가 한 스탯에 몰려야 하는 경우도 있음'
+    : '마을 기준 · 무기 주옵 2개 · 치확 무방 = 이 범위면 점수 차 1% 미만 · 이론상 최고 배분(강화가 한 스탯에 몰려야 하는 경우도 있음)';
+
+  const c0 = parts[0];
+  const share = parts.every(c => /^실측/.test(SHARE_SRC[c.id] || '')) ? '실측 지분' : '지분 추정';
+  const kind = c0.sc === 'siege' ? '공성전 · ' + (c0.tg === 3 ? '3인기' : '1인기')
+             : multi ? '강림 · 1인기 · 1R 문턱 → 2R 상위 3/9' : '강림 · 1인기';
+  $('sMeta').innerHTML = kind + ' · ' + share +
+    (c0.missZero ? ' · <strong class="lose">약확 100 필수</strong>' : '') +
+    (c0.cb ? ' · 아군 전체 치확 +' + c0.cb + ' 포함' : '') +
+    ' · ' + (safe ? '<strong>안전</strong> — 치확 99 맞추고 나머지는 전부 치피 · 주딜러는 약확도 99(약공 추가 피해 없는 캐릭터 제외) · 상세 배분은 고점에서' : '<strong>고점</strong> — 이론상 최고점이 가장 높은 배분');
+
+  $('sOps').innerHTML = parts.map(c => (multi ? '<h3 style="margin:14px 0 6px">' + (ROUND_LABEL[c.id] || c.n) + '</h3>' : '') + setOps(c)).join('');
+  alignNotes($('sOps'));
+}
+$('sContent').addEventListener('input', setRun);
+[['sSafe', true], ['sPeak', false]].forEach(([id, on]) => $(id).addEventListener('click', () => {
+  $('sSafe').setAttribute('aria-pressed', String(on));
+  $('sPeak').setAttribute('aria-pressed', String(!on));
+  setRun();
+}));
+
+/* ══════════ 테마 — 라이트(기본) ↔ 다크. 바꾸면 보는 사람 브라우저에 기억 ══════════ */
+(() => {
+  const order = ['light', 'dark'], label = { light:'라이트', dark:'다크' };
+  let t = 'light';                                  // 기본 라이트, 바꾸면 저장
+  try { t = localStorage.getItem('sknr-theme') || 'light'; } catch {}
+  if (!label[t]) t = 'light';
+  const apply = () => {
+    document.documentElement.dataset.theme = t;
+    $('themeBtn').textContent = '테마: ' + label[t];
+    setTimeout(() => alignNotes(), 0);
+  };
+  $('themeBtn').addEventListener('click', () => {
+    t = order[(order.indexOf(t) + 1) % order.length];
+    try { localStorage.setItem('sknr-theme', t); } catch {}
+    apply();
+  });
+  apply();
+})();
+
+/* ══════════ 탭 ══════════ */
+const TABS = [['t-set','p-set'],['t-goal','p-goal'],['t-diag','p-diag'],['t-gear','p-gear'],['t-cmp','p-cmp'],['t-guide','p-guide'],['t-cfg','p-cfg']];
+TABS.forEach(([t]) => $(t).addEventListener('click', () => {
+  TABS.forEach(([tb, pb]) => {
+    const on = tb === t;
+    $(tb).setAttribute('aria-selected', String(on));
+    $(pb).hidden = !on;
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  alignNotes();
+}));
+
+/* ══════════ 예전 저장값 정리 ══════════
+   v18 이전 저장분에서 고정값(role·s·qf / 캐릭터 wm·pf·bc·bq·atk)을 찾아 코드 값과 비교해 보여주고,
+   계산에서는 이미 쓰지 않는다. 확인 버튼을 누르면 지운다. */
+function stripFixed(st){
+  const out = {};
+  for (const [id, arr] of Object.entries(st || {})){
+    if (!Array.isArray(arr)) continue;
+    out[id] = arr.map(v => v ? { p: v.p, cd: v.cd, q: v.q } : v);
+  }
+  return out;
+}
+/* v18 이전에 브라우저에 복사돼 있던 고정값(캐릭터 표, 지분·역할·버프 약확)은 더 이상 읽지 않으므로 지운다 */
+function legacyClean(){
+  try {
+    if (localStorage.getItem(CKEY) !== null) localStorage.removeItem(CKEY);
+    const dirty = Object.values(dState).some(a => Array.isArray(a) && a.some(v => v && ('s' in v || 'qf' in v || 'role' in v)));
+    if (dirty){ dState = stripFixed(dState); persist(); }
+  } catch {}
+}
+
+/* 초기화 */
+legacyClean();
+goalRun(); cRowsInit(); gRowsInit(); dRowsInit(); dRun(); draw(); run();
+$('gSel').value = 'r2a'; gRender();
+setRun();
+</script>
+
+</body></html>
