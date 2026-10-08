@@ -2,6 +2,35 @@
 <title>세나 리버스 세팅 판정기</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.gcard{border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--paper);font-size:13px;line-height:1.45}
+.gcard .gc-h{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.gcard .gc-h b{font-size:13.5px}
+.gcard .gc-t{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.gcard .gc-main{margin:6px 0 4px;padding:3px 8px;border-radius:6px;background:var(--accent-soft);display:flex;justify-content:space-between}
+.gcard ol{list-style:none;margin:0;padding:0 8px}
+.gcard li{display:flex;justify-content:space-between;gap:8px}
+.gcard li.use{font-weight:600}
+.gcard li.empty{color:var(--ink-3)}
+.enh{display:inline-grid;place-items:center;min-width:15px;height:15px;margin-left:4px;border-radius:3px;background:#c23b3b;color:#fff;font:600 10px/1 var(--mono,monospace);vertical-align:1px}
+.gcard .gc-memo{margin-top:4px;font-size:11.5px;color:var(--ink-3)}
+.gcard .gc-act{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}
+.gcard .gc-act button{padding:3px 9px;font-size:12px}
+.gcard.mini{padding:7px 9px;font-size:12px;background:var(--card)}
+.gcard.mini .gc-main{margin:4px 0 2px}
+.gedit{margin-top:10px;border:1px dashed var(--line);border-radius:9px;padding:12px}
+.gedit .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.gedit .row>label{margin:0;min-width:56px}
+.gedit select,.gedit input{width:auto}
+.gedit .subrow{display:grid;grid-template-columns:28px minmax(150px,1fr) 90px 70px;gap:6px;align-items:center;margin-bottom:4px}
+.gfilt button{padding:4px 10px;font-size:12px}
+.gfilt button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink);border-color:var(--accent)}
+.plist{display:flex;flex-direction:column;gap:10px}
+.pcard{border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.pcard .p-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;margin-bottom:6px}
+.pcard .p-pieces{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.pcard .p-foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:13px}
+.pcard .p-foot button{padding:4px 10px;font-size:12px}
 .mine-tbl th,.mine-tbl td{white-space:nowrap}
 .mine-tbl input{width:58px}
 .mine-tbl select{min-width:0!important}
@@ -300,24 +329,28 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 <div class="panel" id="p-gear" role="tabpanel" aria-labelledby="t-gear" hidden>
 <div class="stack">
 
-
 <section class="card">
   <h2>보유 장비</h2>
-  <div class="scroll">
-    <table>
-      <thead><tr>
-        <th>메모</th><th>부위</th><th>주옵</th><th>부옵 치확</th><th>부옵 치피</th><th>부옵 약확</th><th style="width:28px"></th>
-      </tr></thead>
-      <tbody id="gRows"></tbody>
-    </table>
-  </div>
-  <div class="row-actions">
+  <p class="note">게임 장비 카드와 같은 모양으로 넣습니다 — <strong>부옵은 화면에 보이는 순서 그대로</strong>, 강화 횟수는 부옵 옆 빨간 숫자. 수치는 자동 계산됩니다. 지금은 딜러용 <strong>복수자</strong> 장비만 넣으십시오(다른 세트는 배정 대상이 아님).</p>
+  <div class="row-actions" style="margin-top:10px">
+    <span class="gfilt" id="gFilt"></span>
     <button type="button" id="gAdd">장비 추가</button>
-    <button type="button" id="gPaste">여러 개 붙여넣기</button>
-    <button type="button" id="gWipe">전부 삭제</button>
     <span class="note" id="gMsg"></span>
   </div>
-  <p class="note" style="margin-top:10px">부옵은 <strong>강화까지 반영된 현재 수치</strong>를 합산해 넣으십시오. 모공·깡공·잡옵은 모든 후보에 똑같이 들어가거나 계산에 안 쓰이므로 입력하지 않습니다. 전용장비도 캐릭터 고정이라 제외합니다.</p>
+  <div id="gEditor" class="gedit" hidden></div>
+  <div id="gList" class="ggrid" style="margin-top:10px"></div>
+</section>
+
+<section class="card">
+  <h2>프리셋</h2>
+  <p class="note">캐릭터마다 무기 2 · 방어구 2 · 장신구를 묶어 저장합니다(전용장비 제외). 게임처럼 <strong>공통</strong> 또는 콘텐츠 전용으로 둘 수 있고, 배정 결과에서 바로 저장할 수도 있습니다.</p>
+  <div class="row-actions" style="margin-top:10px">
+    <select id="pFilter" style="width:auto"></select>
+    <button type="button" id="pAdd">새 프리셋</button>
+    <span class="note" id="pMsg"></span>
+  </div>
+  <div id="pEditor" class="gedit" hidden></div>
+  <div id="pList" class="plist" style="margin-top:10px"></div>
 </section>
 
 <section class="card">
@@ -326,19 +359,15 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
     <div><label for="aContent">콘텐츠</label><select id="aContent"></select></div>
     <div style="display:flex;align-items:flex-end"><button type="button" id="aRun" style="width:100%">배정 계산</button></div>
   </div>
-  <p class="note" id="aMeta" style="margin-top:10px">딜러 1명당 무기 2 + 방어구 2를 배정합니다. 역할이 버퍼·생존인 캐릭터는 딜에 영향이 없어 제외합니다.</p>
+  <p class="note" id="aMeta" style="margin-top:10px">보유 장비로 딜러마다 무기 2 + 방어구 2와 장신구를 고릅니다. 버퍼·생존 캐릭터는 딜에 영향이 없어 제외합니다.</p>
 </section>
 
 <section class="card" id="aResultCard" hidden>
-  <h2>배정 결과</h2>
-  <div class="scroll">
-    <table>
-      <thead><tr><th>캐릭터</th><th>무기 2</th><th>방어구 2</th><th>장신구</th><th>마을 치확</th><th>마을 치피</th><th>마을 약확</th><th>이상 대비</th></tr></thead>
-      <tbody id="aRows"></tbody>
-    </table>
-  </div>
+  <h2>배정 결과 · 착용 안내</h2>
+  <div id="aRows" class="plist"></div>
   <div class="row-actions">
     <button type="button" id="aApply">목표 탭에 반영</button>
+    <button type="button" id="aSaveAll">전원 프리셋으로 저장</button>
     <span class="note" id="aMsg"></span>
   </div>
   <p class="note" id="aNote" style="margin-top:10px"></p>
@@ -2296,7 +2325,7 @@ const sMsg = t => { $('stateMsg').textContent = t; setTimeout(() => $('stateMsg'
 $('stateOut').addEventListener('click', () => {
   $('stateText').value = JSON.stringify(
     { v: 2, at: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      gear, trans, mine, trial });
+      gear, trans, mine, trial, presets });
   sMsg('내보냈습니다. 복사해서 다른 기기에 붙여넣으세요.');
 });
 $('stateCopy').addEventListener('click', async () => {
@@ -2309,14 +2338,15 @@ $('stateIn').addEventListener('click', () => {
   catch { sMsg('형식이 올바르지 않습니다.'); return; }
   if (!o || typeof o !== 'object'){ sMsg('형식이 올바르지 않습니다.'); return; }
   if (!confirm('현재 기기의 설정을 덮어씁니다. 진행할까요?')) return;
-  if (Array.isArray(o.gear)) gear = o.gear;
+  if (Array.isArray(o.gear)) gear = migrateGear(o.gear);
   if (o.trans && typeof o.trans === 'object') { trans = o.trans; tPersist(); }
   if (o.mine && typeof o.mine === 'object') { mine = o.mine; mPersist(); }
   if (o.trial && typeof o.trial === 'object') { trial = o.trial; trPersist(); }
+  if (Array.isArray(o.presets)) { presets = o.presets; pPersist(); }
   try {
     localStorage.setItem(GKEY, JSON.stringify(gear));
   } catch {}
-  gRowsInit(); gRender(); goalRun(); cRowsInit();
+  gRowsInit(); gRender(); goalRun(); cRowsInit(); pRender();
   sMsg('가져왔습니다' + (o.at ? ' (' + o.at + ' 저장본)' : '') + '.');
 });
 
@@ -2327,13 +2357,40 @@ try { gear = JSON.parse(localStorage.getItem(GKEY) || '[]'); } catch { gear = []
 const gPersist = () => { try { localStorage.setItem(GKEY, JSON.stringify(gear)); } catch {} };
 
 const SLOTS = [['wp','무기 · 물리'],['wm','무기 · 마법'],['ar','방어구']];
-const MAINV = { c:[24,0,0], d:[0,36,0], w:[0,0,28], none:[0,0,0] };
-const MAINOPT = {
-  wp: [['c','치확 24'],['d','치피 36'],['w','약확 28']],
-  wm: [['c','치확 24'],['d','치피 36'],['w','약확 28']],
-  ar: [['none','모공 / 받피감']]
-};
-
+/* 부옵 13종 · 주옵(무기 10 / 방어구 9). 값 = 줄값 × (강화 + 1). 치확·치피·약확 외 줄값은 캡처로 확인된 것만 */
+const SUBT = [['atkp','모든 공격력(%)'],['atk','모든 공격력'],['defp','방어력(%)'],['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],
+  ['spd','속공'],['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['block','막기 확률'],['eff','효과 적중'],['res','효과 저항']];
+const SUBN = Object.fromEntries(SUBT);
+const SUBS = { atkp:'공%', atk:'공', defp:'방%', def:'방', hpp:'생%', hp:'생', spd:'속공', crit:'치확', cd:'치피', weak:'약확', block:'막기', eff:'효적', res:'효저' };
+const SUBLINE = { crit:[4,'%'], cd:[6,'%'], weak:[5,'%'], atkp:[5,'%'], hpp:[5,'%'], block:[4,'%'], eff:[5,'%'], hp:[180,''] };
+const WMAIN = [['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['atkp','모든 공격력(%)'],['atk','모든 공격력'],
+  ['defp','방어력(%)'],['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['eff','효과 적중']];
+const AMAIN = [['dmgred','받는 피해 감소'],['block','막기 확률'],['atkp','모든 공격력(%)'],['atk','모든 공격력'],['defp','방어력(%)'],
+  ['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['res','효과 저항']];
+const MAINN = Object.fromEntries([...WMAIN, ...AMAIN]);
+const MAINVAL = { crit:'24%', cd:'36%', weak:'28%', defp:'28%' };          // +15 기준, 확인된 것만
+const USE = { crit:0, cd:1, weak:2 };
+/* 장비 → [치확, 치피, 약확] 합 (주옵 + 부옵) */
+function pieceStat(g){
+  const v = [0, 0, 0];
+  if (g.main === 'crit') v[0] += 24; if (g.main === 'cd') v[1] += 36; if (g.main === 'weak') v[2] += 28;
+  (g.subs || []).forEach(([t, e]) => { if (t in USE) v[USE[t]] += LINES[USE[t]] * (1 + (+e || 0)); });
+  return v;
+}
+const enhCap = g => g.born === 3 ? 4 : 5;
+const mainLetter = m => ({ crit:'c', cd:'d', weak:'w' })[m] || null;
+/* 예전 형식(부옵 합계만) → 카드 형식 */
+function migrateGear(arr){
+  let seq = 1;
+  arr.forEach(g => { if (g.id) seq = Math.max(seq, g.id + 1); });
+  return arr.map(g => {
+    if (g.subs) return Object.assign({ set:'복수자', born:4, name:'', memo:'' }, g, { id: g.id || seq++ });
+    const subs = [];
+    [['crit', g.c, 4], ['cd', g.d, 6], ['weak', g.w, 5]].forEach(([t, v, l]) => { const n = Math.round((+v || 0) / l); if (n > 0) subs.push([t, Math.min(5, n - 1)]); });
+    return { id: seq++, slot: g.slot || 'wp', set:'복수자', name: g.nm || '', born:4,
+      main: ({ c:'crit', d:'cd', w:'weak' })[g.main] || (g.slot === 'ar' ? 'atkp' : 'crit'), subs, memo:'' };
+  });
+}
 const ALLCHARS = [...new Set(CONTENTS.flatMap(c => c.lu.map(l => l[0])))].sort();
 function charFull(name){
   const ch = charOf(name);
@@ -2383,62 +2440,201 @@ $('trAdd').addEventListener('click', () => {
   trans[$('trName').value] = +$('trLv').value; tPersist(); trChanged();
 });
 
+gear = migrateGear(gear); gPersist();
+const gById = id => gear.find(g => g.id === id);
+const gSlotName = s => (SLOTS.find(x => x[0] === s) || [, s])[1];
+const gTitle = g => g ? (g.name || gSlotName(g.slot) + ' #' + g.id) : '없음';
+let gFilter = 'all';
+
+/* 게임 장비 카드 모양 */
+function gCard(g, mini, actions){
+  if (!g) return '<div class="gcard mini"><span class="muted">빈 칸</span></div>';
+  const sub = ([t, e]) => {
+    const L = SUBLINE[t], val = L ? L[0] * (1 + (+e || 0)) + L[1] : '';
+    return '<li class="' + (t in USE ? 'use' : '') + '"><span>' + SUBN[t] + '</span><span>' + val + (e > 0 ? '<i class="enh">' + e + '</i>' : '') + '</span></li>';
+  };
+  const subs = (g.subs || []).map(sub);
+  for (let i = subs.length; i < 4; i++) subs.push('<li class="empty"><span>—</span></li>');
+  return '<div class="gcard' + (mini ? ' mini' : '') + '" data-gid="' + g.id + '">' +
+    '<div class="gc-h"><b>' + esc(gTitle(g)) + '</b><span class="gc-t">' + gSlotName(g.slot).replace('무기 · ', '') + ' · ' + (g.set || '복수자') + ' · ' + '●'.repeat(g.born || 4) + '</span></div>' +
+    '<div class="gc-main"><span>' + (MAINN[g.main] || g.main) + '</span><b>' + (MAINVAL[g.main] || '') + '</b></div>' +
+    '<ol>' + subs.join('') + '</ol>' +
+    (g.memo ? '<div class="gc-memo">' + esc(g.memo) + '</div>' : '') +
+    (actions ? '<div class="gc-act"><button type="button" data-gedit="' + g.id + '">수정</button><button type="button" data-gdup="' + g.id + '">복제</button><button type="button" class="ghost" data-gdel="' + g.id + '" aria-label="삭제">×</button></div>' : '') +
+    '</div>';
+}
+
 function gRowsInit(){
-  const tb = $('gRows'); tb.innerHTML = '';
-  if (!gear.length){
-    tb.innerHTML = '<tr><td colspan="7" class="muted">등록된 장비가 없습니다. “장비 추가”로 하나씩 넣거나 “여러 개 붙여넣기”를 쓰십시오.</td></tr>';
-    return;
-  }
-  gear.forEach((g, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td><input class="name" data-i="' + i + '" data-f="nm" value="' + String(g.nm || '').replace(/"/g,'&quot;') + '" placeholder="복수자 검"></td>' +
-      '<td><select data-i="' + i + '" data-f="slot">' +
-        SLOTS.map(([v,l]) => '<option value="' + v + '"' + (g.slot === v ? ' selected' : '') + '>' + l + '</option>').join('') +
-      '</select></td>' +
-      '<td><select data-i="' + i + '" data-f="main">' +
-        MAINOPT[g.slot].map(([v,l]) => '<option value="' + v + '"' + (g.main === v ? ' selected' : '') + '>' + l + '</option>').join('') +
-      '</select></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="c" value="' + g.c + '" min="0" max="200"></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="d" value="' + g.d + '" min="0" max="300"></td>' +
-      '<td><input type="number" data-i="' + i + '" data-f="w" value="' + g.w + '" min="0" max="200"></td>' +
-      '<td><button type="button" class="ghost" data-del="' + i + '" aria-label="삭제">×</button></td>';
-    tb.appendChild(tr);
-  });
-  tb.querySelectorAll('input,select').forEach(el => el.addEventListener('input', e => {
-    const i = +e.target.dataset.i, f = e.target.dataset.f;
-    gear[i][f] = (f === 'nm' || f === 'slot' || f === 'main') ? e.target.value : (+e.target.value || 0);
-    if (f === 'slot'){ gear[i].main = MAINOPT[gear[i].slot][0][0]; gRowsInit(); }
-    gPersist();
+  const cnt = s => gear.filter(g => s === 'all' || (s === 'w' ? g.slot !== 'ar' : g.slot === 'ar')).length;
+  $('gFilt').innerHTML = [['all','전체'],['w','무기'],['ar','방어구']].map(([v, l]) =>
+    '<button type="button" data-gf="' + v + '" aria-pressed="' + (gFilter === v) + '">' + l + ' ' + cnt(v) + '</button>').join(' ');
+  $('gFilt').querySelectorAll('[data-gf]').forEach(b => b.addEventListener('click', () => { gFilter = b.dataset.gf; gRowsInit(); }));
+  const list = gear.filter(g => gFilter === 'all' || (gFilter === 'w' ? g.slot !== 'ar' : g.slot === 'ar'));
+  $('gList').innerHTML = list.length ? list.map(g => gCard(g, false, true)).join('')
+    : '<p class="note">등록된 장비가 없습니다. “장비 추가”를 누르십시오.</p>';
+  $('gList').querySelectorAll('[data-gedit]').forEach(b => b.addEventListener('click', () => gEdit(+b.dataset.gedit)));
+  $('gList').querySelectorAll('[data-gdup]').forEach(b => b.addEventListener('click', () => {
+    const g = JSON.parse(JSON.stringify(gById(+b.dataset.gdup)));
+    g.id = Math.max(0, ...gear.map(x => x.id)) + 1; gear.push(g); gPersist(); gRowsInit(); gEdit(g.id);
   }));
-  tb.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', e => {
-    gear.splice(+e.target.dataset.del, 1); gPersist(); gRowsInit();
+  $('gList').querySelectorAll('[data-gdel]').forEach(b => b.addEventListener('click', () => {
+    const id = +b.dataset.gdel, used = presets.filter(p => p.pieces.includes(id)).length;
+    if (!confirm('이 장비를 지울까요?' + (used ? ' 프리셋 ' + used + '개에서도 빠집니다.' : ''))) return;
+    gear = gear.filter(g => g.id !== id);
+    presets.forEach(p => { p.pieces = p.pieces.map(x => x === id ? null : x); }); pPersist();
+    gPersist(); gRowsInit(); pRender();
   }));
 }
 
-$('gAdd').addEventListener('click', () => {
-  gear.push({ nm:'', slot:'wp', main:'c', c:0, d:0, w:0 }); gPersist(); gRowsInit();
-});
-$('gWipe').addEventListener('click', () => { gear = []; gPersist(); gRowsInit(); });
-$('gPaste').addEventListener('click', () => {
-  const t = prompt('한 줄에 장비 하나씩. 쉼표로 구분\n메모, 부위(물리/마법/방어구), 주옵(치확/치피/약확/없음), 부옵치확, 부옵치피, 부옵약확\n\n예) 복수자 검, 물리, 치확, 8, 18, 5');
-  if (!t) return;
-  let n = 0;
-  t.split('\n').forEach(line => {
-    const p = line.split(',').map(s => s.trim());
-    if (p.length < 6) return;
-    const slot = /마법/.test(p[1]) ? 'wm' : /방어/.test(p[1]) ? 'ar' : 'wp';
-    const main = slot === 'ar' ? 'none' : /치확/.test(p[2]) ? 'c' : /치피/.test(p[2]) ? 'd' : /약확/.test(p[2]) ? 'w' : 'c';
-    gear.push({ nm:p[0], slot, main, c:+p[3]||0, d:+p[4]||0, w:+p[5]||0 });
-    n++;
-  });
-  gPersist(); gRowsInit();
-  $('gMsg').textContent = n + '개 추가했습니다.';
-  setTimeout(() => { $('gMsg').textContent = ''; }, 3000);
-});
+/* 장비 편집기 — 게임 카드 순서: 부위·이름·태생 / 주옵 / 부옵 4줄 / 메모 */
+function gEdit(id){
+  const isNew = id == null;
+  const g = isNew ? { id: Math.max(0, ...gear.map(x => x.id)) + 1, slot:'wp', set:'복수자', name:'', born:4, main:'crit', subs:[], memo:'' }
+                  : JSON.parse(JSON.stringify(gById(id)));
+  const ed = $('gEditor'); ed.hidden = false;
+  const draw = () => {
+    const mains = g.slot === 'ar' ? AMAIN : WMAIN;
+    if (!mains.some(m => m[0] === g.main)) g.main = mains[0][0];
+    const sumE = g.subs.reduce((a, s) => a + (+s[1] || 0), 0), cap = enhCap(g);
+    ed.innerHTML =
+      '<div class="row"><label>부위</label><select data-ge="slot">' + SLOTS.map(([v, l]) => '<option value="' + v + '"' + (g.slot === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+        '<label>이름</label><input data-ge="name" value="' + esc(g.name) + '" placeholder="빛나는 밤의 검" style="min-width:160px">' +
+        '<label>태생</label><select data-ge="born"><option value="4"' + (g.born !== 3 ? ' selected' : '') + '>4옵 (●●●●)</option><option value="3"' + (g.born === 3 ? ' selected' : '') + '>3옵 (●●●)</option></select></div>' +
+      '<div class="row"><label>주옵</label><select data-ge="main">' + mains.map(([v, l]) => '<option value="' + v + '"' + (g.main === v ? ' selected' : '') + '>' + l + (MAINVAL[v] ? ' ' + MAINVAL[v] : '') + '</option>').join('') + '</select></div>' +
+      [0, 1, 2, 3].map(i => {
+        const s = g.subs[i] || ['', 0], taken = g.subs.map((x, j) => j !== i && x[0]);
+        const L = SUBLINE[s[0]];
+        return '<div class="subrow"><span class="muted">부옵' + (i + 1) + '</span><select data-gs="' + i + '"><option value="">— 없음</option>' +
+          SUBT.filter(([t]) => !taken.includes(t)).map(([t, n]) => '<option value="' + t + '"' + (s[0] === t ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+          '<span>강화 <input type="number" data-gx="' + i + '" value="' + (+s[1] || 0) + '" min="0" max="' + cap + '" step="1" style="width:52px"' + (s[0] ? '' : ' disabled') + '></span>' +
+          '<span class="num muted">' + (s[0] && L ? '= ' + L[0] * (1 + (+s[1] || 0)) + L[1] : '') + '</span></div>';
+      }).join('') +
+      '<p class="note" style="margin:4px 0 8px">강화 합계 <strong class="' + (sumE > cap ? 'lose' : '') + '">' + sumE + ' / ' + cap + '</strong> — +15까지 3강마다 1번(' + (g.born === 3 ? '태생 3옵은 첫 번째가 4번째 부옵 생성에 쓰여 4번' : '5번') + '). 같은 부옵은 두 번 고를 수 없습니다.</p>' +
+      '<div class="row"><label>메모</label><input data-ge="memo" value="' + esc(g.memo || '') + '" placeholder="EVENT, 라이언 착용 중 …" style="flex:1;min-width:180px"></div>' +
+      '<div class="row"><button type="button" data-gsave>' + (isNew ? '추가' : '저장') + '</button><button type="button" data-gcancel>취소</button><span class="note" data-gerr></span></div>';
+    ed.querySelectorAll('[data-ge]').forEach(el => el.addEventListener('change', () => {
+      const f = el.dataset.ge; g[f] = f === 'born' ? +el.value : el.value;
+      if (f === 'born') g.subs.forEach(s => { s[1] = Math.min(+s[1] || 0, enhCap(g)); });
+      if (f === 'slot' || f === 'born') draw();
+    }));
+    ed.querySelectorAll('[data-gs]').forEach(el => el.addEventListener('change', () => {
+      const i = +el.dataset.gs, cur = g.subs.slice();
+      while (cur.length <= i) cur.push(['', 0]);
+      cur[i] = [el.value, el.value ? (+cur[i][1] || 0) : 0];
+      g.subs = cur; draw();
+    }));
+    ed.querySelectorAll('[data-gx]').forEach(el => el.addEventListener('change', () => {
+      const i = +el.dataset.gx, other = g.subs.reduce((a, s, j) => a + (j === i ? 0 : (+s[1] || 0)), 0);
+      g.subs[i][1] = Math.max(0, Math.min(+el.value || 0, enhCap(g) - other));   // 합계 한도를 넘기면 잘라냄
+      draw();
+    }));
+    ed.querySelector('[data-gcancel]').addEventListener('click', () => { ed.hidden = true; ed.innerHTML = ''; });
+    ed.querySelector('[data-gsave]').addEventListener('click', () => {
+      g.subs = g.subs.filter(s => s[0]);
+      if (!g.subs.length){ ed.querySelector('[data-gerr]').textContent = '부옵을 하나 이상 고르십시오.'; return; }
+      if (isNew) gear.push(g); else gear[gear.findIndex(x => x.id === g.id)] = g;
+      gPersist(); ed.hidden = true; ed.innerHTML = ''; gRowsInit(); pRender();
+      $('gMsg').textContent = (isNew ? '추가' : '저장') + '했습니다.'; setTimeout(() => { $('gMsg').textContent = ''; }, 2500);
+    });
+  };
+  draw();
+  ed.scrollIntoView({ block:'nearest' });
+}
+$('gAdd').addEventListener('click', () => gEdit(null));
+
+/* ══════════ 프리셋 — 캐릭터별 무기 2 · 방어구 2 · 장신구 (전용장비 제외) ══════════ */
+const PKEY = 'sknr-presets';
+let presets = [];
+try { presets = JSON.parse(localStorage.getItem(PKEY) || '[]') || []; } catch { presets = []; }
+const pPersist = () => { try { localStorage.setItem(PKEY, JSON.stringify(presets)); } catch {} };
+const cName = cid => { const c = CONTENTS.find(x => x.id === cid); return c ? c.n : '공통'; };
+
+/* 프리셋 → 마을 스탯 · 무기 주옵 조합 */
+function presetStats(p){
+  const ch = charFull(p.char);
+  let vc = ch.bc, vd = ch.bd, vq = ch.bq;
+  p.pieces.forEach(id => { const g = gById(id); if (!g) return; const [a, b, w] = pieceStat(g); vc += a; vd += b; vq += w; });
+  const ml = p.pieces.slice(0, 2).map(id => { const g = gById(id); return g ? mainLetter(g.main) : null; });
+  const mc = ml[0] && ml[1] ? MAINCOMBOS.find(m => m === ml.join('') || m === ml.slice().reverse().join('')) : null;
+  return { vc, vd, vq, mc };
+}
+/* 프리셋을 그 콘텐츠의 팀 기준으로 채점 (콘텐츠 지정된 경우) */
+function presetScore(p){
+  if (!p.cid) return null;
+  const c = CONTENTS.find(x => x.id === p.cid); if (!c) return null;
+  const { U, k } = solveContent(c, GOAL_CARRY, GOAL_MAXENH);
+  const u = U.find(x => x.name === p.char && !x.skip && x.pick); if (!u) return null;
+  const s = presetStats(p);
+  return teamCtx(c, U, k).evalOne(u, s.vc, s.vd, s.vq, p.ring || 'auto');
+}
+function pCard(p){
+  const s = presetStats(p), ev = presetScore(p);
+  return '<div class="pcard"><div class="p-h"><div><b>' + esc(p.char) + '</b> <span class="set-tag">' + esc(cName(p.cid)) + '</span>' +
+      (p.name ? ' <span class="muted">' + esc(p.name) + '</span>' : '') + '</div>' +
+      '<span class="note" style="margin:0">장신구 <strong>' + ringName(p.ring || 'auto') + '</strong></span></div>' +
+    '<div class="p-pieces">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, i) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(gById(p.pieces[i]), true) + '</div>').join('') + '</div>' +
+    '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong>' +
+      (ev ? ' · 이상 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' : '') + '</span>' +
+      '<span><button type="button" data-papply="' + p.id + '">목표 탭에 반영</button> <button type="button" data-pedit="' + p.id + '">수정</button> <button type="button" class="ghost" data-pdel="' + p.id + '" aria-label="삭제">×</button></span></div></div>';
+}
+function pRender(){
+  const chars = [...new Set(presets.map(p => p.char))].sort();
+  const f = $('pFilter'), prev = f.value;
+  f.innerHTML = '<option value="">전체 캐릭터 (' + presets.length + ')</option>' + chars.map(n => '<option' + (prev === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+  const list = presets.filter(p => !f.value || p.char === f.value);
+  $('pList').innerHTML = list.length ? list.map(pCard).join('') : '<p class="note">저장된 프리셋이 없습니다.</p>';
+  $('pList').querySelectorAll('[data-pdel]').forEach(b => b.addEventListener('click', () => {
+    if (!confirm('이 프리셋을 지울까요?')) return;
+    presets = presets.filter(p => p.id !== +b.dataset.pdel); pPersist(); pRender();
+  }));
+  $('pList').querySelectorAll('[data-pedit]').forEach(b => b.addEventListener('click', () => pEdit(+b.dataset.pedit)));
+  $('pList').querySelectorAll('[data-papply]').forEach(b => b.addEventListener('click', () => presetApply(presets.find(p => p.id === +b.dataset.papply))));
+}
+$('pFilter').addEventListener('change', pRender);
+function presetApply(p){
+  const s = presetStats(p);
+  const cid = p.cid || (CONTENTS.find(c => SET_OPTS.find(x => x.id === $('gContent').value).parts.includes(c.id) && c.lu.some(l => l[0] === p.char)) || {}).id;
+  if (!cid){ $('pMsg').textContent = '공통 프리셋은 목표 탭에서 이 캐릭터가 있는 콘텐츠를 먼저 고르십시오.'; setTimeout(() => { $('pMsg').textContent = ''; }, 4000); return; }
+  mine[cid] ||= {};
+  const prev = mine[cid][p.char] || [];
+  mine[cid][p.char] = [s.vc, s.vd, s.vq, s.mc || prev[3], p.ring && p.ring !== 'auto' ? p.ring : prev[4]];
+  mPersist();
+  const opt = SET_OPTS.find(x => x.parts.includes(cid));
+  if (opt){ $('gContent').value = opt.id; goalRun(); }
+  $('pMsg').textContent = p.char + ' → 목표 탭 › 내 스펙 평가(' + cName(cid) + ')에 넣었습니다.'; setTimeout(() => { $('pMsg').textContent = ''; }, 3500);
+}
+function pEdit(id){
+  const isNew = id == null;
+  const p = isNew ? { id: Math.max(0, ...presets.map(x => x.id)) + 1, char: ALLCHARS[0], cid:'', name:'', pieces:[null, null, null, null], ring:'auto' }
+                  : JSON.parse(JSON.stringify(presets.find(x => x.id === id)));
+  const ed = $('pEditor'); ed.hidden = false;
+  const draw = () => {
+    const atk = valOf(p.char, 'atk') === 'mag' ? 'wm' : 'wp';
+    const opts = (slot, cur) => '<option value="">— 비움</option>' + gear.filter(g => slot === 'ar' ? g.slot === 'ar' : g.slot !== 'ar')
+      .map(g => '<option value="' + g.id + '"' + (cur === g.id ? ' selected' : '') + '>' + esc(gTitle(g)) + ' · ' + (MAINN[g.main] || g.main) + ' · ' +
+        g.subs.map(([t, e]) => SUBS[t] + (e ? e : '')).join(' ') + (slot !== 'ar' && g.slot !== atk ? ' (공격 속성 다름)' : '') + '</option>').join('');
+    const cids = CONTENTS.filter(c => c.lu.some(l => l[0] === p.char));
+    ed.innerHTML =
+      '<div class="row"><label>캐릭터</label><select data-pe="char">' + ALLCHARS.map(n => '<option' + (p.char === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
+        '<label>콘텐츠</label><select data-pe="cid"><option value="">공통</option>' + cids.map(c => '<option value="' + c.id + '"' + (p.cid === c.id ? ' selected' : '') + '>' + esc(c.n) + '</option>').join('') + '</select>' +
+        '<label>이름</label><input data-pe="name" value="' + esc(p.name || '') + '" placeholder="선택" style="min-width:120px"></div>' +
+      ['무기 1','무기 2','방어구 1','방어구 2'].map((l, i) => '<div class="row"><label>' + l + '</label><select data-pp="' + i + '" style="max-width:100%">' + opts(i < 2 ? 'w' : 'ar', p.pieces[i]) + '</select></div>').join('') +
+      '<div class="row"><label>장신구</label>' + ringPicker('data-pr', p.ring || 'auto') + '</div>' +
+      '<div class="row"><button type="button" data-psave>' + (isNew ? '저장' : '수정 저장') + '</button><button type="button" data-pcancel>취소</button></div>';
+    ed.querySelectorAll('[data-pe]').forEach(el => el.addEventListener('change', () => { p[el.dataset.pe] = el.value; if (el.dataset.pe === 'char'){ p.cid = ''; draw(); } }));
+    ed.querySelectorAll('[data-pp]').forEach(el => el.addEventListener('change', () => { p.pieces[+el.dataset.pp] = el.value ? +el.value : null; }));
+    ed.querySelectorAll('[data-pr]').forEach(el => el.addEventListener('change', () => { p.ring = ringRead(ed.querySelector('[data-pr][data-rp="b"]'), ed.querySelector('[data-pr][data-rp="c"]')); if (el.dataset.rp === 'b') draw(); }));
+    ed.querySelector('[data-pcancel]').addEventListener('click', () => { ed.hidden = true; ed.innerHTML = ''; });
+    ed.querySelector('[data-psave]').addEventListener('click', () => {
+      if (isNew) presets.push(p); else presets[presets.findIndex(x => x.id === p.id)] = p;
+      pPersist(); ed.hidden = true; ed.innerHTML = ''; pRender();
+    });
+  };
+  draw();
+}
+$('pAdd').addEventListener('click', () => pEdit(null));
 
 /* ── 배정 ── */
-const pieceStat = g => [MAINV[g.main][0] + g.c, MAINV[g.main][1] + g.d, MAINV[g.main][2] + g.w];
 
 /* 배정도 목표 탭과 같은 기준: 마을 스탯 = 기본값 + 장비, 채점 = 팀 점수(teamCtx).
    배정 대상이 아닌 캐릭터(버퍼·생존)는 이상 세팅으로 둔다. */
@@ -2578,53 +2774,58 @@ function aRun(){
   const c = CONTENTS.find(x => x.id === $('aContent').value);
   const r = optimizeAssign(c);
   $('aResultCard').hidden = false;
-  const tb = $('aRows'); tb.innerHTML = '';
+  const box = $('aRows'); box.innerHTML = '';
   if (r.err){ $('aNote').textContent = r.err; return; }
   const { A, state } = r;
-  const label = g => g ? (g.nm || (SLOTS.find(s => s[0] === g.slot)[1] + ' ' + (gear.indexOf(g) + 1))) : '없음';
   const over = new Map();
-  A.chars.forEach((ch, i) => {
+  box.innerHTML = A.chars.map((ch, i) => {
     const s = statsOf(ch, state.pieces[i]);
     const ev = A.T.evalOne(ch.u, s.vc, s.vd, s.vq, state.carve[i]);
     over.set(ch.u, ev.x);
-    const mains = state.pieces[i].slice(0, 2).map(g => g && g.main !== 'none' ? g.main : null);
-    const mc = mains[0] && mains[1] ? MAINCOMBOS.find(m => m === mains.join('') || m === mains.slice().reverse().join('')) : null;
+    const ml = state.pieces[i].slice(0, 2).map(g => g ? mainLetter(g.main) : null);
+    const mc = ml[0] && ml[1] ? MAINCOMBOS.find(m => m === ml.join('') || m === ml.slice().reverse().join('')) : null;
     const un = mc ? unitsOf(ch.u.cc, mc, s.vc, s.vd, s.vq) : null;
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + ch.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(ch.share * 100) + '%</span></td>' +
-      '<td class="muted">' + label(state.pieces[i][0]) + ' · ' + label(state.pieces[i][1]) + '</td>' +
-      '<td class="muted">' + label(state.pieces[i][2]) + ' · ' + label(state.pieces[i][3]) + '</td>' +
-      '<td class="muted">' + CARVENAME[state.carve[i]] + '</td>' +
-      '<td class="num">' + s.vc + '</td><td class="num">' + s.vd + '</td><td class="num">' + s.vq + '</td>' +
-      '<td class="num ' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%' +
-        '<span style="display:block;font-size:11px" class="muted">' + (un && !un.neg ? '유효 ' + un.u.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p</span></td>';
-    tb.appendChild(tr);
-  });
+    return '<div class="pcard"><div class="p-h"><div><b>' + esc(ch.name) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
+        '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
+      '<div class="p-pieces">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div>' +
+      '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong> · 이상 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
+        ' <span class="muted">(' + (un && !un.neg ? '유효 ' + un.u.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span></span>' +
+        '<span><button type="button" data-asave="' + i + '">프리셋으로 저장</button></span></div></div>';
+  }).join('');
   aLast = { c, A, state };
+  box.querySelectorAll('[data-asave]').forEach(b => b.addEventListener('click', () => { aSave([+b.dataset.asave]); }));
   const team = A.T.J(over) / A.T.J0;
   const usedSiege = A.chars.some((_, i) => /sg/.test(state.carve[i]));
   $('aNote').innerHTML = (r.short.length
-      ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “없음”으로 둡니다. '
+      ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “빈 칸”으로 둡니다. '
       : '') +
-    '<strong>팀 이상 대비 ' + (team * 100).toFixed(1) + '%</strong> — 목표 탭과 같은 기준(마을 스탯, 팀 점수)입니다. ' +
-    '"목표 탭에 반영"을 누르면 이 스탯이 내 스펙 평가에 들어가고, 거기서 줄 옮기기·후보 비교를 볼 수 있습니다.' +
+    '<strong>팀 이상 대비 ' + (team * 100).toFixed(1) + '%</strong> — 목표 탭과 같은 기준(마을 스탯, 팀 점수). 카드는 게임 장비 카드와 같은 순서라 그대로 찾아 끼우면 됩니다.' +
     (usedSiege ? ' 공성 세공은 스킬 피해 +10%가 다른 피해량과 합산된다고 가정했습니다(실효 약 ×1.055).' : '');
 }
 let aLast = null;
 $('aRun').addEventListener('click', aRun);
+const aPreset = (c, A, state, i) => ({ id: 0, char: A.chars[i].name, cid: c.id, name: '배정 ' + new Date().toISOString().slice(5, 10).replace('-', '/'),
+  pieces: state.pieces[i].map(g => g ? g.id : null), ring: state.carve[i] });
+function aSave(idx){
+  if (!aLast) return;
+  const { c, A, state } = aLast;
+  idx.forEach(i => {
+    const p = aPreset(c, A, state, i);
+    const same = presets.findIndex(x => x.char === p.char && x.cid === p.cid && /^배정 /.test(x.name || ''));
+    p.id = same >= 0 ? presets[same].id : Math.max(0, ...presets.map(x => x.id)) + 1;
+    if (same >= 0) presets[same] = p; else presets.push(p);           // 같은 콘텐츠의 이전 배정 프리셋은 덮어씀
+  });
+  pPersist(); pRender();
+  $('aMsg').textContent = idx.length + '명 프리셋 저장했습니다(위 프리셋 목록).'; setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
+}
+$('aSaveAll').addEventListener('click', () => { if (aLast) aSave(aLast.A.chars.map((_, i) => i)); });
 $('aApply').addEventListener('click', () => {
   if (!aLast) return;
   const { c, A, state } = aLast;
   const cur = mine[c.id] || (mine[c.id] = {});
   A.chars.forEach((ch, i) => {
-    // 목표 탭은 마을 스탯 기준 → 패시브·세공·버프는 빼고 기본값 + 장비만
-    let vc = ch.ch.bc, vd = ch.ch.bd, vq = ch.ch.bq;
-    const mains = [];
-    state.pieces[i].forEach(g => { if (!g) return; const [a, b, w] = pieceStat(g); vc += a; vd += b; vq += w;
-      if (g.slot !== 'ar' && g.main !== 'none') mains.push(g.main); });
-    const prev = cur[ch.name] || [];
-    const mc = mains.length === 2 ? MAINCOMBOS.find(m => m === mains.join('') || m === mains.slice().reverse().join('')) : null;
-    cur[ch.name] = [vc, vd, vq, mc || prev[3], state.carve[i]];
+    const s = presetStats(aPreset(c, A, state, i)), prev = cur[ch.name] || [];
+    cur[ch.name] = [s.vc, s.vd, s.vq, s.mc || prev[3], state.carve[i]];
   });
   mPersist();
   const opt = SET_OPTS.find(x => x.parts.includes(c.id));
@@ -2640,7 +2841,7 @@ const SECTIONS = RAW.split(/\n(?=# )/).map(s => {
   return { title: s.slice(0, nl < 0 ? s.length : nl).replace(/^#\s*/, '').trim(),
            body: nl < 0 ? '' : s.slice(nl + 1) };
 });
-const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const inl = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/노란색/g, '<mark class="sk-y">노란색</mark>').replace(/빨간색/g, '<mark class="sk-r">빨간색</mark>');
 
@@ -2895,7 +3096,7 @@ function legacyClean(){
 
 /* 초기화 */
 legacyClean();
-goalRun(); cRowsInit(); gRowsInit();
+goalRun(); cRowsInit(); gRowsInit(); pRender();
 $('gSel').value = 'r2a'; gRender();
 setRun();
 </script>
