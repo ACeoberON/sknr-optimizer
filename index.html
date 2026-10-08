@@ -2372,7 +2372,7 @@ const SUBT = [['atkp','모든 공격력(%)'],['atk','모든 공격력'],['defp',
   ['spd','속공'],['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['block','막기 확률'],['eff','효과 적중'],['res','효과 저항']];
 const SUBN = Object.fromEntries(SUBT);
 const SUBS = { atkp:'공%', atk:'공', defp:'방%', def:'방', hpp:'생%', hp:'생', spd:'속공', crit:'치확', cd:'치피', weak:'약확', block:'막기', eff:'효적', res:'효저' };
-const SUBLINE = { crit:[4,'%'], cd:[6,'%'], weak:[5,'%'], atkp:[5,'%'], hpp:[5,'%'], block:[4,'%'], eff:[5,'%'], hp:[180,''] };
+const SUBLINE = { crit:[4,'%'], cd:[6,'%'], weak:[5,'%'], atkp:[5,'%'], atk:[50,''], hpp:[5,'%'], block:[4,'%'], eff:[5,'%'], hp:[180,''] };
 /* 주옵 전체(무기 10 / 방어구 9). 화면에는 자주 쓰는 것만 앞에 두고 나머지는 '기타'에서 고른다 */
 const WMAIN = [['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['atkp','모든 공격력(%)'],['atk','모든 공격력'],
   ['defp','방어력(%)'],['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['eff','효과 적중']];
@@ -2392,18 +2392,28 @@ function pieceStat(g){
 const enhCap = g => g.born === 3 ? 4 : 5;
 const GSRC = ['레이드', '돌발레이드', '이벤트'];                      // 장비 출처 = 게임 장비 이름 구분
 const mainLetter = m => ({ crit:'c', cd:'d', weak:'w' })[m] || null;
-/* ══ 장비 등급 — 유효 단위(치확·치피·약확 부옵 줄 + 그 줄에 붙은 강화) 기준, 태생 4옵 만점 8 ══
-   무기 주옵이 치확·치피·약확이 아니면 2단위 감점(주옵 자리를 쓸모없는 옵션이 차지) */
-const GRADES = [['end','종결',8],['semi','준종결',7],['ok','사용가능',5],['no','추천하지 않음',-99]];
+/* ══ 장비 등급 ══
+   종결   = 부옵 구성이 [치확·치피·약확·모공%] 또는 [치확·치피·모공%·깡공] (순서 무관)
+            + 강화 전부 치확·치피·약확에 (모공%·깡공 강화 0) + 무기는 주옵이 치확·치피·약확
+   그 외는 유효 단위(치확·치피·약확 부옵 줄 + 그 줄의 강화, 태생 4옵 만점 8)로
+   준종결 7 이상 · 사용가능 5~6 · 추천하지 않음 4 이하. 무기 주옵이 치확·치피·약확이 아니면 −2 */
+const GRADES = [['end','종결'],['semi','준종결',7],['ok','사용가능',5],['no','추천하지 않음',-99]];
+const END_SETS = [['crit','cd','weak','atkp'], ['crit','cd','atkp','atk']];
 function gradeOf(g){
-  const useful = (g.subs || []).filter(([t]) => t in USE);
+  const subs = g.subs || [], types = subs.map(s => s[0]).sort();
+  const useful = subs.filter(([t]) => t in USE);
   const units = useful.length + useful.reduce((a, [, e]) => a + (+e || 0), 0);
-  const pen = g.slot !== 'ar' && !(g.main in USE) ? 2 : 0;
+  const mainOk = g.slot === 'ar' || g.main in USE;
+  const pen = mainOk ? 0 : 2;
+  const atkEnh = subs.some(([t, e]) => (t === 'atkp' || t === 'atk') && +e > 0);
+  const isEnd = mainOk && !atkEnh && subs.length === 4 && (g.born || 4) === 4 &&
+    END_SETS.some(set => set.slice().sort().every((t, k) => t === types[k])) &&
+    useful.reduce((a, [, e]) => a + (+e || 0), 0) === enhCap(g);
   const score = units - pen;
-  const gr = GRADES.find(x => score >= x[2]);
-  return { key: gr[0], name: gr[1], units, score, pen };
+  const gr = isEnd ? GRADES[0] : GRADES.slice(1).find(x => score >= x[2]);
+  return { key: gr[0], name: gr[1], units, score: isEnd ? 99 : score, pen, isEnd };
 }
-const gradeBadge = g => { const r = gradeOf(g); return '<span class="grade g-' + r.key + '" title="유효 ' + r.units + '/8' + (r.pen ? ' · 무기 주옵이 치확·치피·약확 아님(−2)' : '') + '">' + r.name + '</span>'; };
+const gradeBadge = g => { const r = gradeOf(g); return '<span class="grade g-' + r.key + '" title="' + (r.isEnd ? '종결: 치확·치피·약확·모공% 또는 치확·치피·모공%·깡공, 강화 전부 치확·치피·약확' : '유효 ' + r.units + '/8' + (r.pen ? ' · 무기 주옵이 치확·치피·약확 아님(−2)' : '')) + '">' + r.name + '</span>'; };
 
 /* ══ 예시 장비 — 체험용. 같은 씨앗이면 항상 같은 장비가 나온다 ══ */
 function demoGear(seed){
@@ -2418,11 +2428,12 @@ function demoGear(seed){
     const born = rnd() < 0.8 ? 4 : 3;
     const q = rnd();                                   // 장비 품질: 유효 부옵이 몇 개 붙었나
     const nUse = q < 0.35 ? 3 : q < 0.75 ? 2 : q < 0.92 ? 1 : 0;
-    const types = ['crit','cd','weak'].sort(() => rnd() - 0.5).slice(0, nUse).concat(junk.slice().sort(() => rnd() - 0.5)).slice(0, 4).sort(() => rnd() - 0.5);
+    const filler = rnd() < 0.55 ? ['atkp','atk'].concat(junk.filter(t => t !== 'atkp' && t !== 'atk').sort(() => rnd() - 0.5)) : junk.slice().sort(() => rnd() - 0.5);
+    const types = ['crit','cd','weak'].sort(() => rnd() - 0.5).slice(0, nUse).concat(filler).slice(0, 4).sort(() => rnd() - 0.5);
     const subs = types.map(t => [t, 0]);
     for (let e = 0; e < (born === 3 ? 4 : 5); e++){      // 강화: 좋은 장비일수록 유효 부옵에 붙을 확률이 높게
       const usefulIdx = subs.map((s, i) => s[0] in USE ? i : -1).filter(i => i >= 0);
-      const i = usefulIdx.length && rnd() < 0.35 + 0.15 * usefulIdx.length ? pick(usefulIdx) : Math.floor(rnd() * 4);
+      const i = usefulIdx.length && rnd() < 0.45 + 0.17 * usefulIdx.length ? pick(usefulIdx) : Math.floor(rnd() * 4);
       subs[i][1]++;
     }
     const main = slot === 'ar' ? (rnd() < 0.85 ? 'atkp' : 'dmgred') : (rnd() < 0.85 ? pick(['crit','cd','cd','weak']) : 'atkp');
