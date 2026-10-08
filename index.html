@@ -2369,9 +2369,12 @@ const SUBT = [['atkp','모든 공격력(%)'],['atk','모든 공격력'],['defp',
 const SUBN = Object.fromEntries(SUBT);
 const SUBS = { atkp:'공%', atk:'공', defp:'방%', def:'방', hpp:'생%', hp:'생', spd:'속공', crit:'치확', cd:'치피', weak:'약확', block:'막기', eff:'효적', res:'효저' };
 const SUBLINE = { crit:[4,'%'], cd:[6,'%'], weak:[5,'%'], atkp:[5,'%'], hpp:[5,'%'], block:[4,'%'], eff:[5,'%'], hp:[180,''] };
-/* 주옵: 무기 = 치확 · 치피 · 약확 · 공% / 방어구 = 공% · 받피감 (나머지는 PVE 딜러용으로 안 씀) */
-const WMAIN = [['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['atkp','모든 공격력(%)']];
-const AMAIN = [['atkp','모든 공격력(%)'],['dmgred','받는 피해 감소']];
+/* 주옵 전체(무기 10 / 방어구 9). 화면에는 자주 쓰는 것만 앞에 두고 나머지는 '기타'에서 고른다 */
+const WMAIN = [['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['atkp','모든 공격력(%)'],['atk','모든 공격력'],
+  ['defp','방어력(%)'],['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['eff','효과 적중']];
+const AMAIN = [['atkp','모든 공격력(%)'],['dmgred','받는 피해 감소'],['block','막기 확률'],['atk','모든 공격력'],['defp','방어력(%)'],
+  ['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['res','효과 저항']];
+const MAIN_TOP = { w: ['crit','cd','weak'], ar: ['atkp'] };
 const MAINN = Object.fromEntries([...WMAIN, ...AMAIN]);
 const MAINVAL = { crit:'24%', cd:'36%', weak:'28%', defp:'28%' };          // +15 기준, 확인된 것만
 const USE = { crit:0, cd:1, weak:2 };
@@ -2393,8 +2396,6 @@ function migrateGear(arr){
     if (g.subs){
       const o = Object.assign({ set:'복수자', born:4, name:'레이드', memo:'' }, g, { id: g.id || seq++ });
       if (!GSRC.includes(o.name)){ if (o.name) o.memo = (o.memo ? o.memo + ' · ' : '') + o.name; o.name = '레이드'; }   // 예전 자유 이름은 메모로
-      const ok = (o.slot === 'ar' ? AMAIN : WMAIN).some(m => m[0] === o.main);
-      if (!ok) o.main = 'atkp';                                    // 지금 쓰지 않는 주옵은 공%로 (치확·치피·약확 계산엔 영향 없음)
       return o;
     }
     const subs = [];
@@ -2515,7 +2516,15 @@ function gEdit(id){
       '<div class="row"><label>부위</label><select data-ge="slot">' + SLOTS.map(([v, l]) => '<option value="' + v + '"' + (g.slot === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
         '<label>이름</label><select data-ge="name">' + GSRC.map(n => '<option' + (g.name === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
         '<label>태생</label><select data-ge="born"><option value="4"' + (g.born !== 3 ? ' selected' : '') + '>4옵</option><option value="3"' + (g.born === 3 ? ' selected' : '') + '>3옵</option></select></div>' +
-      '<div class="row"><label>주옵</label><select data-ge="main">' + mains.map(([v, l]) => '<option value="' + v + '"' + (g.main === v ? ' selected' : '') + '>' + l + (MAINVAL[v] ? ' ' + MAINVAL[v] : '') + '</option>').join('') + '</select></div>' +
+      (() => {
+        const top = MAIN_TOP[g.slot === 'ar' ? 'ar' : 'w'], isTop = top.includes(g.main);
+        const lab = v => MAINN[v] + (MAINVAL[v] ? ' ' + MAINVAL[v] : '');
+        return '<div class="row"><label>주옵</label><select data-ge="mainTop">' +
+          top.map(v => '<option value="' + v + '"' + (g.main === v ? ' selected' : '') + '>' + lab(v) + '</option>').join('') +
+          '<option value="etc"' + (isTop ? '' : ' selected') + '>기타 ▸</option></select>' +
+          (isTop ? '' : '<select data-ge="main">' + mains.filter(([v]) => !top.includes(v)).map(([v]) => '<option value="' + v + '"' + (g.main === v ? ' selected' : '') + '>' + lab(v) + '</option>').join('') + '</select>') +
+          '</div>';
+      })() +
       [0, 1, 2, 3].map(i => {
         const s = g.subs[i], taken = g.subs.map((x, j) => j !== i && x[0]), e = +s[1] || 0, L = SUBLINE[s[0]];
         const left = cap - sumE;
@@ -2530,7 +2539,13 @@ function gEdit(id){
       '<div class="row"><label>메모</label><input data-ge="memo" value="' + esc(g.memo || '') + '" placeholder="장비 이름 등 구분용 (예: 히드라의 검, 밤의 검)" style="flex:1;min-width:180px"></div>' +
       '<div class="row"><button type="button" data-gsave>' + (isNew ? '추가' : '저장') + '</button><button type="button" data-gcancel>취소</button><span class="note" data-gerr></span></div>';
     ed.querySelectorAll('[data-ge]').forEach(el => el.addEventListener('change', () => {
-      const f = el.dataset.ge; g[f] = f === 'born' ? +el.value : el.value;
+      const f = el.dataset.ge;
+      if (f === 'mainTop'){                                        // 기타 → 나머지 주옵 중 첫 번째
+        const top = MAIN_TOP[g.slot === 'ar' ? 'ar' : 'w'];
+        g.main = el.value !== 'etc' ? el.value : (g.slot === 'ar' ? AMAIN : WMAIN).map(m => m[0]).find(v => !top.includes(v));
+        draw(); return;
+      }
+      g[f] = f === 'born' ? +el.value : el.value;
       if (f === 'born'){ let left = enhCap(g); g.subs.forEach(s => { s[1] = Math.min(+s[1] || 0, left); left -= s[1]; }); }
       if (f === 'slot' || f === 'born') draw();
     }));
