@@ -26,6 +26,8 @@
 .gedit .subrow>span:first-child{white-space:nowrap;font-size:12px}
 .gedit .subrow>span{white-space:nowrap}
 .gfilt button{padding:4px 10px;font-size:12px}
+.grade{display:inline-block;font-size:10.5px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:999px;vertical-align:1px;white-space:nowrap}
+.g-end{background:#2f6b3a;color:#fff}.g-semi{background:#5d8a4a;color:#fff}.g-ok{background:#d9b64a;color:#2b2410}.g-no{background:var(--line);color:var(--ink-2)}
 .stepper{display:inline-flex;align-items:center;gap:4px}
 .stepper button{width:28px;height:28px;padding:0;font-size:16px;line-height:1}
 .stepper button:disabled{opacity:.35}
@@ -341,6 +343,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <div class="row-actions" style="margin-top:10px">
     <span class="gfilt" id="gFilt"></span>
     <button type="button" id="gAdd">장비 추가</button>
+    <button type="button" id="gDemo" title="체험용 예시 장비 52개(메모 '예시')를 넣습니다. 내 장비는 그대로 둡니다.">예시 장비 넣기</button>
     <span class="note" id="gMsg"></span>
   </div>
   <div id="gEditor" class="gedit" hidden></div>
@@ -2284,6 +2287,7 @@ CONTENTS.forEach(c => {
   });
 });
 $('aContent').value = 'r2a';
+queueMicrotask(() => { const o = SET_OPTS.find(x => x.id === $('gContent').value); if (o && o.parts[0]) $('aContent').value = o.parts[0]; });   // 배정 기본 = 오늘 콘텐츠
 
 /* 딜 지분. 실측값이 있으면 항상 실측을 쓰고, 없을 때만 시전 가중치로 추정한다.
    SRC 에 측정 판수·날짜·평균 총점을 남겨 두면 목표 탭 머리말에 그대로 표시된다. */
@@ -2388,6 +2392,45 @@ function pieceStat(g){
 const enhCap = g => g.born === 3 ? 4 : 5;
 const GSRC = ['레이드', '돌발레이드', '이벤트'];                      // 장비 출처 = 게임 장비 이름 구분
 const mainLetter = m => ({ crit:'c', cd:'d', weak:'w' })[m] || null;
+/* ══ 장비 등급 — 유효 단위(치확·치피·약확 부옵 줄 + 그 줄에 붙은 강화) 기준, 태생 4옵 만점 8 ══
+   무기 주옵이 치확·치피·약확이 아니면 2단위 감점(주옵 자리를 쓸모없는 옵션이 차지) */
+const GRADES = [['end','종결',8],['semi','준종결',7],['ok','사용가능',5],['no','추천하지 않음',-99]];
+function gradeOf(g){
+  const useful = (g.subs || []).filter(([t]) => t in USE);
+  const units = useful.length + useful.reduce((a, [, e]) => a + (+e || 0), 0);
+  const pen = g.slot !== 'ar' && !(g.main in USE) ? 2 : 0;
+  const score = units - pen;
+  const gr = GRADES.find(x => score >= x[2]);
+  return { key: gr[0], name: gr[1], units, score, pen };
+}
+const gradeBadge = g => { const r = gradeOf(g); return '<span class="grade g-' + r.key + '" title="유효 ' + r.units + '/8' + (r.pen ? ' · 무기 주옵이 치확·치피·약확 아님(−2)' : '') + '">' + r.name + '</span>'; };
+
+/* ══ 예시 장비 — 체험용. 같은 씨앗이면 항상 같은 장비가 나온다 ══ */
+function demoGear(seed){
+  let x = seed || 20261008;
+  const rnd = () => { x |= 0; x = x + 0x6D2B79F5 | 0; let t = Math.imul(x ^ x >>> 15, 1 | x); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const junk = ['atkp','atk','defp','def','hpp','hp','spd','block','eff','res'];
+  const out = [];
+  const plan = [['wp', 18], ['wm', 8], ['ar', 26]];
+  let id = Math.max(0, ...gear.map(g => g.id)) + 1;
+  plan.forEach(([slot, n]) => { for (let k = 0; k < n; k++){
+    const born = rnd() < 0.8 ? 4 : 3;
+    const q = rnd();                                   // 장비 품질: 유효 부옵이 몇 개 붙었나
+    const nUse = q < 0.35 ? 3 : q < 0.75 ? 2 : q < 0.92 ? 1 : 0;
+    const types = ['crit','cd','weak'].sort(() => rnd() - 0.5).slice(0, nUse).concat(junk.slice().sort(() => rnd() - 0.5)).slice(0, 4).sort(() => rnd() - 0.5);
+    const subs = types.map(t => [t, 0]);
+    for (let e = 0; e < (born === 3 ? 4 : 5); e++){      // 강화: 좋은 장비일수록 유효 부옵에 붙을 확률이 높게
+      const usefulIdx = subs.map((s, i) => s[0] in USE ? i : -1).filter(i => i >= 0);
+      const i = usefulIdx.length && rnd() < 0.35 + 0.15 * usefulIdx.length ? pick(usefulIdx) : Math.floor(rnd() * 4);
+      subs[i][1]++;
+    }
+    const main = slot === 'ar' ? (rnd() < 0.85 ? 'atkp' : 'dmgred') : (rnd() < 0.85 ? pick(['crit','cd','cd','weak']) : 'atkp');
+    out.push({ id: id++, slot, set:'복수자', name: pick(GSRC), born, main, subs, memo:'예시', demo:true });
+  }});
+  return out;
+}
+
 /* 예전 형식(부옵 합계만) → 카드 형식 */
 function migrateGear(arr){
   let seq = 1;
@@ -2457,7 +2500,7 @@ gear = migrateGear(gear); gPersist();
 const gById = id => gear.find(g => g.id === id);
 const gSlotName = s => (SLOTS.find(x => x[0] === s) || [, s])[1];
 const gTitle = g => g ? (g.name || '레이드') + ' ' + (g.slot === 'ar' ? '방어구' : '무기') + ' #' + g.id : '없음';
-let gFilter = 'all';
+let gFilter = 'all', gGrade = null;
 
 /* 게임 장비 카드 모양 */
 function gCard(g, mini, actions){
@@ -2469,7 +2512,7 @@ function gCard(g, mini, actions){
   const subs = (g.subs || []).map(sub);
   for (let i = subs.length; i < 4; i++) subs.push('<li class="empty"><span>—</span></li>');
   return '<div class="gcard' + (mini ? ' mini' : '') + '" data-gid="' + g.id + '">' +
-    '<div class="gc-h"><b>' + esc(gTitle(g)) + '</b><span class="gc-t">' + gSlotName(g.slot).replace('무기 · ', '') + ' · ' + (g.set || '복수자') + ' · ' + (g.born || 4) + '옵</span></div>' +
+    '<div class="gc-h"><b>' + esc(gTitle(g)) + ' ' + gradeBadge(g) + '</b><span class="gc-t">' + gSlotName(g.slot).replace('무기 · ', '') + ' · ' + (g.set || '복수자') + ' · ' + (g.born || 4) + '옵</span></div>' +
     '<div class="gc-main"><span>' + (MAINN[g.main] || g.main) + '</span><b>' + (MAINVAL[g.main] || '') + '</b></div>' +
     '<ol>' + subs.join('') + '</ol>' +
     (g.memo ? '<div class="gc-memo">' + esc(g.memo) + '</div>' : '') +
@@ -2478,11 +2521,17 @@ function gCard(g, mini, actions){
 }
 
 function gRowsInit(){
-  const cnt = s => gear.filter(g => s === 'all' || (s === 'w' ? g.slot !== 'ar' : g.slot === 'ar')).length;
+  const slotOk = (g, s) => s === 'all' || (s === 'w' ? g.slot !== 'ar' : g.slot === 'ar');
+  const cnt = s => gear.filter(g => slotOk(g, s)).length;
+  const gcnt = k => gear.filter(g => slotOk(g, gFilter) && gradeOf(g).key === k).length;
   $('gFilt').innerHTML = [['all','전체'],['w','무기'],['ar','방어구']].map(([v, l]) =>
-    '<button type="button" data-gf="' + v + '" aria-pressed="' + (gFilter === v) + '">' + l + ' ' + cnt(v) + '</button>').join(' ');
+    '<button type="button" data-gf="' + v + '" aria-pressed="' + (gFilter === v) + '">' + l + ' ' + cnt(v) + '</button>').join(' ') +
+    ' <span style="display:inline-block;width:8px"></span>' +
+    GRADES.map(([k, n]) => '<button type="button" data-gg="' + k + '" aria-pressed="' + (gGrade === k) + '">' + n + ' ' + gcnt(k) + '</button>').join(' ');
   $('gFilt').querySelectorAll('[data-gf]').forEach(b => b.addEventListener('click', () => { gFilter = b.dataset.gf; gRowsInit(); }));
-  const list = gear.filter(g => gFilter === 'all' || (gFilter === 'w' ? g.slot !== 'ar' : g.slot === 'ar'));
+  $('gFilt').querySelectorAll('[data-gg]').forEach(b => b.addEventListener('click', () => { gGrade = gGrade === b.dataset.gg ? null : b.dataset.gg; gRowsInit(); }));
+  const list = gear.filter(g => slotOk(g, gFilter) && (!gGrade || gradeOf(g).key === gGrade))
+    .sort((a, b) => gradeOf(b).score - gradeOf(a).score || a.id - b.id);
   $('gList').innerHTML = list.length ? list.map(g => gCard(g, false, true)).join('')
     : '<p class="note">등록된 장비가 없습니다. “장비 추가”를 누르십시오.</p>';
   $('gList').querySelectorAll('[data-gedit]').forEach(b => b.addEventListener('click', () => gEdit(+b.dataset.gedit)));
@@ -2535,7 +2584,7 @@ function gEdit(id){
             '<button type="button" data-gp="' + i + '"' + (left <= 0 ? ' disabled' : '') + ' aria-label="강화 +1">+</button></span>' +
           '<span class="num muted">' + (L ? L[0] * (1 + e) + L[1] : '') + '</span></div>';
       }).join('') +
-      '<p class="note" style="margin:4px 0 8px">강화 합계 <strong class="' + (sumE > cap ? 'lose' : '') + '">' + sumE + ' / ' + cap + '</strong> — +15까지 3강마다 1번(' + (g.born === 3 ? '태생 3옵은 첫 번째가 4번째 부옵 생성에 쓰여 4번' : '5번') + '). 부옵 순서는 게임 화면 위에서부터, 같은 부옵은 두 번 고를 수 없습니다.</p>' +
+      '<p class="note" style="margin:4px 0 8px">등급 ' + gradeBadge(g) + ' (유효 ' + gradeOf(g).units + '/8) · 강화 합계 <strong class="' + (sumE > cap ? 'lose' : '') + '">' + sumE + ' / ' + cap + '</strong> — +15까지 3강마다 1번(' + (g.born === 3 ? '태생 3옵은 첫 번째가 4번째 부옵 생성에 쓰여 4번' : '5번') + '). 부옵 순서는 게임 화면 위에서부터, 같은 부옵은 두 번 고를 수 없습니다.</p>' +
       '<div class="row"><label>메모</label><input data-ge="memo" value="' + esc(g.memo || '') + '" placeholder="장비 이름 등 구분용 (예: 히드라의 검, 밤의 검)" style="flex:1;min-width:180px"></div>' +
       '<div class="row"><button type="button" data-gsave>' + (isNew ? '추가' : '저장') + '</button><button type="button" data-gcancel>취소</button><span class="note" data-gerr></span></div>';
     ed.querySelectorAll('[data-ge]').forEach(el => el.addEventListener('change', () => {
@@ -2568,6 +2617,18 @@ function gEdit(id){
   ed.scrollIntoView({ block:'nearest' });
 }
 $('gAdd').addEventListener('click', () => gEdit(null));
+function demoBtn(){ const n = gear.filter(g => g.demo).length; $('gDemo').textContent = n ? '예시 장비 지우기 (' + n + ')' : '예시 장비 넣기'; }
+$('gDemo').addEventListener('click', () => {
+  const had = gear.some(g => g.demo);
+  if (had){
+    const ids = new Set(gear.filter(g => g.demo).map(g => g.id));
+    gear = gear.filter(g => !g.demo);
+    presets.forEach(p => { p.pieces = p.pieces.map(x => ids.has(x) ? null : x); }); pPersist();
+  } else gear = gear.concat(demoGear());
+  gPersist(); gRowsInit(); pRender(); demoBtn();
+  $('gMsg').textContent = had ? '예시 장비를 지웠습니다.' : '예시 장비 52개를 넣었습니다(물리 무기 18 · 마법 무기 8 · 방어구 26). 아래 "배정 계산"으로 바로 해 보십시오.';
+  setTimeout(() => { $('gMsg').textContent = ''; }, 5000);
+});
 
 /* ══════════ 프리셋 — 캐릭터별 무기 2 · 방어구 2 · 장신구 (전용장비 제외) ══════════ */
 const PKEY = 'sknr-presets';
@@ -2829,10 +2890,20 @@ function aRun(){
       '<div class="p-pieces">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div>' +
       '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong> · 이상 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
         ' <span class="muted">(' + (un && !un.neg ? '유효 ' + un.u.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span></span>' +
-        '<span><button type="button" data-asave="' + i + '">프리셋으로 저장</button></span></div></div>';
+        '<span><button type="button" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
+      (() => { const ad = presetAdvice(c.id, ch.name, state.pieces[i].map(g => g ? g.id : null), state.carve[i]);
+        return '<p class="note ' + ad.cls + '" style="margin:8px 0 0">' + ad.html +
+          (ad.target ? ' <button type="button" data-afix="' + i + '" data-pid="' + ad.target.id + '" style="padding:2px 8px;font-size:12px">이 배정으로 프리셋 수정</button>' : '') + '</p>'; })() +
+      '</div>';
   }).join('');
   aLast = { c, A, state };
   box.querySelectorAll('[data-asave]').forEach(b => b.addEventListener('click', () => { aSave([+b.dataset.asave]); }));
+  box.querySelectorAll('[data-afix]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.afix, p = presets.find(x => x.id === +b.dataset.pid); if (!p) return;
+    p.pieces = state.pieces[i].map(g => g ? g.id : null); p.ring = state.carve[i];
+    pPersist(); pRender(); aRun();                                      // 다시 그리면 ✓ 로 바뀜
+    $('aMsg').textContent = p.char + ' 프리셋을 수정했습니다.'; setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
+  }));
   const team = A.T.J(over) / A.T.J0;
   const usedSiege = A.chars.some((_, i) => /sg/.test(state.carve[i]));
   $('aNote').innerHTML = (r.short.length
@@ -2843,6 +2914,28 @@ function aRun(){
 }
 let aLast = null;
 $('aRun').addEventListener('click', aRun);
+/* 배정 결과 ↔ 저장된 프리셋 비교. 무기 2개·방어구 2개는 순서 무관(같은 부위끼리 집합 비교) */
+const sameSet = (a, b) => { const x = a.filter(v => v != null).sort(), y = b.filter(v => v != null).sort(); return x.length === y.length && x.every((v, i) => v === y[i]); };
+function presetAdvice(cid, name, ids, ring){
+  const mine_ = presets.filter(p => p.char === name && (p.cid === cid || !p.cid))
+    .sort((a, b) => (b.cid === cid) - (a.cid === cid));                 // 이 콘텐츠 전용 → 공통 순
+  const ringOk = p => !p.ring || p.ring === 'auto' || normRing(p.ring) === normRing(ring);
+  const same = mine_.find(p => sameSet(p.pieces.slice(0, 2), ids.slice(0, 2)) && sameSet(p.pieces.slice(2), ids.slice(2)) && ringOk(p));
+  const tag = p => '“' + esc(p.name || (p.cid ? cName(p.cid) : '공통')) + '”' + (p.cid ? '' : ' (공통)');
+  if (same) return { cls:'win', html:'✓ 프리셋 ' + tag(same) + '과 같습니다 — 게임에서 그 프리셋을 그대로 착용하십시오.' };
+  const target = mine_[0];
+  if (!target) return { cls:'muted', html:'저장된 프리셋이 없습니다 — “프리셋으로 저장”을 누르면 다음부터 비교합니다.' };
+  // 바꿀 칸 안내: 부위별로 빠지는 장비 → 들어오는 장비
+  const diff = [];
+  [[0, 2, '무기'], [2, 4, '방어구']].forEach(([a, b, l]) => {
+    const now = target.pieces.slice(a, b), want = ids.slice(a, b);
+    const out = now.filter(v => v != null && !want.includes(v)), inn = want.filter(v => v != null && !now.includes(v));
+    for (let k = 0; k < Math.max(out.length, inn.length); k++)
+      diff.push(l + ' ' + (out[k] != null ? esc(gTitle(gById(out[k]))) : '빈 칸') + ' → <strong>' + (inn[k] != null ? esc(gTitle(gById(inn[k]))) : '빈 칸') + '</strong>');
+  });
+  if (!ringOk(target)) diff.push('장신구 ' + ringName(target.ring) + ' → <strong>' + ringName(ring) + '</strong>');
+  return { cls:'flat', target, html:'프리셋 ' + tag(target) + ' 수정 필요 — ' + diff.join(' · ') };
+}
 const aPreset = (c, A, state, i) => ({ id: 0, char: A.chars[i].name, cid: c.id, name: '배정 ' + new Date().toISOString().slice(5, 10).replace('-', '/'),
   pieces: state.pieces[i].map(g => g ? g.id : null), ring: state.carve[i] });
 function aSave(idx){
@@ -2854,7 +2947,7 @@ function aSave(idx){
     p.id = same >= 0 ? presets[same].id : Math.max(0, ...presets.map(x => x.id)) + 1;
     if (same >= 0) presets[same] = p; else presets.push(p);           // 같은 콘텐츠의 이전 배정 프리셋은 덮어씀
   });
-  pPersist(); pRender();
+  pPersist(); pRender(); aRun();
   $('aMsg').textContent = idx.length + '명 프리셋 저장했습니다(위 프리셋 목록).'; setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
 }
 $('aSaveAll').addEventListener('click', () => { if (aLast) aSave(aLast.A.chars.map((_, i) => i)); });
@@ -3135,7 +3228,7 @@ function legacyClean(){
 
 /* 초기화 */
 legacyClean();
-goalRun(); cRowsInit(); gRowsInit(); pRender();
+goalRun(); cRowsInit(); gRowsInit(); pRender(); demoBtn();
 $('gSel').value = 'r2a'; gRender();
 setRun();
 </script>
