@@ -1552,7 +1552,7 @@ const MKEY = ['c','d','w'], MLABEL = { c:'치확', d:'치피', w:'약확' };
    효과: 토벌 보스 대상 피해 +12% · 치확 +10 · 약확 +12 · 공성 1~3인기 공격기(스킬) 피해 +10% · 권능(생존) · 도트(출혈·중독·화상)
    피해량 계열(복수자 4세트 주는 피해 30% · 보스 40%, 토벌 12%, 공성 10%)은 한 묶음에 더해진다고 가정
    → 공성 실효 = (1.82+0.10)/1.82 ≈ ×1.055 (스킬 히트만, 평타 제외). 커뮤니티 '실효 약 ×1.04'와 같은 결.
-   본체는 토벌이 항상 최선(치확·약확 본체는 토벌 +12%를 못 넘음). 권능 고정 캐릭터만 본체 = 권능.
+   본체는 토벌이 항상 최선(치확·약확 본체는 토벌 +12%를 못 넘음). 권능 고정 캐릭터만 본체 = 권능(세공은 치확·약확·공성 중).
    값: [전투 치확, 전투 약확, 전체 배수, 스킬 히트 배수] — 본체 토벌 기준 상대값 */
 const DMG_POOL = 1 + 0.30 + 0.40, R_TB = 0.12, R_SG = 0.10;
 const SG_N = (DMG_POOL + R_TB + R_SG) / (DMG_POOL + R_TB), SG_K = (DMG_POOL + R_SG) / DMG_POOL, TB_K = (DMG_POOL + R_TB) / DMG_POOL;
@@ -1565,7 +1565,9 @@ const CARVENAME = { crit:'토벌+치확', weak:'토벌+약확', siege:'토벌+�
 const ringShort = cv => cv === 'none' ? '없음' : CARVENAME[cv].replace(/^토벌\+/, '').replace('(세공 없음)', '');
 /* 권능 고정 (공략 '반지 고정') */
 const KWON = { fri:['지크'], sat:['레이첼','풍연'] };
-const ringOpts = cc => cc && cc.kwon ? ['k_tb','k_crit','k_weak','k_siege'] : ['crit','weak','siege'];   // 최적화 후보 (세공 없음 제외)
+/* 권능(전설)은 PVP에도 쓰여서 PVE용 토벌 세공은 거의 안 한다 → 추천에서 제외(시험 칸에서는 선택 가능).
+   등급: 권능 전설 · 토벌·공성 희귀 · 도트 고급 · 치확·약확 일반 */
+const ringOpts = cc => cc && cc.kwon ? ['k_crit','k_weak','k_siege'] : ['crit','weak','siege'];   // 최적화 후보 (세공 없음 제외)
 const ringAll = cc => cc && cc.kwon ? ['k_tb','k_crit','k_weak','k_siege','k_none'] : ['crit','weak','siege','none'];
 /* 공성은 스킬 히트(윗·아랫)에만 → H 의 앞 두 묶음 가중치를 키운다 */
 const hitsFor = (H, cv) => { const sm = CARVES[cv][3]; return sm === 1 ? H : [[H[0][0] * sm, H[0][1]], [H[1][0] * sm, H[1][1]], H[2]]; };
