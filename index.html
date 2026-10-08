@@ -6,6 +6,7 @@
 .mine-tbl input{width:58px}
 .mine-tbl select{min-width:0!important}
 .mine-tbl td.nm{line-height:1.25}
+.set-tag{display:inline-block;font-size:10.5px;line-height:1.5;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--chip,rgba(127,127,127,.14));color:var(--ink-2,inherit);font-weight:500;vertical-align:1px;white-space:nowrap}
 details.gloss{margin-top:8px;font-size:13px}
 details.gloss>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;padding:3px 10px;border:1px solid var(--line,rgba(127,127,127,.35));border-radius:999px;color:var(--ink-2,inherit);user-select:none}
 details.gloss>summary::-webkit-details-marker{display:none}
@@ -398,6 +399,9 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
     <button type="button" id="trAdd">지정</button>
   </div>
   <div id="trList" style="margin-top:8px"></div>
+  <h3 style="margin:16px 0 6px;font-size:14px">장비 세트</h3>
+  <div class="scroll"><table><thead><tr><th>세트</th><th>2세트</th><th>4세트</th></tr></thead><tbody id="setRowsTbl"></tbody></table></div>
+  <p class="note" style="margin-top:6px">딜러는 전부 복수자 4세트(공략 기준) — 모든 피해에 같은 배수라 치확·치피·약확 목표는 바뀌지 않습니다. 콘텐츠별 세트는 세팅·목표 탭 캐릭터 이름 옆에 표시됩니다.</p>
   <p class="note" style="margin-top:10px"><strong>빈칸 = 미확인.</strong> 계산은 빈칸을 물리 · 치확 23 · 치피 150 · 약확 0 · 패시브 0 · 배율 1.3으로 가정해 돌립니다. 팀 효과는 지금은 표시만 하며, 계산은 콘텐츠별로 적어 둔 버프 약확을 그대로 씁니다. 같은 스탯의 효과가 겹치면 치확·약확은 더하고 피해 배율은 곱한다고 가정합니다(곱셈 쪽은 미검증).</p>
 </details>
 </div>
@@ -1270,10 +1274,14 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 |---|---|---|---|
 | 복수자 | 딜러용 | 2세트 주는 피해량 15% / 4세트 주는 피해량 30% + 보스 대상 피해량 40% | 전 요일 딜러 |
 | 토템용 | (세트명 아님, 역할 표기) | 탱템 아무거나 | 금·토·목 비스킷, 월A 에반 |
-| 수문장 | 탱커 | **미확인** (방방막받 주옵과 함께 사용) | 수·화 라이언·클로에 |
-| 성기사 | 생존 | **미확인** (생생생생 주옵) | 화 리나, 월B 리나 대안 |
-| 선봉장 | 공격력 버퍼 | **미확인** (공공공공 주옵) | 수 리나 |
-| 주술사 | 도트/유틸 | **미확인** | 월B 에반, 강림2R 비스킷 |
+| 수문장 | 탱커 | 2세트 막기 확률 15% / 4세트 막기 확률 30% + 막기 피해 감소율 10% | 수·화 라이언·클로에 |
+| 성기사 | 생존 | 2세트 생명력 17% / 4세트 생명력 40% + 받는 회복량 증가 20% | 화 리나, 월B 리나 대안 |
+| 선봉장 | 공격력 버퍼 | 2세트 모든 공격력 20% / 4세트 모든 공격력 45% + 효과 적중 20% | 수 리나 |
+| 주술사 | 도트/유틸 | 2세트 효과 적중 17% / 4세트 효과 적중 35% + 효과 적용 확률 10% | 월B 에반, 강림2R 비스킷 |
+| 조율자 | 유틸 | 2세트 효과 저항 17% / 4세트 효과 저항 35% + 전투 시작 시 자신에게 행동 제어 면역 1턴 | 연희 1R 클로에 |
+| 추적자 | (미사용) | 2세트 약점 공격 확률 15% / 4세트 약점 공격 확률 35% + 약점 공격 피해량 35% | — |
+| 암살자 | (미사용) | 2세트 치명타 확률 15% / 4세트 치명타 확률 30% + 방어 무시 15% | — |
+| 수호자 | (미사용) | 2세트 방어력 20% / 4세트 방어력 45% + 효과 저항 20% | — |
 
 ## 무기 주옵 조합 표기
 공략의 "치확치피공공" 등은 **무기 2개 주옵 + 방어구 2개 주옵(공% 고정)**을 뜻함.
@@ -1401,6 +1409,30 @@ const rawOf = name => {
   return o;
 };
 const valOf = (name, f) => rawOf(name)[f] ?? FALLBACK[f];
+/* ══════════ 장비 세트 — 효과(2세트 / 4세트)는 게임 문구 그대로, 콘텐츠별 사용 세트는 공략 원문 표에서 ══════════
+   딜 계산 영향: 복수자(주는 피해량·보스 피해)는 모든 피해에 같은 배수 → 치확·치피·약확 균형점은 안 바뀐다.
+   암살자(치확)·추적자(약확·약공 피해)를 딜러가 쓰게 되면 그때 모델에 반영해야 한다. 나머지는 생존·유틸. */
+const SETS = {
+  '선봉장': ['모든 공격력 20%', '모든 공격력 45%, 효과 적중 20%'],
+  '추적자': ['약점 공격 확률 15%', '약점 공격 확률 35%, 약점 공격 피해량 35%'],
+  '성기사': ['생명력 17%', '생명력 40%, 받는 회복량 증가 20%'],
+  '수문장': ['막기 확률 15%', '막기 확률 30%, 막기 피해 감소율 10%'],
+  '수호자': ['방어력 20%', '방어력 45%, 효과 저항 20%'],
+  '암살자': ['치명타 확률 15%', '치명타 확률 30%, 방어 무시 15%'],
+  '복수자': ['주는 피해량 15%', '주는 피해량 30%, 보스 대상으로 피해량 40%'],
+  '주술사': ['효과 적중 17%', '효과 적중 35%, 효과 적용 확률 10%'],
+  '조율자': ['효과 저항 17%', '효과 저항 35%, 전투 시작 시 자신에게 행동 제어 면역 1턴']
+};
+/* [세트, 주옵 표기(무기2·방어구2)] — '토템용'은 세트명이 아니라 역할 표기 */
+const SETUSE = {"fri": {"라이언": ["복수자", "치확치피공공"],"레이첼": ["복수자", "치확치피공공"],"지크": ["복수자", "치확치피공공"],"아일린": ["복수자", "치확치피공공"],"비스킷": ["토템용", "방방막받"]}, "sat": {"라이언": ["복수자", "치확치피공공"],"레이첼": ["복수자", "치확치피공공"],"풍연": ["복수자", "치확치피공공"],"아일린": ["복수자", "치확치피공공"],"비스킷": ["토템용", "방방막받"]}, "thu": {"라이언": ["복수자", "치확치피공공"],"레이첼": ["복수자", "치확치피공공"],"돼오": ["복수자", "치확치피공공"],"아일린": ["복수자", "치확치피공공"],"비스킷": ["토템용", "방방막받"]}, "mona": {"나타": ["복수자", "치피치피공공"],"쥬리": ["복수자", "치확치피공공"],"미호": ["복수자", "치확약확공공"],"에반": ["토템용", "아무거나"],"비스킷": ["복수자", "치확치피공공"]}, "monb": {"나타": ["복수자", "치피치피공공"],"미호": ["복수자", "치확치피공공"],"에반": ["주술사", "아무거나"],"리나": ["복수자", "치확치피공공"],"비스킷": ["복수자", "치확치피공공"]}, "sun": {"세인": ["복수자", "치피치피공공"],"헤브니아": ["복수자", "치확치피공공"],"아일린": ["복수자", "치확약확공공"],"샤오": ["복수자", "치확약확공공"],"비스킷": ["복수자", "약확약확공공"]}, "wed": {"나타": ["복수자", "치피치피공공"],"미호": ["복수자", "치확치피공공"],"리나": ["선봉장", "공공공공"],"라이언": ["수문장", "방방막받"],"비스킷": ["복수자", "치확치피공공"]}, "tue": {"나타": ["복수자", "치피치피공공"],"미호": ["복수자", "치확치피공공"],"리나": ["성기사", "생생생생"],"클로에": ["수문장", "방방막받"],"비스킷": ["복수자", "치확치피공공"]}, "r1a": {"파스칼": ["복수자", "치피약확공공"],"소교": ["복수자", "치확치피공공"],"레긴": ["복수자", "치확치피공공"],"선란": ["토템용", "장비 X"],"미호": ["복수자", "치확약확공공"]}, "r2a": {"세인": ["복수자", "치피치피공공"],"헤브니아": ["복수자", "치확치피공공"],"아일린": ["복수자", "치확치피공공"],"샤오": ["복수자", "치확치피공공"],"비스킷": ["주술사", "방방받받"]}, "r1b": {"파스칼": ["복수자", "치피약확공공"],"소교": ["복수자", "치확치피공공"],"하연": ["복수자", "치확치피공공"],"선란": ["토템용", "장비 X"],"미호": ["복수자", "치확약확공공"]}, "t1": {"파스칼": ["복수자", "치피약확공공"],"에스파다": ["복수자", "치확치피공공"],"바네사": ["복수자", "치확치피공공"],"리나": ["복수자", "치확치피공공"],"린": ["복수자", "치확치피공공"]}, "t2": {"소교": ["복수자", "치확치피공공"],"데이지": ["복수자", "치확치피공공"],"미호": ["복수자", "치확약확공공"],"오를리": ["복수자", "치확치피공공"],"비스킷": ["복수자", "치확치피공공"]}, "k1": {"세인": ["복수자", "치피치피공공"],"란드": ["복수자", "치확약확공공"],"여포": ["복수자", "치확치피공공"],"레이첼": ["복수자", "치확치피공공"],"관우": ["복수자", "치확치피공공"]}, "k2": {"백룡": ["복수자", "치피치피공공"],"파이": ["복수자", "치확치피공공"],"비스킷": ["수문장", "방방막받"],"리나": ["성기사", "생생생생"],"헤브니아": ["복수자", "치확치피공공"]}, "y1": {"루리": ["복수자", "치피치피공공"],"클로에": ["조율자", "아무거나"],"바네사": ["토템용", "아무거나"],"밀리아": ["토템용", "아무거나"],"오를리": ["토템용", "아무거나"]}, "y2": {"나타": ["복수자", "치피치피공공"],"미호": ["복수자", "치확치피공공"],"비스킷": ["수문장", "방방막받"],"데이지": ["수문장", "방방막받"],"리나": ["성기사", "생생생생"]}, "m1": {"풍연": ["복수자", "치확치피공공"],"타카": ["복수자", "치확치피공공"],"칼헤론": ["복수자", "치확치피공공"],"란드": ["복수자", "치확치피공공"],"선란": ["복수자", "치확치피공공"]}, "m2": {"라이언": ["복수자", "치확치피공공"],"레이첼": ["복수자", "치확치피공공"],"비스킷": ["토템용", "아무거나"],"관우": ["복수자", "치확치피공공"],"여포": ["복수자", "치확치피받받"]}};
+SETUSE.r2b ||= SETUSE.r2a;                       // 1R 8턴 이후 2라운드 = 같은 편성
+const setOf = (cid, name) => (SETUSE[cid] || {})[name] || null;
+const setTag = (cid, name) => { const x = setOf(cid, name); if (!x) return '';
+  const t = x[0] === '토템용' ? '토템' : x[0] + ' 4';
+  return '<span class="set-tag" title="' + (SETS[x[0]] ? x[0] + ' — 2세트: ' + SETS[x[0]][0] + ' / 4세트: ' + SETS[x[0]][1] : '세트 무관') + (x[1] ? ' · 주옵 ' + x[1] : '') + '">' + t + '</span>'; };
+const setText = (cid, name) => { const x = setOf(cid, name); return x ? (x[0] === '토템용' ? '토템' : x[0] + ' 4세트') + (x[1] ? ' · ' + x[1] : '') + ' — ' : ''; };
+(() => { const tb = document.getElementById('setRowsTbl'); if (tb) tb.innerHTML = Object.entries(SETS).map(([n, [a, b]]) => '<tr><td>' + n + '</td><td class="muted">' + a + '</td><td class="muted">' + b + '</td></tr>').join(''); })();
+
 const CONTENTS = [
   { id:'fri',  n:'금요일',              g:'금요일', tg:3, pl:8.5, sc:'siege', qb:81,
     lu:[['라이언',4,3,1,81],['레이첼',3,4,1,81],['아일린',0,3,1,27],['지크',1,0,1,27],['비스킷',0,2,0,27]] },
@@ -1826,13 +1858,13 @@ function goalRun(){
     }
     U.forEach(u => {
       if (u.skip || !u.pick){
-        rows += '<tr><td>' + u.name + '</td><td colspan="8" class="muted">생존·토템 세팅 (딜 계산 제외)</td></tr>';
+        rows += '<tr><td>' + u.name + '</td><td colspan="8" class="muted">' + setText(c.id, u.name) + '생존·토템 세팅 (딜 계산 제외)</td></tr>';
         lines.push('  ' + u.name.padEnd(8, '·') + ' 생존 세팅');
         return;
       }
       const b = u.pick, lo = u.lo, hi = u.hi;
       const mainTxt = MLABEL[b.main[0]] + '+' + MLABEL[b.main[1]];
-      rows += '<tr><td>' + u.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span></td>' +
+      rows += '<tr><td>' + u.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + '</td>' +
         '<td class="muted">' + mainTxt + '</td>' +
         '<td class="muted">' + CARVENAME[b.cv] + '</td>' +
         '<td class="num">' + b.uc + ' / ' + b.ud + ' / ' + b.uw + '</td>' +
@@ -1851,7 +1883,7 @@ function goalRun(){
       const mainSel = '<td><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
-      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span><span class="ideal">이상 ' + b.vc + '/' + b.vd + '/' + b.vq + '</span></td>' +
+      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + '<span class="ideal">이상 ' + b.vc + '/' + b.vd + '/' + b.vq + '</span></td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
         '<td class="num" data-u="' + c.id + '|' + u.name + '">—</td>' +
         '<td class="num"><span data-out="' + dk + '">—</span><span class="imp muted" data-imp="' + dk + '"></span></td>' +
@@ -2718,10 +2750,10 @@ function setRows(c, safe){
   const { U } = solveContent(c, GOAL_CARRY, GOAL_MAXENH, safe);   // 세팅 탭도 이론상 최고 (강화 몰빵 허용, 2주 누적)
   return U.map(u => {
     if (u.skip || !u.pick)
-      return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">생존·토템 세팅</td></tr>';
+      return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">' + setText(c.id, u.name) + '생존·토템 세팅</td></tr>';
     const b = u.pick;
     const main = MLABEL[b.main[0]] + MLABEL[b.main[1]];
-    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' +
+    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) +
       '<span class="mob">' + main + ' · ' + CARVENAME[b.cv] + '</span></td>' +
       '<td class="muted">' + main + '</td><td class="muted">' + CARVENAME[b.cv] + '</td>' +
       '<td class="v">' + b.vc + (safe && b.p < 99 ? '<span class="sub" title="약확 100을 채우면 장비 예산(32단위)으로는 치확 99까지 못 감 — 닿을 수 있는 최대치">최대</span>' : '') + '</td>';
