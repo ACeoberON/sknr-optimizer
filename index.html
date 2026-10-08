@@ -2369,10 +2369,9 @@ const SUBT = [['atkp','모든 공격력(%)'],['atk','모든 공격력'],['defp',
 const SUBN = Object.fromEntries(SUBT);
 const SUBS = { atkp:'공%', atk:'공', defp:'방%', def:'방', hpp:'생%', hp:'생', spd:'속공', crit:'치확', cd:'치피', weak:'약확', block:'막기', eff:'효적', res:'효저' };
 const SUBLINE = { crit:[4,'%'], cd:[6,'%'], weak:[5,'%'], atkp:[5,'%'], hpp:[5,'%'], block:[4,'%'], eff:[5,'%'], hp:[180,''] };
-const WMAIN = [['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['atkp','모든 공격력(%)'],['atk','모든 공격력'],
-  ['defp','방어력(%)'],['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['eff','효과 적중']];
-const AMAIN = [['dmgred','받는 피해 감소'],['block','막기 확률'],['atkp','모든 공격력(%)'],['atk','모든 공격력'],['defp','방어력(%)'],
-  ['def','방어력'],['hpp','생명력(%)'],['hp','생명력'],['res','효과 저항']];
+/* 주옵: 무기 = 치확 · 치피 · 약확 · 공% / 방어구 = 공% · 받피감 (나머지는 PVE 딜러용으로 안 씀) */
+const WMAIN = [['crit','치명타 확률'],['cd','치명타 피해'],['weak','약점 공격 확률'],['atkp','모든 공격력(%)']];
+const AMAIN = [['atkp','모든 공격력(%)'],['dmgred','받는 피해 감소']];
 const MAINN = Object.fromEntries([...WMAIN, ...AMAIN]);
 const MAINVAL = { crit:'24%', cd:'36%', weak:'28%', defp:'28%' };          // +15 기준, 확인된 것만
 const USE = { crit:0, cd:1, weak:2 };
@@ -2394,6 +2393,8 @@ function migrateGear(arr){
     if (g.subs){
       const o = Object.assign({ set:'복수자', born:4, name:'레이드', memo:'' }, g, { id: g.id || seq++ });
       if (!GSRC.includes(o.name)){ if (o.name) o.memo = (o.memo ? o.memo + ' · ' : '') + o.name; o.name = '레이드'; }   // 예전 자유 이름은 메모로
+      const ok = (o.slot === 'ar' ? AMAIN : WMAIN).some(m => m[0] === o.main);
+      if (!ok) o.main = 'atkp';                                    // 지금 쓰지 않는 주옵은 공%로 (치확·치피·약확 계산엔 영향 없음)
       return o;
     }
     const subs = [];
