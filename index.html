@@ -207,7 +207,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <p class="note" id="sCheck" style="margin-top:2px"></p>
   <div class="scroll" style="margin-top:6px">
     <table class="set-tbl">
-      <thead><tr><th>캐릭터</th><th>주옵</th><th>세공</th><th>치확</th><th>치피</th><th>약확</th><th>치확 무방</th></tr></thead>
+      <thead><tr><th>캐릭터</th><th>주옵</th><th>장신구</th><th>치확</th><th>치피</th><th>약확</th><th>치확 무방</th></tr></thead>
       <tbody id="sRows"></tbody>
     </table>
   </div>
@@ -226,7 +226,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <p class="note" id="gMeta" style="margin-top:10px"></p>
   <div class="scroll" style="margin-top:12px">
   <table>
-    <thead><tr><th>캐릭터</th><th>무기 주옵</th><th>세공</th><th>단위 치확/치피/약확</th>
+    <thead><tr><th>캐릭터</th><th>무기 주옵</th><th>장신구</th><th>단위 치확/치피/약확</th>
       <th>강화 치확/치피/약확</th>
       <th>치확</th><th>치피</th><th>약확</th><th>치확 구간</th></tr></thead>
     <tbody id="gTargets"></tbody>
@@ -244,13 +244,13 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
     <dt>이상</dt><dd>이 콘텐츠에서 이론상 가장 점수가 높은 마을 치확 / 치피 / 약확. 캐릭터 이름 아래 작은 글씨.</dd>
     <dt>유효 단위</dt><dd>치확·치피·약확에 들어간 부옵 줄 수 + 강화 횟수. 다 맞추면 <strong>32</strong>.<br>32보다 작으면 그만큼 공%처럼 쓸모없는 옵션에 강화가 붙었거나, 부옵이 없는 장비를 끼고 있다는 뜻입니다.</dd>
     <dt>이상 대비</dt><dd>내 스펙 점수 ÷ 이상 점수. 100%면 끝.<br>아래 작은 글씨 <strong>팀 −0.5%p</strong>는 이 캐릭터 때문에 팀 점수가 깎인 양입니다. 지분이 작은 캐릭터는 "무시"로 나옵니다.</dd>
-    <dt>세공</dt><dd>지금 스탯에 가장 유리한 장신구 세공(치확 +10 / 약확 +12 / 공성 ×1.04).</dd>
+    <dt>세공</dt><dd>장신구에 붙이는 두 번째 효과. 본체는 보통 <strong>토벌</strong>(보스 피해 +12%)이고, 세공은 지금 스탯에 가장 유리한 것(치확 +10 / 약확 +12 / 공성 = 스킬 피해 +10%)이 나옵니다. 권능이 필수인 캐릭터는 본체가 권능입니다.</dd>
     <dt>장비 · 배분</dt><dd>이름을 눌러 펼치면 나옵니다.<br><strong>장비</strong>가 낮으면 → 장비 교체나 강화 초기화가 필요.<br><strong>배분</strong>이 낮으면 → 줄만 옮기면 오릅니다(아래 "줄 옮기기 안내").</dd>
   </dl>
   </details>
   <div class="scroll" style="margin-top:10px">
   <table class="mine-tbl">
-    <thead><tr><th>캐릭터 · 이상</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수, 종결 32">유효 단위</th><th title="아래 작은 글씨 = 팀 점수 손실 (나머지는 이상 세팅일 때)">이상 대비</th><th title="지금 스탯에 가장 유리한 장신구 세공">세공</th></tr></thead>
+    <thead><tr><th>캐릭터 · 이상</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수, 종결 32">유효 단위</th><th title="아래 작은 글씨 = 팀 점수 손실 (나머지는 이상 세팅일 때)">이상 대비</th><th title="본체 토벌 기준, 지금 스탯에 가장 유리한 세공">세공</th></tr></thead>
     <tbody id="gMine"></tbody>
   </table>
   </div>
@@ -333,7 +333,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <h2>배정 결과</h2>
   <div class="scroll">
     <table>
-      <thead><tr><th>캐릭터</th><th>무기 2</th><th>방어구 2</th><th>세공</th><th>마을 치확</th><th>마을 치피</th><th>마을 약확</th><th>이상 대비</th></tr></thead>
+      <thead><tr><th>캐릭터</th><th>무기 2</th><th>방어구 2</th><th>장신구</th><th>마을 치확</th><th>마을 치피</th><th>마을 약확</th><th>이상 대비</th></tr></thead>
       <tbody id="aRows"></tbody>
     </table>
   </div>
@@ -1329,7 +1329,8 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
 |---|---|---|
 | 치확 | 전투 치확 +10 | 확인됨 |
 | 약확 | 전투 약확 +12 | 확인됨 |
-| 공성 | 1~3인기 딜 +10% 표기, 실효 약 ×1.04 | 커뮤니티 실측, 미검증 |
+| 공성 | 1~3인기 공격기(스킬) 피해량 +10% — 다른 피해량과 합산 가정 시 실효 약 ×1.055 | 효과 확인됨, 합산 방식 미실측 |
+| 토벌 | 보스 대상 피해 +12% — 기본 본체 | 확인됨 |
 | 권능 | 치명적 피해 시 생명 1로 생존 + 보호막 | 확인됨, 딜 기여 0 |
 | 도트 | ? | **미확인** |
 | 출혈 | ? | **미확인** (도트와 같은 계열로 추정) |
@@ -1547,32 +1548,27 @@ function bestSwap(p0, cd0, q0, k, wm, H, pFix, qFix){
 const MAIN = { c:[24,0,0], d:[0,36,0], w:[0,0,28] };
 const MKEY = ['c','d','w'], MLABEL = { c:'치확', d:'치피', w:'약확' };
 
-/* 장신구 세공. 공성(×1.04)은 커뮤니티 실측 가정이라 미검증 */
-const CARVES = { crit:[10, 0, 1], weak:[0, 12, 1], siege:[0, 0, 1.04] };
-const CARVENAME = { crit:'치확+10', weak:'약확+12', siege:'공성×1.04' };
-
-function solveBudget(base, H, k, wm, lost, forceQ){
-  const up = Math.max(20 - lost, 0);
-  let best = null;
-  for (const cv of Object.keys(CARVES)){
-    const [cp, cq, mult] = CARVES[cv];
-    for (const m1 of MKEY) for (const m2 of MKEY){
-      const mp = MAIN[m1][0] + MAIN[m2][0], md = MAIN[m1][1] + MAIN[m2][1], mq = MAIN[m1][2] + MAIN[m2][2];
-      for (let kc = 0; kc <= up; kc++) for (let kd = 0; kd <= up - kc; kd++){
-        const kw = up - kc - kd;
-        const p = base.p + cp + mp + 4 * (4 + kc);
-        const cd = base.cd + md + 6 * (4 + kd);
-        const q = base.q + cq + mq + 5 * (4 + kw);
-        if (p >= 100 + LINE.c && kc > 0) continue;       // 치확에 버려진 강화
-        if (q >= 100 + LINE.w && kw > 0) continue;       // 약확에 버려진 강화
-        if (forceQ && q < 100) continue;                 // 미스 = 딜 0 / 문턱 구조
-        const j = calc(p, cd, q, k, wm, H).j * mult;
-        if (!best || j > best.j) best = { j, p, cd, q, m1, m2, kc, kd, kw, cv };
-      }
-    }
-  }
-  return best;
-}
+/* ══════════ 장신구 = 본체 효과 + 세공 효과(장신구 하나 더, 없을 수도 있음, 같은 효과 중복 불가) ══════════
+   효과: 토벌 보스 대상 피해 +12% · 치확 +10 · 약확 +12 · 공성 1~3인기 공격기(스킬) 피해 +10% · 권능(생존) · 도트(출혈·중독·화상)
+   피해량 계열(복수자 4세트 주는 피해 30% · 보스 40%, 토벌 12%, 공성 10%)은 한 묶음에 더해진다고 가정
+   → 공성 실효 = (1.82+0.10)/1.82 ≈ ×1.055 (스킬 히트만, 평타 제외). 커뮤니티 '실효 약 ×1.04'와 같은 결.
+   본체는 토벌이 항상 최선(치확·약확 본체는 토벌 +12%를 못 넘음). 권능 고정 캐릭터만 본체 = 권능.
+   값: [전투 치확, 전투 약확, 전체 배수, 스킬 히트 배수] — 본체 토벌 기준 상대값 */
+const DMG_POOL = 1 + 0.30 + 0.40, R_TB = 0.12, R_SG = 0.10;
+const SG_N = (DMG_POOL + R_TB + R_SG) / (DMG_POOL + R_TB), SG_K = (DMG_POOL + R_SG) / DMG_POOL, TB_K = (DMG_POOL + R_TB) / DMG_POOL;
+const CARVES = {
+  crit:[10, 0, 1, 1], weak:[0, 12, 1, 1], siege:[0, 0, 1, SG_N], none:[0, 0, 1, 1],
+  k_tb:[0, 0, TB_K, 1], k_crit:[10, 0, 1, 1], k_weak:[0, 12, 1, 1], k_siege:[0, 0, 1, SG_K], k_none:[0, 0, 1, 1]
+};
+const CARVENAME = { crit:'토벌+치확', weak:'토벌+약확', siege:'토벌+공성', none:'토벌(세공 없음)',
+  k_tb:'권능+토벌', k_crit:'권능+치확', k_weak:'권능+약확', k_siege:'권능+공성', k_none:'권능(세공 없음)' };
+const ringShort = cv => cv === 'none' ? '없음' : CARVENAME[cv].replace(/^토벌\+/, '').replace('(세공 없음)', '');
+/* 권능 고정 (공략 '반지 고정') */
+const KWON = { fri:['지크'], sat:['레이첼','풍연'] };
+const ringOpts = cc => cc && cc.kwon ? ['k_tb','k_crit','k_weak','k_siege'] : ['crit','weak','siege'];   // 최적화 후보 (세공 없음 제외)
+const ringAll = cc => cc && cc.kwon ? ['k_tb','k_crit','k_weak','k_siege','k_none'] : ['crit','weak','siege','none'];
+/* 공성은 스킬 히트(윗·아랫)에만 → H 의 앞 두 묶음 가중치를 키운다 */
+const hitsFor = (H, cv) => { const sm = CARVES[cv][3]; return sm === 1 ? H : [[H[0][0] * sm, H[0][1]], [H[1][0] * sm, H[1][1]], H[2]]; };
 
 /* 콘텐츠의 편성 전원을 유효 단위 기준으로 푼다.
    유효 단위 32 = 부옵 12줄 + 강화 20회. 각 스탯 최소 4단위(부위당 1줄)는 고정.
@@ -1581,7 +1577,7 @@ const UNIT_MAX = 32, UNIT_MIN = 4;
 
 function solveOne(c, k, opt, noW){
   const out = [];
-  const carves = opt.carves || Object.keys(CARVES);
+  const carves = opt.carves || ringOpts(c);
   // 약공 배율이 역전선(1.5) 아래고 약확 강제 콘텐츠가 아니면 약확은 선택:
   // 약확 줄 자리를 모공으로 쓰는 게 낫고 강화도 붙일 필요가 없으므로 약확 0단위로 푼다.
   const wOpt = !noW && opt.safe && !opt.forceQ && (c.wm < 1.5 || !c.main);   // 안전: 배율 낮은 캐릭터·서브 딜러는 약확 줄 없음
@@ -1606,8 +1602,8 @@ function solveOne(c, k, opt, noW){
         const mx = opt.maxEnh ?? 20;                 // 한 스탯에 몰 수 있는 강화 한계
         if (uc - UNIT_MIN > mx || ud - UNIT_MIN > mx || uw - UNIT_MIN > mx) continue;
         const r = opt.missZero
-          ? calcMiss(Math.min(p,100), vd, Math.min(q,100), k, c.H)
-          : calc(Math.min(p,100), vd, Math.min(q,100), k, c.wm, c.H);
+          ? calcMiss(Math.min(p,100), vd, Math.min(q,100), k, hitsFor(c.H, cv))
+          : calc(Math.min(p,100), vd, Math.min(q,100), k, c.wm, hitsFor(c.H, cv));
         out.push({ j:r.j * mult, vc, vd, vq, p, q, uc, ud, uw, cv, main:m1+m2 });
       }
     }
@@ -1655,7 +1651,7 @@ function solveContent(c, carry, maxEnh, safe){
     if (role === 'buff' || (up + dn) === 0){ U.push({ name, skip:true }); return; }
     const share = gs[i] / 100;
     const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb || 0), wm: ch.wm * (c.wmTeam || 1),
-                 qb: qbuff ?? c.qb, H: dHits(c, up, dn) };
+                 qb: qbuff ?? c.qb, H: dHits(c, up, dn), kwon: (KWON[c.id] || []).includes(name) };
     let cand = solveOne(cc, k, opt);
     /* 안전 모드의 약확은 둘 중 하나로만 낸다 — 99 이상으로 채우거나, 약확 줄을 빼고 '선택'.
        서브 딜러 중 약확이 쓸모 있는 캐릭터(배율 1.5 이상)는 두 안을 만들어 평균이 높은 쪽을 고른다. */
@@ -1669,8 +1665,9 @@ function solveContent(c, carry, maxEnh, safe){
     let m = 0, v = 0;
     live.forEach(u => {
       const a = u.pick;
-      const r = opt.missZero ? calcMiss(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, u.cc.H)
-                             : calc(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, u.cc.wm, u.cc.H);
+      const Hc = hitsFor(u.cc.H, a.cv);
+      const r = opt.missZero ? calcMiss(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, Hc)
+                             : calc(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, u.cc.wm, Hc);
       const mult = CARVES[a.cv][2];
       m += u.s * mult * r.mu / u.ref;
       v += Math.pow(u.s * mult * r.sd / u.ref, 2);
@@ -1718,9 +1715,9 @@ const mPersist = () => { try { localStorage.setItem(MKEY_MINE, JSON.stringify(mi
 function teamCtx(c, U, k){
   const live = U.filter(u => !u.skip && u.pick);
   const ms = (u, vc, vd, vq, cv) => {
-    const [cp, cq, mult] = CARVES[cv];
+    const [cp, cq, mult] = CARVES[cv], Hc = hitsFor(u.cc.H, cv);
     const p = Math.min(vc + u.cc.pf + cp, 100), q = Math.min(vq + u.cc.qb + cq, 100);
-    const r = c.missZero ? calcMiss(p, vd, q, k, u.cc.H) : calc(p, vd, q, k, u.cc.wm, u.cc.H);
+    const r = c.missZero ? calcMiss(p, vd, q, k, Hc) : calc(p, vd, q, k, u.cc.wm, Hc);
     return [mult * r.mu / u.ref, mult * r.sd / u.ref, r.mu ? r.sd / r.mu : 0];
   };
   const base = new Map(live.map(u => [u, ms(u, u.pick.vc, u.pick.vd, u.pick.vq, u.pick.cv)]));
@@ -1730,7 +1727,8 @@ function teamCtx(c, U, k){
   const J0 = J();
   function evalOne(u, vc, vd, vq, cv){
     let best = null;
-    for (const v of (!cv || cv === 'auto' ? Object.keys(CARVES) : [cv])){
+    if (cv && cv !== 'auto' && !ringAll(u.cc).includes(cv)) cv = cv.startsWith('k_') ? cv.slice(2).replace('tb', 'crit') : 'k_' + cv;   // 권능 여부가 바뀐 저장값 보정
+    for (const v of (!cv || cv === 'auto' ? ringOpts(u.cc) : [cv])){
       const x = ms(u, vc, vd, vq, v);
       const T = J(new Map([[u, x]])) / J0;
       if (!best || T > best.T) best = { T, cv: v, rs: x[2], x };
@@ -1753,7 +1751,7 @@ try { localStorage.removeItem('sknr-cmp'); } catch {}          // v60 비교 탭
 const trPersist = () => { try { localStorage.setItem(TRKEY, JSON.stringify(trial)); } catch {} };
 const detOpen = new Set();
 const safeCache = {};
-const CV_OPTS = [['auto','자동'], ['crit','치확+10'], ['weak','약확+12'], ['siege','공성×1.04']];
+const cvOpts = cc => [['auto','자동'], ...ringAll(cc).map(v => [v, CARVENAME[v]])];
 
 function renderDetail(key){
   const row = document.querySelector('[data-detrow="' + key + '"]');
@@ -1774,7 +1772,7 @@ function renderDetail(key){
   }
   const b = u.pick;
   add('고점', b.vc, b.vd, b.vq, b.cv, '이론상 최고 · 주옵 ' + MLABEL[b.main[0]] + MLABEL[b.main[1]] + ' · 유효 단위 32');
-  if (b.cv === 'siege'){ const alt = u.cand.find(a => a.cv !== 'siege'); if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 세공 ×1.04는 미검증'); }
+  if (/siege/.test(b.cv)){ const alt = u.cand.find(a => !/siege/.test(a.cv)); if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 효과는 피해량 합산 가정(실효 ×1.055) — 실측 전'); }
   if (su && su.pick) add('안전', su.pick.vc, su.pick.vd, su.pick.vq, su.pick.cv, '세팅 탭 안전 모드');
   const tMain = my[3] || u.pick.main;                             // 시험도 지금 무기 주옵 기준 격자
   let tr = trial[key];
@@ -1809,11 +1807,11 @@ function renderDetail(key){
   const tv = tr || [];
   const ti = (i, f) => '<input type="number" data-tk="' + key + '" data-ti="' + i + '" value="' + (tv[i] ?? cur[i]) + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" aria-label="' + f + '" style="width:64px">';
   row.firstChild.innerHTML = '<div class="det-box">' +
-    '<div class="scroll"><table class="mine-tbl"><thead><tr><th>후보</th><th>치확/치피/약확</th><th>세공</th><th>이상 대비</th><th title="평균 대비 표준편차 — 공성전은 클수록 베스트 점수가 높게 튐">흔들림</th><th>팀 점수</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+    '<div class="scroll"><table class="mine-tbl"><thead><tr><th>후보</th><th>치확/치피/약확</th><th>장신구</th><th>이상 대비</th><th title="평균 대비 표준편차 — 공성전은 클수록 베스트 점수가 높게 튐">흔들림</th><th>팀 점수</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
     (detStat[key] && detStat[key].eq != null ? '<p class="note" style="margin-top:6px">유효 단위 <strong>' + detStat[key].u.toFixed(1) + ' / 32</strong> · 장비 <strong>' + (detStat[key].eq * 100).toFixed(0) + '%</strong> · 배분 <strong>' + (detStat[key].al * 100).toFixed(0) + '%</strong> — ' + (Math.min(detStat[key].eq, detStat[key].al) >= 0.995 ? '둘 다 거의 끝' : detStat[key].eq < detStat[key].al ? '장비(교체·강화 초기화) 쪽 여지가 큼' : '배분(줄 옮기기) 쪽 여지가 큼') + '</p>' : '') +
     '<p class="note" style="margin-top:6px"><strong>다음 강화 1회·부옵 1줄</strong> (' + ref.nm.split(' =')[0] + ' 기준): ' + nxTxt + '</p>' +
     '<div class="trial"><span class="note" style="margin:0">시험해 보기</span>' + ti(0, '치확') + ti(1, '치피') + ti(2, '약확') +
-    '<select data-tk="' + key + '" data-ti="3">' + CV_OPTS.map(([v, l]) => '<option value="' + v + '"' + ((tv[3] || 'auto') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+    '<select data-tk="' + key + '" data-ti="3">' + cvOpts(u.cc).map(([v, l]) => '<option value="' + v + '"' + ((tv[3] || 'auto') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
     (tr ? '<button type="button" class="ghost" data-tclear="' + key + '" style="padding:4px 10px">되돌리기</button>' : '') +
     '<span class="note" style="margin:0">지금 스탯이 들어 있습니다. 화살표 1칸 = 부옵 1줄이고, 32단위가 꽉 차 있으면 다른 스탯에서 1줄을 가져옵니다(줄 옮기기). 바꾸면 위 표에 "시험"으로 나옵니다.</span></div>' +
     (have ? '' : '<p class="note" style="margin-top:6px">위 표에 이 캐릭터의 마을 스탯을 넣으면 "현재"가 기준으로 맨 위에 생깁니다.</p>') +
@@ -2063,7 +2061,7 @@ function mineEval(){
     }
     const ev = T.evalOne(u, my[0], my[1], my[2]), r = ev.r;
     overs[pi].set(u, ev.x);
-    if (ccell){ ccell.textContent = CARVENAME[ev.cv].replace(/[+×].*/, ''); ccell.className = ev.cv === 'siege' ? 'flat' : ''; ccell.title = ev.cv === 'siege' ? '공성 세공 ×1.04는 미검증' : ''; }
+    if (ccell){ ccell.textContent = ringShort(ev.cv); ccell.className = ''; ccell.title = '장신구 ' + CARVENAME[ev.cv]; }
     filled++; den += u.s;
     const imp = Math.max(0, 1 - ev.T) / nP;              // 이 캐릭터만 이상에서 지금으로 바꿨을 때 팀 점수 손실
     if (cell){
@@ -2301,7 +2299,6 @@ const MAINOPT = {
   wm: [['c','치확 24'],['d','치피 36'],['w','약확 28']],
   ar: [['none','모공 / 받피감']]
 };
-const CARVE = [['c','치확 +10'],['w','약확 +12'],['siege','공성 ×1.04'],['surv','생존']];
 
 const ALLCHARS = [...new Set(CONTENTS.flatMap(c => c.lu.map(l => l[0])))].sort();
 function charFull(name){
@@ -2439,7 +2436,7 @@ function evalAssign(A, state){
 
 function optimizeAssign(c){
   const A = buildAssign(c), k = A.k;
-  const CVS = Object.keys(CARVES);
+
   if (!A.chars.length) return { A, err: '이 콘텐츠에 배정할 딜러가 없습니다. 목표 탭에서 역할을 확인하십시오.' };
 
   const arms = gear.filter(g => g.slot === 'ar');
@@ -2456,7 +2453,7 @@ function optimizeAssign(c){
   const slots = [];
   A.chars.forEach((ch, i) => { slots.push({ i, t: ch.need }, { i, t: ch.need }, { i, t:'ar' }, { i, t:'ar' }); });
 
-  const state = { pieces: A.chars.map(() => [null, null, null, null]), carve: A.chars.map(() => 'crit') };
+  const state = { pieces: A.chars.map(() => [null, null, null, null]), carve: A.chars.map(ch => ringOpts(ch.u.cc)[0]) };
   const slotOf = (i, t, n) => (t === 'ar' ? 2 : 0) + n;
   const used = new Set();
 
@@ -2481,7 +2478,7 @@ function optimizeAssign(c){
   // 2) 세공 선택
   A.chars.forEach((ch, i) => {
     let best = state.carve[i], bj = -Infinity;
-    CVS.forEach(v => {
+    ringOpts(A.chars[i].u.cc).forEach(v => {
       const keep = state.carve[i]; state.carve[i] = v;
       const j = evalAssign(A, state); state.carve[i] = keep;
       if (j > bj){ bj = j; best = v; }
@@ -2531,7 +2528,7 @@ function optimizeAssign(c){
     // 세공 재선택
     A.chars.forEach((ch, i) => {
       let best = state.carve[i], bj = -Infinity;
-      CVS.forEach(v => {
+      ringOpts(A.chars[i].u.cc).forEach(v => {
         const keep = state.carve[i]; state.carve[i] = v;
         const j = evalAssign(A, state); state.carve[i] = keep;
         if (j > bj){ bj = j; best = v; }
@@ -2571,13 +2568,13 @@ function aRun(){
   });
   aLast = { c, A, state };
   const team = A.T.J(over) / A.T.J0;
-  const usedSiege = A.chars.some((_, i) => state.carve[i] === 'siege');
+  const usedSiege = A.chars.some((_, i) => /siege/.test(state.carve[i]));
   $('aNote').innerHTML = (r.short.length
       ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “없음”으로 둡니다. '
       : '') +
     '<strong>팀 이상 대비 ' + (team * 100).toFixed(1) + '%</strong> — 목표 탭과 같은 기준(마을 스탯, 팀 점수)입니다. ' +
     '"목표 탭에 반영"을 누르면 이 스탯이 내 스펙 평가에 들어가고, 거기서 줄 옮기기·후보 비교를 볼 수 있습니다.' +
-    (usedSiege ? ' <strong>공성 세공(×1.04)은 아직 실측 검증 전</strong>입니다 — 치확이 이미 높은 캐릭터라면 거의 항상 이게 고르니, 실제로 쓰기 전에 한 번 재보십시오.' : '');
+    (usedSiege ? ' 공성 세공은 스킬 피해 +10%가 다른 피해량과 합산된다고 가정했습니다(실효 약 ×1.055).' : '');
 }
 let aLast = null;
 $('aRun').addEventListener('click', aRun);
