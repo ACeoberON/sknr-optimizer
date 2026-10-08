@@ -1556,21 +1556,44 @@ const MKEY = ['c','d','w'], MLABEL = { c:'치확', d:'치피', w:'약확' };
    값: [전투 치확, 전투 약확, 전체 배수, 스킬 히트 배수] — 본체 토벌 기준 상대값 */
 const DMG_POOL = 1 + 0.30 + 0.40, R_TB = 0.12, R_SG = 0.10;
 const SG_N = (DMG_POOL + R_TB + R_SG) / (DMG_POOL + R_TB), SG_K = (DMG_POOL + R_SG) / DMG_POOL, TB_K = (DMG_POOL + R_TB) / DMG_POOL;
-const CARVES = {
-  crit:[10, 0, 1, 1], weak:[0, 12, 1, 1], siege:[0, 0, 1, SG_N], none:[0, 0, 1, 1],
-  k_tb:[0, 0, TB_K, 1], k_crit:[10, 0, 1, 1], k_weak:[0, 12, 1, 1], k_siege:[0, 0, 1, SG_K], k_none:[0, 0, 1, 1]
-};
-const CARVENAME = { crit:'토벌+치확', weak:'토벌+약확', siege:'토벌+공성', none:'토벌(세공 없음)',
-  k_tb:'권능+토벌', k_crit:'권능+치확', k_weak:'권능+약확', k_siege:'권능+공성', k_none:'권능(세공 없음)' };
-const ringShort = cv => cv === 'none' ? '없음' : CARVENAME[cv].replace(/^토벌\+/, '').replace('(세공 없음)', '');
+/* 장신구 키 = '본체' 또는 '본체+세공' (예: 'tb+crit', 'kw', 'kw+tb'). 같은 효과 중복 불가.
+   등급: 권능 전설 · 토벌·공성 희귀 · 도트 고급 · 치확·약확 일반 — 권능은 PVP 겸용이라 세공 안 한 상태가 기본 */
+const RING_TYPES = [['tb','토벌'], ['kw','권능'], ['sg','공성'], ['dot','도트'], ['crit','치확'], ['weak','약확']];
+const RING_N = Object.fromEntries(RING_TYPES);
+const RING_LEGACY = { crit:'tb+crit', weak:'tb+weak', siege:'tb+sg', none:'tb', k_tb:'kw+tb', k_crit:'kw+crit', k_weak:'kw+weak', k_siege:'kw+sg', k_none:'kw' };
+const normRing = k => !k || k === 'auto' ? 'auto' : (RING_LEGACY[k] || k);
+const ringFxCache = {};
+/* [전투 치확, 전투 약확, 전체 배수(토벌 본체 기준), 스킬 히트 배수] */
+function ringFx(k){
+  k = normRing(k);
+  if (ringFxCache[k]) return ringFxCache[k];
+  const p = k.split('+'), has = t => p.includes(t);
+  const all = DMG_POOL + (has('tb') ? R_TB : 0);
+  return (ringFxCache[k] = [has('crit') ? 10 : 0, has('weak') ? 12 : 0, all / (DMG_POOL + R_TB), (all + (has('sg') ? R_SG : 0)) / all]);
+}
+const ringName = k => { k = normRing(k); return k === 'auto' ? '자동' : k.split('+').map(t => RING_N[t] || t).join('+'); };
+const CARVES = new Proxy({}, { get: (_, k) => ringFx(k) });
+const CARVENAME = new Proxy({}, { get: (_, k) => ringName(k) });
+/* 표 안 짧은 표기: 토벌 본체면 세공만, 그 외는 전체 */
+const ringShort = k => { k = normRing(k); return k === 'tb' ? '토벌만' : k.startsWith('tb+') ? RING_N[k.slice(3)] : ringName(k); };
 /* 권능 고정 (공략 '반지 고정') */
 const KWON = { fri:['지크'], sat:['레이첼','풍연'] };
-/* 권능(전설)은 PVP에도 쓰여서 PVE용 토벌 세공은 거의 안 한다 → 추천에서 제외(시험 칸에서는 선택 가능).
-   등급: 권능 전설 · 토벌·공성 희귀 · 도트 고급 · 치확·약확 일반 */
-const ringOpts = cc => cc && cc.kwon ? ['k_crit','k_weak','k_siege'] : ['crit','weak','siege'];   // 최적화 후보 (세공 없음 제외)
-const ringAll = cc => cc && cc.kwon ? ['k_tb','k_crit','k_weak','k_siege','k_none'] : ['crit','weak','siege','none'];
+/* 이상치 계산 후보: 일반 = 토벌 + 최선 세공 / 권능 고정 = 권능만(세공은 하면 +α로 표시) */
+const ringOpts = cc => cc && cc.kwon ? ['kw'] : ['tb+crit', 'tb+weak', 'tb+sg'];
+/* 두 칸 선택(본체 / 세공) — 세공 칸은 본체를 뺀 나머지 */
+function ringPicker(attr, val){
+  const v = normRing(val), [b, c] = v === 'auto' ? ['auto', ''] : v.split('+');
+  return '<select ' + attr + ' data-rp="b" style="width:auto">' +
+      '<option value="auto"' + (b === 'auto' ? ' selected' : '') + '>자동(추천)</option>' +
+      RING_TYPES.map(([t, n]) => '<option value="' + t + '"' + (b === t ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+    '<span class="muted" style="margin:0 2px">+</span>' +
+    '<select ' + attr + ' data-rp="c" style="width:auto"' + (b === 'auto' ? ' disabled' : '') + '>' +
+      '<option value="">세공 없음</option>' +
+      RING_TYPES.filter(([t]) => t !== b).map(([t, n]) => '<option value="' + t + '"' + (c === t ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
+}
+const ringRead = (bSel, cSel) => bSel.value === 'auto' ? 'auto' : bSel.value + (cSel.value && cSel.value !== bSel.value ? '+' + cSel.value : '');
 /* 공성은 스킬 히트(윗·아랫)에만 → H 의 앞 두 묶음 가중치를 키운다 */
-const hitsFor = (H, cv) => { const sm = CARVES[cv][3]; return sm === 1 ? H : [[H[0][0] * sm, H[0][1]], [H[1][0] * sm, H[1][1]], H[2]]; };
+const hitsFor = (H, cv) => { const sm = ringFx(cv)[3]; return sm === 1 ? H : [[H[0][0] * sm, H[0][1]], [H[1][0] * sm, H[1][1]], H[2]]; };
 
 /* 콘텐츠의 편성 전원을 유효 단위 기준으로 푼다.
    유효 단위 32 = 부옵 12줄 + 강화 20회. 각 스탯 최소 4단위(부위당 1줄)는 고정.
@@ -1729,8 +1752,8 @@ function teamCtx(c, U, k){
   const J0 = J();
   function evalOne(u, vc, vd, vq, cv){
     let best = null;
-    if (cv && cv !== 'auto' && !ringAll(u.cc).includes(cv)) cv = cv.startsWith('k_') ? cv.slice(2).replace('tb', 'crit') : 'k_' + cv;   // 권능 여부가 바뀐 저장값 보정
-    for (const v of (!cv || cv === 'auto' ? ringOpts(u.cc) : [cv])){
+    cv = normRing(cv);
+    for (const v of (cv === 'auto' ? ringOpts(u.cc) : [cv])){
       const x = ms(u, vc, vd, vq, v);
       const T = J(new Map([[u, x]])) / J0;
       if (!best || T > best.T) best = { T, cv: v, rs: x[2], x };
@@ -1753,7 +1776,6 @@ try { localStorage.removeItem('sknr-cmp'); } catch {}          // v60 비교 탭
 const trPersist = () => { try { localStorage.setItem(TRKEY, JSON.stringify(trial)); } catch {} };
 const detOpen = new Set();
 const safeCache = {};
-const cvOpts = cc => [['auto','자동'], ...ringAll(cc).map(v => [v, CARVENAME[v]])];
 
 function renderDetail(key){
   const row = document.querySelector('[data-detrow="' + key + '"]');
@@ -1768,16 +1790,18 @@ function renderDetail(key){
   const rows = [];
   const add = (nm, vc, vd, vq, cv, note) => rows.push({ nm, vc, vd, vq, cv, note, ev: T.evalOne(u, vc, vd, vq, cv) });
   if (have){
-    add('현재', my[0], my[1], my[2], 'auto', '내 스펙 평가 입력값');
+    add('현재', my[0], my[1], my[2], my[4] || 'auto', '내 스펙 평가 입력값' + (my[4] && my[4] !== 'auto' ? ' · 내 장신구' : ' · 장신구는 추천값'));
     const un = unitsOf(u.cc, my[3] || u.pick.main, my[0], my[1], my[2]);
     if (!un.neg){ const m = bestMove(u, T, my, un); if (m.t || m.w) add('줄 옮기기', m.vc, m.vd, m.vq, 'auto', '지금 유효 단위 그대로 줄만 이동'); }
   }
   const b = u.pick;
   add('고점', b.vc, b.vd, b.vq, b.cv, '이론상 최고 · 주옵 ' + MLABEL[b.main[0]] + MLABEL[b.main[1]] + ' · 유효 단위 32');
-  if (/siege/.test(b.cv)){ const alt = u.cand.find(a => !/siege/.test(a.cv)); if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 효과는 피해량 합산 가정(실효 ×1.055) — 실측 전'); }
+  if (u.cc.kwon) ['tb', 'sg', 'crit', 'weak'].forEach(t => add('고점 · 권능에 ' + RING_N[t] + ' 세공', b.vc, b.vd, b.vq, 'kw+' + t, '권능은 세공 안 한 상태가 기준(100%) — 세공하면 이만큼 더'));
+  if (/sg/.test(b.cv)){ const alt = u.cand.find(a => !/sg/.test(a.cv)); if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 효과는 피해량 합산 가정(실효 ×1.055) — 실측 전'); }
   if (su && su.pick) add('안전', su.pick.vc, su.pick.vd, su.pick.vq, su.pick.cv, '세팅 탭 안전 모드');
   const tMain = my[3] || u.pick.main;                             // 시험도 지금 무기 주옵 기준 격자
   let tr = trial[key];
+  if (tr && tr[3]) tr[3] = normRing(tr[3]);
   if (tr){                                                        // 주옵을 바꿨으면 시험값도 새 격자로 다시 맞춘다
     const fx = fixStats(u, tMain, tr.slice(0, 3));
     if (fx.some((v, i) => v !== tr[i])){ tr = [...fx, tr[3] || 'auto']; trial[key] = tr; trPersist(); }
@@ -1812,8 +1836,10 @@ function renderDetail(key){
     '<div class="scroll"><table class="mine-tbl"><thead><tr><th>후보</th><th>치확/치피/약확</th><th>장신구</th><th>이상 대비</th><th title="평균 대비 표준편차 — 공성전은 클수록 베스트 점수가 높게 튐">흔들림</th><th>팀 점수</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
     (detStat[key] && detStat[key].eq != null ? '<p class="note" style="margin-top:6px">유효 단위 <strong>' + detStat[key].u.toFixed(1) + ' / 32</strong> · 장비 <strong>' + (detStat[key].eq * 100).toFixed(0) + '%</strong> · 배분 <strong>' + (detStat[key].al * 100).toFixed(0) + '%</strong> — ' + (Math.min(detStat[key].eq, detStat[key].al) >= 0.995 ? '둘 다 거의 끝' : detStat[key].eq < detStat[key].al ? '장비(교체·강화 초기화) 쪽 여지가 큼' : '배분(줄 옮기기) 쪽 여지가 큼') + '</p>' : '') +
     '<p class="note" style="margin-top:6px"><strong>다음 강화 1회·부옵 1줄</strong> (' + ref.nm.split(' =')[0] + ' 기준): ' + nxTxt + '</p>' +
+    '<div class="trial"><span class="note" style="margin:0"><strong>내 장신구</strong></span>' + ringPicker('data-rk="' + key + '"', my[4] || 'auto') +
+      '<span class="note" style="margin:0">' + (u.cc.kwon ? '권능 고정 캐릭터 — 세공 안 한 권능이 기준(100%)' : '자동 = 토벌 + 지금 스탯에 가장 유리한 세공') + '</span></div>' +
     '<div class="trial"><span class="note" style="margin:0">시험해 보기</span>' + ti(0, '치확') + ti(1, '치피') + ti(2, '약확') +
-    '<select data-tk="' + key + '" data-ti="3">' + cvOpts(u.cc).map(([v, l]) => '<option value="' + v + '"' + ((tv[3] || 'auto') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+    '<span class="note" style="margin:0">장신구</span>' + ringPicker('data-tk="' + key + '" data-ti="r"', tv[3] || 'auto') +
     (tr ? '<button type="button" class="ghost" data-tclear="' + key + '" style="padding:4px 10px">되돌리기</button>' : '') +
     '<span class="note" style="margin:0">지금 스탯이 들어 있습니다. 화살표 1칸 = 부옵 1줄이고, 32단위가 꽉 차 있으면 다른 스탯에서 1줄을 가져옵니다(줄 옮기기). 바꾸면 위 표에 "시험"으로 나옵니다.</span></div>' +
     (have ? '' : '<p class="note" style="margin-top:6px">위 표에 이 캐릭터의 마을 스탯을 넣으면 "현재"가 기준으로 맨 위에 생깁니다.</p>') +
@@ -1822,13 +1848,19 @@ function renderDetail(key){
   setBounds([0, 1, 2].map(i => row.querySelector('input[data-ti="' + i + '"]')), u, tMain, true);
   row.querySelectorAll('[data-ti]').forEach(el => el.addEventListener('change', e => {
     const g = i => row.querySelector('[data-ti="' + i + '"]').value;
-    const t = fixStats(u, tMain, [0, 1, 2].map(i => g(i) === '' ? cur[i] : +g(i)), e.target.dataset.ti === '3' ? null : +e.target.dataset.ti, true);
-    t[3] = g(3);
+    const t = fixStats(u, tMain, [0, 1, 2].map(i => g(i) === '' ? cur[i] : +g(i)), e.target.dataset.ti === 'r' ? null : +e.target.dataset.ti, true);
+    t[3] = ringRead(row.querySelector('[data-ti="r"][data-rp="b"]'), row.querySelector('[data-ti="r"][data-rp="c"]'));
     // 현재와 똑같으면 시험 행을 만들지 않는다
     if (t[0] === cur[0] && t[1] === cur[1] && t[2] === cur[2] && t[3] === 'auto') delete trial[key]; else trial[key] = t;
     const fi = e.target.dataset.ti;
     trPersist(); renderDetail(key);
     const back = row.querySelector('[data-ti="' + fi + '"]'); if (back) back.focus();   // 다시 그려도 입력 중이던 칸 유지
+  }));
+  row.querySelectorAll('[data-rk]').forEach(el => el.addEventListener('change', () => {
+    const v = ringRead(row.querySelector('[data-rk][data-rp="b"]'), row.querySelector('[data-rk][data-rp="c"]'));
+    mine[cid] ||= {}; mine[cid][name] ||= [];
+    mine[cid][name][4] = v === 'auto' ? undefined : v;
+    mPersist(); mineEval();                                         // 표·펼침 칸 다시 그림
   }));
   const cl = row.querySelector('[data-tclear]');
   if (cl) cl.addEventListener('click', () => { delete trial[key]; trPersist(); renderDetail(key); });
@@ -2061,9 +2093,9 @@ function mineEval(){
       missing.push({ n: u.name, s: u.s / nP });
       return;
     }
-    const ev = T.evalOne(u, my[0], my[1], my[2]), r = ev.r;
+    const ev = T.evalOne(u, my[0], my[1], my[2], my[4] || 'auto'), r = ev.r;
     overs[pi].set(u, ev.x);
-    if (ccell){ ccell.textContent = ringShort(ev.cv); ccell.className = ''; ccell.title = '장신구 ' + CARVENAME[ev.cv]; }
+    if (ccell){ ccell.textContent = ringShort(ev.cv); ccell.className = my[4] && my[4] !== 'auto' ? '' : 'muted'; ccell.title = (my[4] && my[4] !== 'auto' ? '내 장신구 ' : '추천 장신구 ') + ringName(ev.cv) + ' — 이름(▸)을 눌러 바꿀 수 있음'; }
     filled++; den += u.s;
     const imp = Math.max(0, 1 - ev.T) / nP;              // 이 캐릭터만 이상에서 지금으로 바꿨을 때 팀 점수 손실
     if (cell){
@@ -2570,7 +2602,7 @@ function aRun(){
   });
   aLast = { c, A, state };
   const team = A.T.J(over) / A.T.J0;
-  const usedSiege = A.chars.some((_, i) => /siege/.test(state.carve[i]));
+  const usedSiege = A.chars.some((_, i) => /sg/.test(state.carve[i]));
   $('aNote').innerHTML = (r.short.length
       ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “없음”으로 둡니다. '
       : '') +
@@ -2592,7 +2624,7 @@ $('aApply').addEventListener('click', () => {
       if (g.slot !== 'ar' && g.main !== 'none') mains.push(g.main); });
     const prev = cur[ch.name] || [];
     const mc = mains.length === 2 ? MAINCOMBOS.find(m => m === mains.join('') || m === mains.slice().reverse().join('')) : null;
-    cur[ch.name] = [vc, vd, vq, mc || prev[3]];
+    cur[ch.name] = [vc, vd, vq, mc || prev[3], state.carve[i]];
   });
   mPersist();
   const opt = SET_OPTS.find(x => x.parts.includes(c.id));
