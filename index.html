@@ -2680,7 +2680,7 @@ function pCard(p){
     '<div class="p-pieces">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, i) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(gById(p.pieces[i]), true) + '</div>').join('') + '</div>' +
     '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong>' +
       (() => { const pcs = p.pieces.map(gById), v = spdSum(pcs), sc = spdCheck(p.cid, p.char, pcs);
-        return sc ? ' · <span class="' + (sc.ok ? 'win' : 'lose') + '">' + (sc.ok ? '✓' : '✗') + ' 속공 +' + v + '</span>' : v ? ' · 속공 +' + v : ''; })() +
+        return sc ? ' · <span class="' + (sc.ok ? 'win' : 'lose') + '">' + (sc.ok ? '✓' : '✗') + ' 속공 +' + v + '</span>' : v ? ' · <span class="flat" title="이 콘텐츠는 속공이 필요 없음 — 순서가 꼬일 수 있음">속공 +' + v + '</span>' : ''; })() +
       (ev ? ' · 이상 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' : '') + '</span>' +
       '<span><button type="button" data-papply="' + p.id + '">목표 탭에 반영</button> <button type="button" data-pedit="' + p.id + '">수정</button> <button type="button" class="ghost" data-pdel="' + p.id + '" aria-label="삭제">×</button></span></div></div>';
 }
@@ -2771,7 +2771,10 @@ function statsOf(ch, pieces){
 /* ══ 속공 — 장비 속공 = 속공 부옵 4 × (강화 + 1). 같은 속공이면 1~5번 자리 중 앞자리(전열)가 먼저 ══
    콘텐츠별로 딜러가 장비로 받아야 하는 속공 범위 [최소, 최대, 이유]. 버퍼·토템 속공은 배정 대상이 아니라 여기 없음 */
 const SPD_BASE = { '나타':29, '미호':29 };
+/* 규칙이 없는 딜러는 속공을 최대한 뺀다 — 턴제라 의도치 않은 속공은 행동 순서를 꼬이게 함 */
+const SPD_AVOID = 0.05;                    // 속공 4당 팀 점수 −5%p 상당 감점 (다른 장비가 훨씬 나쁠 때만 속공 장비를 씀)
 const SPD_RULE = {
+  mona: { '미호': [4, 4, '공략 속공 그림 쥬리(33) – 미호(33): 미호 기본 29 → 속공 부옵 1줄(+4)'] },
   tue: { '나타': [4, 4, '미호보다 먼저 행동(4순위) — 둘 다 29라 동속이면 전열 미호가 먼저, 그래서 속공 부옵 딱 1줄(+4)'],
          '미호': [0, 0, '5순위 유지 — 속공이 붙으면 나타와 같거나 앞서므로 속공 장비 금지'] }
 };
@@ -2790,6 +2793,7 @@ function evalAssign(A, state){
     over.set(ch.u, A.T.ms(ch.u, s.vc, s.vd, s.vq, state.carve[i]));
     const sc = spdCheck(A.c.id, ch.name, state.pieces[i]);          // 속공 조건은 딜보다 우선 (어기면 큰 감점)
     if (sc && !sc.ok) pen += 0.5 + Math.abs(sc.v < sc.min ? sc.min - sc.v : sc.v - sc.max) / 4 * 0.5;
+    if (!sc){ const v = spdSum(state.pieces[i]); if (v) pen += SPD_AVOID * v / 4; }
   });
   return A.T.J(over) / A.T.J0 - pen;
 }
@@ -2923,7 +2927,7 @@ function aRun(){
         (() => { const sc = spdCheck(c.id, ch.name, state.pieces[i]), v = spdSum(state.pieces[i]);
           if (sc) return '<br><span class="' + (sc.ok ? 'win' : 'lose') + '">' + (sc.ok ? '✓' : '✗') + ' 속공 +' + v + (sc.base ? ' (' + sc.base + '→' + (sc.base + v) + ')' : '') +
             (sc.ok ? '' : ' — 필요 +' + sc.min + (sc.max !== sc.min ? '~' + sc.max : '') + (sc.min > v ? ', 속공 부옵 장비가 부족합니다' : '')) + '</span> <span class="muted" style="font-size:12px">' + sc.why + '</span>';
-          return v ? '<br><span class="muted">속공 +' + v + '</span>' : ''; })() + '</span>' +
+          return v ? '<br><span class="flat">속공 +' + v + ' — 이 콘텐츠는 ' + esc(ch.name) + '에게 속공이 필요 없어 행동 순서가 꼬일 수 있습니다. 속공 없는 장비가 생기면 바꾸십시오.</span>' : ''; })() + '</span>' +
         '<span><button type="button" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
       (() => { const ad = presetAdvice(c.id, ch.name, state.pieces[i].map(g => g ? g.id : null), state.carve[i]);
         return '<p class="note ' + ad.cls + '" style="margin:8px 0 0">' + ad.html +
@@ -2945,6 +2949,7 @@ function aRun(){
       : '') +
     '<strong>팀 이상 대비 ' + (team * 100).toFixed(1) + '%</strong> — 목표 탭과 같은 기준(마을 스탯, 팀 점수). 카드는 게임 장비 카드와 같은 순서라 그대로 찾아 끼우면 됩니다.' +
     (SPD_RULE[c.id] ? ' <strong>속공 조건</strong>(' + Object.keys(SPD_RULE[c.id]).join('·') + ')을 딜보다 먼저 맞춥니다 — 속공은 종결 장비의 4번째 부옵(모공% 자리)에 있으면 치확·치피·약확 손해가 없습니다.' : '') +
+    ' 속공 조건이 없는 딜러에게는 속공 붙은 장비를 최대한 피합니다(턴제라 순서가 꼬임).' +
     (usedSiege ? ' 공성 세공은 스킬 피해 +10%가 다른 피해량과 합산된다고 가정했습니다(실효 약 ×1.055).' : '');
 }
 let aLast = null;
