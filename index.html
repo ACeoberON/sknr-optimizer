@@ -422,7 +422,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <summary id="baseSum">기본값</summary>
   <div class="scroll" style="margin-top:10px">
     <table>
-      <thead><tr><th>캐릭터</th><th>무기 속성</th><th>기본 치확</th><th>기본 치피</th><th>기본 약확</th><th>패시브 치확</th><th>약공 배율</th><th style="text-align:left;padding-left:14px">팀 효과</th></tr></thead>
+      <thead><tr><th>캐릭터</th><th>무기 속성</th><th>기본 치확</th><th>기본 치피</th><th>기본 약확</th><th>기본 속공</th><th>패시브 치확</th><th>약공 배율</th><th style="text-align:left;padding-left:14px">팀 효과</th></tr></thead>
       <tbody id="cRows"></tbody>
     </table>
   </div>
@@ -1616,6 +1616,9 @@ const CARVENAME = new Proxy({}, { get: (_, k) => ringName(k) });
 const ringShort = k => { k = normRing(k); return k === 'tb' ? '토벌만' : k.startsWith('tb+') ? RING_N[k.slice(3)] : ringName(k); };
 /* 권능 고정 (공략 '반지 고정') */
 const KWON = { fri:['지크'], sat:['레이첼','풍연'] };
+/* 권능 선택: 필수는 아니지만 낄 수 있음 (초월이 낮아 죽는 경우) */
+const KWON_OPT = { tue: { '나타': '초월이 낮으면 권능(생존)을 낄 수 있음 — 고초월이면 필요 없음' } };
+const kwonOptTag = (cid, name) => { const t = (KWON_OPT[cid] || {})[name]; return t ? '<span class="set-tag" title="' + t + '">권능 가능</span>' : ''; };
 /* 이상치 계산 후보: 일반 = 토벌 + 최선 세공 / 권능 고정 = 권능만(세공은 하면 +α로 표시) */
 const ringOpts = cc => cc && cc.kwon ? ['kw'] : ['tb+crit', 'tb+weak', 'tb+sg'];
 /* 두 칸 선택(본체 / 세공) — 세공 칸은 본체를 뺀 나머지 */
@@ -1835,6 +1838,8 @@ function renderDetail(key){
   const b = u.pick;
   add('고점', b.vc, b.vd, b.vq, b.cv, '이론상 최고 · 주옵 ' + MLABEL[b.main[0]] + MLABEL[b.main[1]] + ' · 유효 단위 32');
   if (u.cc.kwon) ['tb', 'sg', 'crit', 'weak'].forEach(t => add('고점 · 권능에 ' + RING_N[t] + ' 세공', b.vc, b.vd, b.vq, 'kw+' + t, '권능은 세공 안 한 상태가 기준(100%) — 세공하면 이만큼 더'));
+  if ((KWON_OPT[cid] || {})[name]) [['kw', '고점 · 권능 착용(세공 없음)'], ['kw+' + (b.cv.split('+')[1] || 'tb'), '고점 · 권능 + ' + (RING_N[b.cv.split('+')[1]] || '토벌') + ' 세공']]
+    .forEach(([k, l]) => add(l, b.vc, b.vd, b.vq, k, KWON_OPT[cid][name] + ' — 권능을 끼면 이만큼 손해'));
   if (/sg/.test(b.cv)){ const alt = u.cand.find(a => !/sg/.test(a.cv)); if (alt) add('고점 · 공성 세공 없이', alt.vc, alt.vd, alt.vq, alt.cv, '공성 효과는 피해량 합산 가정(실효 ×1.055) — 실측 전'); }
   if (su && su.pick) add('안전', su.pick.vc, su.pick.vd, su.pick.vq, su.pick.cv, '세팅 탭 안전 모드');
   const tMain = my[3] || u.pick.main;                             // 시험도 지금 무기 주옵 기준 격자
@@ -1953,7 +1958,7 @@ function goalRun(){
       const mainSel = '<td><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
-      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + '<span class="ideal">이상 ' + b.vc + '/' + b.vd + '/' + b.vq + '</span></td>' +
+      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + '<span class="ideal">이상 ' + b.vc + '/' + b.vd + '/' + b.vq + '</span></td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
         '<td class="num" data-u="' + c.id + '|' + u.name + '">—</td>' +
         '<td class="num"><span data-out="' + dk + '">—</span><span class="imp muted" data-imp="' + dk + '"></span></td>' +
@@ -2484,7 +2489,7 @@ function cRowsInit(){
     const lv = trans[name];
     const tag = lv === undefined ? '' : '<span class="tag">' + TLABEL[lv] + (TRANS[name] ? '' : ' · 차이 미입력') + '</span>';
     const team = (TEAM[name] || []).map(([st, v, tg]) => st + ' ' + v + ' · ' + tg).join('<br>');
-    tr.innerHTML = '<td>' + name + tag + '</td>' + CFIELD.map(f => cell(r[f], f)).join('') +
+    tr.innerHTML = '<td>' + name + tag + '</td>' + CFIELD.slice(0, 4).map(f => cell(r[f], f)).join('') + cell(SPD_BASE[name], 'spd') + CFIELD.slice(4).map(f => cell(r[f], f)).join('') +
       '<td style="text-align:left;white-space:nowrap;font-size:13px;padding-left:14px;width:1%">' + team + '</td>';
     tb.appendChild(tr);
   });
@@ -2770,7 +2775,71 @@ function statsOf(ch, pieces){
 
 /* ══ 속공 — 장비 속공 = 속공 부옵 4 × (강화 + 1). 같은 속공이면 1~5번 자리 중 앞자리(전열)가 먼저 ══
    콘텐츠별로 딜러가 장비로 받아야 하는 속공 범위 [최소, 최대, 이유]. 버퍼·토템 속공은 배정 대상이 아니라 여기 없음 */
+/* 기본 속공(장비 없음). 비어 있으면 그 콘텐츠는 자동 계산 대신 아래 수동 규칙(SPD_RULE)을 씀 */
 const SPD_BASE = { '나타':29, '미호':29 };
+/* 공략 원문 표에서 뽑은 [열, 순위 범위, 표시] — front=전열(1~3번 자리), back=후열(4~5번). nogear=속공템 X, free=속공 상관 X */
+const SPD_ORDER = {"fri": {"라이언": ["back", [4, 4], ""], "레이첼": ["back", [5, 5], ""], "지크": ["front", [1, 3], ""], "아일린": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "sat": {"라이언": ["back", [4, 4], ""], "레이첼": ["front", [5, 5], ""], "풍연": ["front", [1, 3], ""], "아일린": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "thu": {"라이언": ["back", [3, 3], ""], "레이첼": ["front", [4, 4], ""], "돼오": ["front", [2, 2], ""], "아일린": ["front", [5, 5], ""], "비스킷": ["front", [1, 1], ""]}, "mona": {"나타": ["back", [5, 5], ""], "쥬리": ["front", [1, 1], ""], "미호": ["front", [2, 2], ""], "에반": ["front", [3, 4], ""], "비스킷": ["front", [3, 4], ""]}, "monb": {"나타": ["back", [2, 2], ""], "미호": ["front", [1, 1], ""], "에반": ["front", null, "nogear"], "리나": ["front", null, "nogear"], "비스킷": ["front", null, "nogear"]}, "sun": {"세인": ["back", [4, 4], ""], "헤브니아": ["front", [5, 5], ""], "아일린": ["front", [2, 3], ""], "샤오": ["front", [2, 3], ""], "비스킷": ["front", [1, 1], ""]}, "wed": {"나타": ["back", [5, 5], ""], "미호": ["front", [4, 4], ""], "리나": ["front", [1, 2], ""], "라이언": ["front", [3, 3], ""], "비스킷": ["front", [1, 2], ""]}, "tue": {"나타": ["back", [4, 4], ""], "미호": ["front", [5, 5], ""], "리나": ["front", [1, 3], ""], "클로에": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "r1a": {"파스칼": ["back", [4, 5], ""], "소교": ["front", [1, 3], ""], "레긴": ["front", [1, 3], ""], "선란": ["front", [4, 5], ""], "미호": ["front", [1, 3], ""]}, "r2a": {"세인": ["back", [4, 5], ""], "헤브니아": ["front", [4, 5], ""], "아일린": ["front", [2, 3], ""], "샤오": ["front", [2, 3], ""], "비스킷": ["front", [1, 1], ""]}, "r1b": {"파스칼": ["back", [1, 4], ""], "소교": ["front", [1, 4], ""], "하연": ["front", [1, 4], ""], "선란": ["front", [5, 5], ""], "미호": ["front", [1, 4], ""]}, "t1": {"파스칼": ["back", null, "free"], "에스파다": ["front", null, "free"], "바네사": ["front", null, "free"], "리나": ["front", null, "free"], "린": ["front", null, "free"]}, "t2": {"소교": ["back", [4, 5], ""], "데이지": ["back", [4, 5], ""], "미호": ["front", [1, 3], ""], "오를리": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "k1": {"세인": ["back", [1, 2], ""], "란드": ["back", [1, 2], ""], "여포": ["front", [3, 5], ""], "레이첼": ["front", [3, 5], ""], "관우": ["front", [3, 5], ""]}, "k2": {"백룡": ["back", [2, 3], ""], "파이": ["front", [2, 3], ""], "비스킷": ["front", [4, 5], ""], "리나": ["front", [4, 5], ""], "헤브니아": ["front", [1, 1], ""]}, "y1": {"루리": ["back", [1, 4], ""], "클로에": ["front", [5, 5], ""], "바네사": ["front", [1, 4], ""], "밀리아": ["front", [1, 4], ""], "오를리": ["front", [1, 4], ""]}, "y2": {"나타": ["front", [5, 5], ""], "미호": ["front", [4, 4], ""], "비스킷": ["back", [1, 3], ""], "데이지": ["back", [1, 3], ""], "리나": ["back", [1, 3], ""]}, "m1": {"풍연": ["back", null, "free"], "타카": ["back", null, "free"], "칼헤론": ["back", null, "free"], "란드": ["front", null, "free"], "선란": ["front", null, "free"]}, "m2": {"라이언": ["back", [2, 3], ""], "레이첼": ["front", [2, 3], ""], "비스킷": ["front", [4, 5], ""], "관우": ["front", [4, 5], ""], "여포": ["front", [1, 1], ""]}};
+SPD_ORDER.r2b ||= SPD_ORDER.r2a;
+/* 이상 속공 계산 — 순위가 정해진 쌍(A의 순위 상한 < B의 하한)마다 A가 먼저 행동해야 함.
+   먼저 행동 = 속공이 더 높거나, 같으면 앞자리(전열 > 후열; 같은 열이면 자리 배치로 맞출 수 있다고 봄).
+   장비 속공은 4 단위(속공 부옵 1줄), 0~20. 딜러는 속공을 최대한 안 받게(가중치 3), 버퍼·토템이 우선 받음.
+   공략에 순위가 하나도 없으면: 버퍼·생존 먼저 → 딜러는 지분 작은 순, 주딜 마지막(추정) */
+const spdCache = {};
+function solveSpeed(cid){
+  if (spdCache[cid]) return spdCache[cid];
+  const c = CONTENTS.find(x => x.id === cid); if (!c) return null;
+  const gs = guessShare(c);
+  let ord = SPD_ORDER[cid] || {}, est = false;
+  const names = c.lu.map(l => l[0]);
+  const isDealer = (n, i) => roleOf(c, i, gs) !== 'buff' && (c.lu[i][1] + c.lu[i][2]) > 0;
+  if (!names.some(n => ord[n] && ord[n][1])){
+    if (Object.values(ord).some(o => o[2] === 'free')) return (spdCache[cid] = { free: true });
+    // 순위 정보가 없으면 추정 순서
+    const idx = names.map((n, i) => i);
+    const sup = idx.filter(i => !isDealer(names[i], i)), dl = idx.filter(i => isDealer(names[i], i)).sort((a, b) => gs[a] - gs[b]);
+    ord = {}; [...sup, ...dl].forEach((i, k) => { ord[names[i]] = [(SPD_ORDER[cid] || {})[names[i]]?.[0] || 'front', [k + 1, k + 1], '']; });
+    est = true;
+  }
+  const ch = names.map((n, i) => ({ n, i, row: (ord[n] || [])[0] || 'front', rk: (ord[n] || [])[1], nogear: (ord[n] || [])[2] === 'nogear', base: SPD_BASE[n], dealer: isDealer(n, i) }));
+  const pairs = [];
+  ch.forEach(a => ch.forEach(b => { if (a !== b && a.rk && b.rk && a.rk[1] < b.rk[0]) pairs.push([a, b]); }));
+  const involved = ch.filter(x => pairs.some(([a, b]) => a === x || b === x));
+  const missing = involved.filter(x => x.base == null).map(x => x.n);
+  if (missing.length) return (spdCache[cid] = { missing, est, ch });
+  const before = (a, b, ta, tb) => ta > tb || (ta === tb && (a.row === b.row || (a.row === 'front' && b.row === 'back')));
+  const opts = x => x.nogear ? [0] : [0, 4, 8, 12, 16, 20];
+  const V = involved;
+  let best = null;
+  const cur = new Map();
+  const rec = k => {
+    if (k === V.length){
+      const tot = x => x.base + (cur.get(x) || 0);
+      if (!pairs.every(([a, b]) => before(a, b, tot(a), tot(b)))) return;
+      const cost = V.reduce((s, x) => s + (cur.get(x) || 0) * (x.dealer ? 3 : 1), 0);
+      if (!best || cost < best.cost) best = { cost, e: new Map(cur) };
+      return;
+    }
+    for (const v of opts(V[k])){ cur.set(V[k], v); rec(k + 1); }
+  };
+  rec(0);
+  if (!best) return (spdCache[cid] = { impossible: true, est, ch });
+  // 각자 허용 범위(나머지는 최적값 고정)
+  const rules = {}, plan = {};
+  V.forEach(x => {
+    const ok = opts(x).filter(v => { const e = new Map(best.e); e.set(x, v); const tot = y => y.base + (e.get(y) || 0); return pairs.every(([a, b]) => before(a, b, tot(a), tot(b))); });
+    const rk = x.rk[0] === x.rk[1] ? x.rk[0] + '순위' : x.rk[0] + '~' + x.rk[1] + '순위';
+    rules[x.n] = [Math.min(...ok), Math.max(...ok), (est ? '추정 순서 ' : '공략 ') + rk + ' — 기본 ' + x.base + ' → ' + (x.base + best.e.get(x)) + (x.row === 'back' ? ' (후열이라 동속이면 전열에 밀림)' : '')];
+    plan[x.n] = { base: x.base, e: best.e.get(x), rk, row: x.row, dealer: x.dealer };
+  });
+  ch.filter(x => x.nogear && !rules[x.n]).forEach(x => { rules[x.n] = [0, 0, '공략: 속공템 X']; });
+  return (spdCache[cid] = { rules, plan, est });
+}
+/* 배정·표시에 쓰는 규칙 = 기본 속공이 다 있으면 자동 계산, 아니면 수동 규칙 */
+function spdRuleFor(cid){
+  const r = solveSpeed(cid);
+  if (r && r.rules) return r.rules;
+  return SPD_RULE[cid] || null;
+}
 /* 규칙이 없는 딜러는 속공을 최대한 뺀다 — 턴제라 의도치 않은 속공은 행동 순서를 꼬이게 함 */
 const SPD_AVOID = 0.05;                    // 속공 4당 팀 점수 −5%p 상당 감점 (다른 장비가 훨씬 나쁠 때만 속공 장비를 씀)
 const SPD_RULE = {
@@ -2781,7 +2850,7 @@ const SPD_RULE = {
 const spdOf = g => (g && g.subs || []).reduce((a, [t, e]) => a + (t === 'spd' ? 4 * (1 + (+e || 0)) : 0), 0);
 const spdSum = pieces => pieces.reduce((a, g) => a + spdOf(g), 0);
 function spdCheck(cid, name, pieces){
-  const r = (SPD_RULE[cid] || {})[name]; if (!r) return null;
+  const r = (spdRuleFor(cid) || {})[name]; if (!r) return null;
   const v = spdSum(pieces), ok = v >= r[0] && v <= r[1];
   return { v, ok, min: r[0], max: r[1], why: r[2], base: SPD_BASE[name] };
 }
@@ -2948,7 +3017,7 @@ function aRun(){
       ? '<strong class="lose">장비 부족 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “빈 칸”으로 둡니다. '
       : '') +
     '<strong>팀 이상 대비 ' + (team * 100).toFixed(1) + '%</strong> — 목표 탭과 같은 기준(마을 스탯, 팀 점수). 카드는 게임 장비 카드와 같은 순서라 그대로 찾아 끼우면 됩니다.' +
-    (SPD_RULE[c.id] ? ' <strong>속공 조건</strong>(' + Object.keys(SPD_RULE[c.id]).join('·') + ')을 딜보다 먼저 맞춥니다 — 속공은 종결 장비의 4번째 부옵(모공% 자리)에 있으면 치확·치피·약확 손해가 없습니다.' : '') +
+    (spdRuleFor(c.id) ? ' <strong>속공 조건</strong>(' + Object.keys(spdRuleFor(c.id)).join('·') + ')을 딜보다 먼저 맞춥니다 — 속공은 종결 장비의 4번째 부옵(모공% 자리)에 있으면 치확·치피·약확 손해가 없습니다.' : '') +
     ' 속공 조건이 없는 딜러에게는 속공 붙은 장비를 최대한 피합니다(턴제라 순서가 꼬임).' +
     (usedSiege ? ' 공성 세공은 스킬 피해 +10%가 다른 피해량과 합산된다고 가정했습니다(실효 약 ×1.055).' : '');
 }
@@ -3157,7 +3226,7 @@ function setRows(c, safe){
       return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">' + setText(c.id, u.name) + '생존·토템 세팅</td></tr>';
     const b = u.pick;
     const main = MLABEL[b.main[0]] + MLABEL[b.main[1]];
-    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) +
+    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) +
       '<span class="mob">' + main + ' · ' + CARVENAME[b.cv] + '</span></td>' +
       '<td class="muted">' + main + '</td><td class="muted">' + CARVENAME[b.cv] + '</td>' +
       '<td class="v">' + b.vc + (safe && b.p < 99 ? '<span class="sub" title="약확 100을 채우면 장비 예산(32단위)으로는 치확 99까지 못 감 — 닿을 수 있는 최대치">최대</span>' : '') + '</td>';
@@ -3186,6 +3255,23 @@ function setOps(c){
       skillHTML(o.skill) + '</details>' : '');
 }
 
+/* 세팅 탭 속공 한 줄: 자동 계산(기본 속공이 다 있을 때) / 대기 / 수동 규칙 */
+function spdLine(c){
+  const r = solveSpeed(c.id), man = SPD_RULE[c.id];
+  const manTxt = man ? ' 지금은 수동 규칙: ' + Object.entries(man).map(([n, v]) => n + ' 속공 +' + v[0] + (v[1] !== v[0] ? '~' + v[1] : '')).join(', ') + '.' : '';
+  let t;
+  if (!r || r.free) t = '속공 상관 없음 (공략).';
+  else if (r.missing) t = '<strong>속공 계산 대기</strong> — 기본 속공 미입력: ' + r.missing.join(', ') + '.' + manTxt;
+  else if (r.impossible) t = '<strong class="lose">공략 순위를 장비 속공(최대 +20)으로 맞출 수 없습니다</strong> — 기본 속공·순위를 확인해 주십시오.';
+  else {
+    const order = Object.entries(r.plan).sort((a, b) => (b[1].base + b[1].e) - (a[1].base + a[1].e) || (a[1].row === 'front' ? -1 : 1));
+    t = (r.est ? '<strong>속공(추정 순서)</strong> ' : '<strong>속공</strong> ') + order.map(([n, x]) =>
+      (x.dealer ? '<strong>' + n + '</strong>' : n) + ' ' + (x.base + x.e) + (x.e ? ' <span class="muted">(+' + x.e + ')</span>' : '')).join(' → ') +
+      ' — 장비 속공은 4 단위(속공 부옵 1줄), 같은 속공이면 전열이 먼저.';
+  }
+  return '<tr><td colspan="7" class="note" style="text-align:left;white-space:normal">' + t + '</td></tr>';
+}
+
 function setRun(){
   const opt = SET_OPTS.find(x => x.id === $('sContent').value);
   const parts = opt.parts.map(id => CONTENTS.find(c => c.id === id));
@@ -3203,7 +3289,7 @@ function setRun(){
   }
 
   const band = t => '<tr class="round"><td colspan="7">' + t + '</td></tr>';
-  $('sRows').innerHTML = parts.map(c => (multi ? band(ROUND_LABEL[c.id] || c.n) : '') + setRows(c, safe)).join('');
+  $('sRows').innerHTML = parts.map(c => (multi ? band(ROUND_LABEL[c.id] || c.n) : '') + setRows(c, safe) + spdLine(c)).join('');
   $('sFoot').textContent = safe
     ? '마을 기준 · 무기 주옵 2개 · 약확 — = 약확 줄 없어도 됨(그 자리는 모공) · 이론상 최고 배분이라 강화가 한 스탯에 몰려야 하는 경우도 있음'
     : '마을 기준 · 무기 주옵 2개 · 치확 무방 = 이 범위면 점수 차 1% 미만 · 이론상 최고 배분(강화가 한 스탯에 몰려야 하는 경우도 있음)';
