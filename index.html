@@ -422,7 +422,7 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   <summary id="baseSum">기본값</summary>
   <div class="scroll" style="margin-top:10px">
     <table>
-      <thead><tr><th>캐릭터</th><th>무기 속성</th><th>기본 치확</th><th>기본 치피</th><th>기본 약확</th><th>기본 속공</th><th>패시브 치확</th><th>약공 배율</th><th style="text-align:left;padding-left:14px">팀 효과</th></tr></thead>
+      <thead><tr><th>캐릭터</th><th>무기 속성</th><th>기본 치확</th><th>기본 치피</th><th>기본 약확</th><th>기본 속공</th><th>패시브 치확</th><th>약공 배율</th><th>패시브 약확</th><th style="text-align:left;padding-left:14px">팀 효과</th></tr></thead>
       <tbody id="cRows"></tbody>
     </table>
   </div>
@@ -1395,30 +1395,46 @@ const $ = id => document.getElementById(id);
    [무기 속성, 기본 치확, 기본 치피, 기본 약확, 패시브 치확, 약공 배율]
    null = 미확인 → 계산은 FALLBACK 값으로 돌리고, 화면에는 빈칸으로 표시 */
 const CHARS = {
-  //         속성    치확  치피  약확  패시브 배율
-  나타:     ['mag', null, 150, null,  33,  null],
-  돼오:     [null,  null, 150, null, null, null],
-  라이언:   [null,  null, 150, null, null, 3.36],
-  레긴:     [null,  null, 150, null, null, null],
-  레이첼:   [null,     5, 150,   20, null, 1.3 ],
-  리나:     [null,  null, 150, null, null, null],
-  미호:     ['mag',    5, 150,   20, null, 1.89],
-  비스킷:   ['mag',    5, 150,    0, null, null],
-  샤오:     [null,  null, 150, null, null, null],
-  선란:     [null,  null, 150, null, null, null],
-  세인:     [null,  null, 150, null,  41,  1.3 ],
-  소교:     [null,  null, 150, null, null, null],
-  아일린:   [null,     5, 150,    0, null, 1.3 ],
-  에반:     [null,  null, 150, null, null, null],
-  쥬리:     ['mag',   23, 150,    0, null, null],   // 6초 기준 (4초 스탯 증가 치확 +18 포함)
-  지크:     [null,  null, 150, null, null, null],
-  클로에:   [null,  null, 150, null, null, null],
-  파스칼:   [null,  null, 150, null, 100,  1.3 ],
-  풍연:     [null,  null, 150, null, null, null],
-  하연:     [null,  null, 150, null, null, null],
-  헤브니아: [null,    19, 150, null, null, null]
+  // 출처: 나무위키 캐릭터 문서 Lv.30 스탯 표, 4초월 이상 값(전원 6초 이상 가정). 직접 확인한 값(라이언·레이첼·미호·비스킷·아일린·쥬리·헤브니아)과 전부 일치.
+  // [속성, 기본 치확, 기본 치피, 기본 약확, 패시브 치확, 약공 배율, 패시브 약확]
+  // 패시브 약확: 란드·소교 2초 +39, 루리 뒷거래 +39(강화), 선란 6초 +100. 약공 배율: 소교 우후죽순 1.3×(270+215)/270, 루리 두 스킬 평균(추정)
+  관우:    ['phy', 5, 150, 20, null, null, null],
+  나타:    ['mag', 23, 150, 0, 33, null, null],
+  데이지:   ['mag', 23, 150, 0, null, null, null],
+  돼오:    ['phy', 23, 150, 0, null, null, null],
+  라이언:   ['phy', 23, 150, 0, null, 3.36, null],
+  란드:    ['phy', 5, 150, 20, null, null, 39],
+  레긴:    ['mag', 5, 150, 20, null, null, null],
+  레이첼:   ['phy', 5, 150, 20, null, 1.3, null],
+  루리:    ['mag', 5, 150, 20, null, 2.2, 39],
+  리나:    ['mag', 5, 150, 0, null, null, null],
+  린:     ['mag', 5, 150, 20, null, null, null],
+  미호:    ['mag', 5, 150, 20, null, 1.89, null],
+  밀리아:   ['mag', 5, 150, 0, null, null, null],
+  바네사:   ['mag', 5, 150, 0, null, null, null],
+  백룡:    ['phy', 23, 150, 0, 33, null, null],
+  비스킷:   ['mag', 5, 150, 0, null, null, null],
+  샤오:    ['phy', 19, 150, 0, null, null, null],
+  선란:    ['phy', 23, 150, 0, null, null, 100],
+  세인:    ['phy', 23, 150, 0, 41, 1.3, null],
+  소교:    ['mag', 5, 150, 20, null, 2.34, 39],
+  아일린:   ['phy', 5, 150, 0, null, 1.3, null],
+  에반:    ['phy', 5, 150, 0, null, null, null],
+  에스파다:  ['mag', 23, 150, 0, null, null, null],
+  여포:    ['phy', 5, 150, 20, null, null, null],
+  오를리:   ['mag', 5, 150, 0, null, null, null],
+  쥬리:    ['mag', 23, 150, 0, null, null, null],
+  지크:    ['phy', 23, 150, 0, null, null, null],
+  칼헤론:   ['phy', 23, 150, 0, null, null, null],
+  클로에:   ['mag', 5, 150, 0, null, null, null],
+  타카:    ['phy', 23, 150, 0, null, null, null],
+  파스칼:   ['mag', 5, 174, 0, 100, 1.3, null],
+  파이:    ['phy', 23, 150, 0, null, null, null],
+  풍연:    ['phy', 19, 150, 0, null, null, null],
+  하연:    ['mag', 5, 150, 0, null, null, null],
+  헤브니아:  ['phy', 19, 150, 0, null, null, null],
 };
-const CFIELD = ['atk', 'bc', 'bd', 'bq', 'pf', 'wm'];
+const CFIELD = ['atk', 'bc', 'bd', 'bq', 'pf', 'wm', 'pq'];
 
 /* 팀 효과 — [스탯, 값, 대상]. 값이 '×'로 시작하면 피해 배율(곱), 아니면 확률(더하기).
    누가 받는지가 편성마다 다른 효과(상위 N인)는 콘텐츠 데이터의 버프 약확에서 지정한다. */
@@ -1432,14 +1448,40 @@ const TEAM = {
 /* 초월 단계별 차이 — 표 값은 6초 기준. [이 단계에 도달하면 붙는, 필드, 증가량]
    사용자 단계가 그 아래면 증가량을 뺀다. */
 const TRANS = {
-  쥬리: [[4, 'bc', 18]]
+  // 나무위키 표의 0~3초월 / 4초월 이상 차이 + 초월 패시브(2초·6초)
+  관우: [[4, 'bq', 20]],
+  나타: [[4, 'bc', 18]],
+  데이지: [[4, 'bc', 18]],
+  돼오: [[4, 'bc', 18]],
+  라이언: [[4, 'bc', 18]],
+  란드: [[4, 'bq', 20], [2, 'pq', 39]],
+  레긴: [[4, 'bq', 20]],
+  레이첼: [[4, 'bq', 20]],
+  루리: [[4, 'bq', 20]],
+  린: [[4, 'bq', 20]],
+  미호: [[4, 'bq', 20]],
+  백룡: [[4, 'bc', 18]],
+  샤오: [[4, 'bc', 14]],
+  선란: [[4, 'bc', 18], [6, 'pq', 100]],
+  세인: [[4, 'bc', 18]],
+  소교: [[4, 'bq', 20], [2, 'pq', 39]],
+  에스파다: [[4, 'bc', 18]],
+  여포: [[4, 'bq', 20]],
+  쥬리: [[4, 'bc', 18]],
+  지크: [[4, 'bc', 18]],
+  칼헤론: [[4, 'bc', 18]],
+  타카: [[4, 'bc', 18]],
+  파스칼: [[4, 'bd', 24]],
+  파이: [[4, 'bc', 18]],
+  풍연: [[4, 'bc', 14]],
+  헤브니아: [[4, 'bc', 14]],
 };
 const TKEY = 'sknr-judge-trans';
 let trans = {};
 try { trans = JSON.parse(localStorage.getItem(TKEY) || '{}') || {}; } catch { trans = {}; }
 const tPersist = () => { try { localStorage.setItem(TKEY, JSON.stringify(trans)); } catch {} };
 const TLABEL = { 4:'4~5초', 2:'2~3초', 0:'0~1초' };
-const FALLBACK = { atk:'phy', bc:23, bd:150, bq:0, pf:0, wm:1.3 };
+const FALLBACK = { atk:'phy', bc:23, bd:150, bq:0, pf:0, wm:1.3, pq:0 };
 const rawOf = name => {
   const r = CHARS[name] || [], o = {};
   CFIELD.forEach((f, i) => o[f] = r[i] ?? null);
@@ -1717,7 +1759,7 @@ function solveContent(c, carry, maxEnh, safe){
     if (role === 'buff' || (up + dn) === 0){ U.push({ name, skip:true }); return; }
     const share = gs[i] / 100;
     const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb || 0), wm: ch.wm * (c.wmTeam || 1),
-                 qb: qbuff ?? c.qb, H: dHits(c, up, dn), kwon: (KWON[c.id] || []).includes(name) };
+                 qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn), kwon: (KWON[c.id] || []).includes(name) };
     let cand = solveOne(cc, k, opt);
     /* 안전 모드의 약확은 둘 중 하나로만 낸다 — 99 이상으로 채우거나, 약확 줄을 빼고 '선택'.
        서브 딜러 중 약확이 쓸모 있는 캐릭터(배율 1.5 이상)는 두 안을 만들어 평균이 높은 쪽을 고른다. */
@@ -2317,7 +2359,7 @@ const SHARE_SRC = {
 /* 검증 완료(✓) = 편성 전원의 딜 지분을 5판 이상 실측한 콘텐츠 */
 const verified = opt => opt.parts.length > 0 &&
   opt.parts.every(id => { const m = /^실측 (\d+)판/.exec(SHARE_SRC[id] || ''); return m && +m[1] >= 5; });
-const optLabel = opt => (verified(opt) ? '✓ ' : '　 ') + opt.n;
+const optLabel = opt => (verified(opt) ? '✓ ' : '  ') + opt.n;
 SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('gContent').appendChild(o); });
 $('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 function guessShare(c){
@@ -2776,7 +2818,7 @@ function statsOf(ch, pieces){
 /* ══ 속공 — 장비 속공 = 속공 부옵 4 × (강화 + 1). 같은 속공이면 1~5번 자리 중 앞자리(전열)가 먼저 ══
    콘텐츠별로 딜러가 장비로 받아야 하는 속공 범위 [최소, 최대, 이유]. 버퍼·토템 속공은 배정 대상이 아니라 여기 없음 */
 /* 기본 속공(장비 없음). 비어 있으면 그 콘텐츠는 자동 계산 대신 아래 수동 규칙(SPD_RULE)을 씀 */
-const SPD_BASE = { '나타':29, '미호':29 };
+const SPD_BASE = { '관우':25, '나타':29, '데이지':29, '돼오':29, '라이언':29, '란드':29, '레긴':29, '레이첼':25, '루리':29, '리나':19, '린':29, '미호':29, '밀리아':29, '바네사':29, '백룡':29, '비스킷':19, '샤오':25, '선란':29, '세인':29, '소교':29, '아일린':25, '에반':16, '에스파다':29, '여포':29, '오를리':19, '쥬리':29, '지크':25, '칼헤론':29, '클로에':16, '타카':29, '파스칼':29, '파이':29, '풍연':25, '하연':19, '헤브니아':25 };   // 나무위키 Lv.30 표
 /* 공략 원문 표에서 뽑은 [열, 순위 범위, 표시] — front=전열(1~3번 자리), back=후열(4~5번). nogear=속공템 X, free=속공 상관 X */
 const SPD_ORDER = {"fri": {"라이언": ["back", [4, 4], ""], "레이첼": ["back", [5, 5], ""], "지크": ["front", [1, 3], ""], "아일린": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "sat": {"라이언": ["back", [4, 4], ""], "레이첼": ["front", [5, 5], ""], "풍연": ["front", [1, 3], ""], "아일린": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "thu": {"라이언": ["back", [3, 3], ""], "레이첼": ["front", [4, 4], ""], "돼오": ["front", [2, 2], ""], "아일린": ["front", [5, 5], ""], "비스킷": ["front", [1, 1], ""]}, "mona": {"나타": ["back", [5, 5], ""], "쥬리": ["front", [1, 1], ""], "미호": ["front", [2, 2], ""], "에반": ["front", [3, 4], ""], "비스킷": ["front", [3, 4], ""]}, "monb": {"나타": ["back", [2, 2], ""], "미호": ["front", [1, 1], ""], "에반": ["front", null, "nogear"], "리나": ["front", null, "nogear"], "비스킷": ["front", null, "nogear"]}, "sun": {"세인": ["back", [4, 4], ""], "헤브니아": ["front", [5, 5], ""], "아일린": ["front", [2, 3], ""], "샤오": ["front", [2, 3], ""], "비스킷": ["front", [1, 1], ""]}, "wed": {"나타": ["back", [5, 5], ""], "미호": ["front", [4, 4], ""], "리나": ["front", [1, 2], ""], "라이언": ["front", [3, 3], ""], "비스킷": ["front", [1, 2], ""]}, "tue": {"나타": ["back", [4, 4], ""], "미호": ["front", [5, 5], ""], "리나": ["front", [1, 3], ""], "클로에": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "r1a": {"파스칼": ["back", [4, 5], ""], "소교": ["front", [1, 3], ""], "레긴": ["front", [1, 3], ""], "선란": ["front", [4, 5], ""], "미호": ["front", [1, 3], ""]}, "r2a": {"세인": ["back", [4, 5], ""], "헤브니아": ["front", [4, 5], ""], "아일린": ["front", [2, 3], ""], "샤오": ["front", [2, 3], ""], "비스킷": ["front", [1, 1], ""]}, "r1b": {"파스칼": ["back", [1, 4], ""], "소교": ["front", [1, 4], ""], "하연": ["front", [1, 4], ""], "선란": ["front", [5, 5], ""], "미호": ["front", [1, 4], ""]}, "t1": {"파스칼": ["back", null, "free"], "에스파다": ["front", null, "free"], "바네사": ["front", null, "free"], "리나": ["front", null, "free"], "린": ["front", null, "free"]}, "t2": {"소교": ["back", [4, 5], ""], "데이지": ["back", [4, 5], ""], "미호": ["front", [1, 3], ""], "오를리": ["front", [1, 3], ""], "비스킷": ["front", [1, 3], ""]}, "k1": {"세인": ["back", [1, 2], ""], "란드": ["back", [1, 2], ""], "여포": ["front", [3, 5], ""], "레이첼": ["front", [3, 5], ""], "관우": ["front", [3, 5], ""]}, "k2": {"백룡": ["back", [2, 3], ""], "파이": ["front", [2, 3], ""], "비스킷": ["front", [4, 5], ""], "리나": ["front", [4, 5], ""], "헤브니아": ["front", [1, 1], ""]}, "y1": {"루리": ["back", [1, 4], ""], "클로에": ["front", [5, 5], ""], "바네사": ["front", [1, 4], ""], "밀리아": ["front", [1, 4], ""], "오를리": ["front", [1, 4], ""]}, "y2": {"나타": ["front", [5, 5], ""], "미호": ["front", [4, 4], ""], "비스킷": ["back", [1, 3], ""], "데이지": ["back", [1, 3], ""], "리나": ["back", [1, 3], ""]}, "m1": {"풍연": ["back", null, "free"], "타카": ["back", null, "free"], "칼헤론": ["back", null, "free"], "란드": ["front", null, "free"], "선란": ["front", null, "free"]}, "m2": {"라이언": ["back", [2, 3], ""], "레이첼": ["front", [2, 3], ""], "비스킷": ["front", [4, 5], ""], "관우": ["front", [4, 5], ""], "여포": ["front", [1, 1], ""]}};
 SPD_ORDER.r2b ||= SPD_ORDER.r2a;
