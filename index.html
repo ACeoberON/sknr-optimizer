@@ -1702,7 +1702,11 @@ const SET_OPTS = [
   { id:'yeon', n:'강림 · 연희', parts:['y1','y2'] },
   { id:'karma',n:'강림 · 카르마', parts:['m1','m2'] },
   { id:'pg4',  n:'강림 · 파괴신 4턴 ver', parts:['r1a','r2a'] },
-  { id:'pg8',  n:'강림 · 파괴신 8턴 ver', parts:['r1b','r2b'] }
+  { id:'pg8',  n:'강림 · 파괴신 8턴 ver', parts:['r1b','r2b'] },
+  /* 공략 준비 중 — 종류만 보이고 세부 칸은 잠김. 공략이 들어오면 soon을 지우고 세부 항목을 추가 */
+  { id:'raid',  n:'레이드 · 준비 중', parts:[], soon:true },
+  { id:'sraid', n:'돌발 레이드 · 준비 중', parts:[], soon:true },
+  { id:'grow',  n:'성장던전 · 준비 중', parts:[], soon:true }
 ];
 /* 공략 기준일 — 공략을 갱신하면 여기(전체) 또는 SET_OPTS 항목의 upd(그 콘텐츠만)를 고친다. 세팅 탭에 표시된다 */
 const GUIDE_DATE = '2026-09-30';
@@ -2119,8 +2123,9 @@ function goalRun(){
   const tb = $('gTargets'), mb = $('gMine');
   const multi = parts.length > 1;
   if (!parts.length){
-    tb.innerHTML = '<tr><td colspan="9" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다.</td></tr>'; mb.innerHTML = '';
-    mb.innerHTML = ''; $('gMeta').textContent = '공략 미입력';
+    tb.innerHTML = '<tr><td colspan="9" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다.</td></tr>';
+    mb.innerHTML = '<tr><td colspan="8" class="muted">' + (opt.soon ? opt.n.split(' · ')[0] + ' 공략은 준비 중입니다.' : '이 콘텐츠의 공략 데이터가 아직 없습니다.') + '</td></tr>';
+    $('gMeta').textContent = opt.soon ? '준비 중' : '공략 미입력';
     $('gMineHead').textContent = '—'; $('gMineNote').textContent = ''; $('exportText').value = '';
     goalLast = []; return;
   }
@@ -3551,7 +3556,7 @@ function gRender(){
   const secs = [...new Set(opt.parts.map(id => { const c = CONTENTS.find(x => x.id === id); return c && SECTIONS.find(sc => sc.title.startsWith(c.g)); }).filter(Boolean))];
   $('gBody').innerHTML = secs.length
     ? secs.map(sec => '<h3>' + esc(sec.title) + '</h3>' + md(sec.body)).join('<hr style="border:none;border-top:1px solid var(--line);margin:18px 0">')
-    : '<p class="muted">이 콘텐츠의 공략 원문이 아직 없습니다.</p>';
+    : '<p class="muted">' + (opt.soon ? opt.n.split(' · ')[0] + ' 공략은 준비 중입니다. 공략이 정리되는 대로 이곳에 원문이 올라옵니다.' : '이 콘텐츠의 공략 원문이 아직 없습니다.') + '</p>';
   alignNotes($('gBody'));
 }
 
@@ -3695,8 +3700,8 @@ function setRun(){
   const multi = parts.length > 1;
 
   if (!parts.length){
-    $('sRows').innerHTML = '<tr><td colspan="7" class="muted">이 콘텐츠의 공략 데이터가 아직 없습니다 — 편성·시전 횟수·속공·스킬 순서를 주시면 채웁니다.</td></tr>';
-    $('sMeta').textContent = '공략 미입력';
+    $('sRows').innerHTML = '<tr><td colspan="7" class="muted">' + (opt.soon ? opt.n.split(' · ')[0] + ' 공략은 준비 중입니다. 공략이 정리되는 대로 추가됩니다.' : '이 콘텐츠의 공략 데이터가 아직 없습니다.') + '</td></tr>';
+    $('sMeta').textContent = opt.soon ? '준비 중' : '공략 미입력';
     $('sCheck').textContent = '';
     $('sOps').innerHTML = '';
     $('sFoot').textContent = '';
@@ -3840,7 +3845,8 @@ goalRun(); cRowsInit(); gRowsInit(); pRender(); demoBtn();
     a.setAttribute('aria-label', '콘텐츠 종류'); b.setAttribute('aria-label', '세부');
     a.innerHTML = cats.map(c => '<option>' + esc(c) + '</option>').join('');
     const fillB = c => { b.innerHTML = opts.filter(o => o.c === c).map(o => '<option value="' + esc(o.v) + '">' + esc(o.sub) + '</option>').join(''); };
-    const sync = () => { const o = opts.find(x => x.v === sel.value) || opts[0]; if (!o) return; if (a.value !== o.c || b.value !== o.v){ a.value = o.c; fillB(o.c); b.value = o.v; } };
+    const soonCat = c => opts.filter(o => o.c === c).every(o => (SET_OPTS.find(x => x.id === o.v) || {}).soon);
+    const sync = () => { const o = opts.find(x => x.v === sel.value) || opts[0]; if (!o) return; if (a.value !== o.c || b.value !== o.v){ a.value = o.c; fillB(o.c); b.value = o.v; } b.disabled = soonCat(o.c); };
     const push = v => { sel.value = v; sync(); sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); };
     a.addEventListener('change', () => {         // 종류를 바꾸면 그 종류의 첫 항목(공성전이면 오늘 요일)
       fillB(a.value);
