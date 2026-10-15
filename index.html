@@ -59,6 +59,8 @@ details.gloss dd{margin:0;color:var(--ink-2,inherit)}
 .det-btn{all:unset;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 0}
 .det-btn::before{content:'▸';font-size:10px;color:var(--ink-3);transition:transform .15s}
 .det-btn[aria-expanded="true"]::before{transform:rotate(90deg)}
+.ovr{margin-left:6px;padding:1px 7px;font-size:10.5px;border-radius:999px;vertical-align:1px;color:var(--ink-3)}
+.ovr.on{color:var(--flat);border-color:var(--flat)}
 .det-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 tr.mine-det>td{background:var(--bg,transparent);padding:10px 12px 14px;white-space:normal}
 .det-box{border-left:3px solid var(--accent);padding-left:12px}
@@ -301,6 +303,7 @@ h1 .t{white-space:nowrap}
   <ol>
     <li>맨 위에서 콘텐츠를 고릅니다(공성전은 오늘 요일이 기본).</li>
     <li>표의 <strong>치확 · 치피 · 약확</strong>대로 마을 화면 스탯을 맞춥니다. 치확은 <strong>OK 범위</strong> 안이면 충분합니다.</li>
+    <li>6초월 미만 캐릭터가 있으면 <strong>목표</strong> 탭 맨 위 <strong>내 캐릭터 초월</strong>에서 지정합니다(숫자가 달라집니다).</li>
     <li>더 파고들려면 <strong>목표</strong> 탭에 지금 스탯을 넣어 몇 %인지, 어디를 고칠지 봅니다. 장비를 등록하면 <strong>장비</strong> 탭이 알아서 골라 줍니다.</li>
   </ol>
   <p class="note" style="margin-top:4px">숫자는 전부 <strong>장비를 낀 마을 화면</strong> 기준입니다 · 이름 옆 % = 팀 딜에서 그 캐릭터 비중 · 콘텐츠 앞 ✓ = 실제 전투로 검증한 콘텐츠</p>
@@ -352,6 +355,24 @@ h1 .t{white-space:nowrap}
 <div class="panel" id="p-goal" role="tabpanel" aria-labelledby="t-goal" hidden>
 <div class="stack">
 
+<details class="card" id="trCard">
+  <summary>내 캐릭터 초월 — 6초월 미만이 있으면 꼭 설정 <span class="muted" id="trSum"></span></summary>
+  <p class="note">표는 전부 <strong>6초월 이상 기준</strong>입니다. 6초 미만인 캐릭터만 여기서 지정하십시오 — 이 브라우저에 저장되고 백업에 포함됩니다. 4초(스탯 증가)처럼 숫자로 떨어지는 차이만 반영하며, 2초·6초 스킬 강화는 6초 기준으로 고정합니다.</p>
+  <div class="row-actions" style="margin-top:8px">
+    <select id="trName" style="width:auto"></select>
+    <select id="trLv" style="width:auto">
+      <option value="4">4~5초</option><option value="2">2~3초</option><option value="0">0~1초</option>
+    </select>
+    <button type="button" id="trAdd">지정</button>
+  </div>
+  <div id="trList" style="margin-top:8px"></div>
+</details>
+
+<div class="intro" id="shareBar" hidden style="padding-right:14px">
+  <strong>공유받은 스펙을 보는 중</strong> — <span id="shareWho"></span><br>
+  <span class="note">내 기록은 그대로 있습니다. 이 화면에서는 고칠 수 없습니다.</span>
+  <div class="row-actions" style="margin-top:8px"><button type="button" id="shareKeep">내 기록으로 저장</button><button type="button" id="shareClose">닫고 내 스펙 보기</button></div>
+</div>
 <section class="card">
   <h2>내 스펙 평가</h2>
   <p class="note" style="margin:0 0 6px;color:var(--ink-2)">① 캐릭터마다 마을 화면의 치확·치피·약확과 무기 주옵을 넣고 → ② 아래 <strong>줄 옮기기 안내</strong>대로 바꿉니다. 이름(▸)을 누르면 다음 강화 위치와 시험 칸이 열립니다.</p>
@@ -371,6 +392,10 @@ h1 .t{white-space:nowrap}
     <thead><tr><th>캐릭터 · 최고</th><th>무기 주옵</th><th>내 치확</th><th>내 치피</th><th>내 약확</th><th title="치확·치피·약확으로 쓰인 부옵 줄 + 강화 횟수, 만점 32">유효 줄</th><th title="아래 작은 글씨 = 팀 점수 손실 (나머지는 이상 세팅일 때)">최고 대비</th><th title="본체 토벌 기준, 지금 스탯에 가장 유리한 세공">세공</th></tr></thead>
     <tbody id="gMine"></tbody>
   </table>
+  </div>
+  <div class="row-actions" style="margin-top:10px">
+    <button type="button" id="shareBtn">내 스펙 공유 링크 만들기</button>
+    <span class="note" id="shareMsg">길드장 등에게 이 콘텐츠의 내 스펙을 링크 하나로 보여 줄 수 있습니다.</span>
   </div>
   <div id="gAfter">
   <div class="verdict" style="margin-top:12px"><div class="big" id="gMineHead">—</div><p id="gMineNote"></p></div>
@@ -510,16 +535,6 @@ h1 .t{white-space:nowrap}
     </table>
   </div>
   <p class="note" style="margin-top:10px"><strong>기본</strong> = 장비를 전부 뺀 마을 화면 수치 · <strong>패시브</strong> = 전투에 들어가야 붙는 치확 · <strong>약공 배율</strong> = 1.3 × (기본 계수 + 약공 추가 계수) ÷ 기본 계수. 장비와 무관한 값이라 도구에 내장되어 있습니다.</p>
-  <h3>초월 예외</h3>
-  <p class="note">표는 전부 <strong>6초월 이상 기준</strong>입니다. 6초 미만인 캐릭터만 여기서 지정하십시오 — 이 브라우저에 저장되고 백업에 포함됩니다. 4초(스탯 증가)처럼 숫자로 떨어지는 차이만 반영하며, 2초·6초 스킬 강화는 6초 기준으로 고정합니다.</p>
-  <div class="row-actions" style="margin-top:8px">
-    <select id="trName" style="width:auto"></select>
-    <select id="trLv" style="width:auto">
-      <option value="4">4~5초</option><option value="2">2~3초</option><option value="0">0~1초</option>
-    </select>
-    <button type="button" id="trAdd">지정</button>
-  </div>
-  <div id="trList" style="margin-top:8px"></div>
   <h3 style="margin:16px 0 6px;font-size:14px">장비 세트</h3>
   <div class="scroll"><table><thead><tr><th>세트</th><th>2세트</th><th>4세트</th></tr></thead><tbody id="setRowsTbl"></tbody></table></div>
   <p class="note" style="margin-top:6px">딜러는 전부 복수자 4세트(공략 기준) — 모든 피해에 같은 배수라 치확·치피·약확 목표는 바뀌지 않습니다. 콘텐츠별 세트는 세팅·목표 탭 캐릭터 이름 옆에 표시됩니다.</p>
@@ -1671,6 +1686,9 @@ const SET_OPTS = [
   { id:'pg4',  n:'강림 · 파괴신 4턴 ver', parts:['r1a','r2a'] },
   { id:'pg8',  n:'강림 · 파괴신 8턴 ver', parts:['r1b','r2b'] }
 ];
+/* 공략 기준일 — 공략을 갱신하면 여기(전체) 또는 SET_OPTS 항목의 upd(그 콘텐츠만)를 고친다. 세팅 탭에 표시된다 */
+const GUIDE_DATE = '2026-09-30';
+const updOf = opt => opt.upd || GUIDE_DATE;
 const ROUND_LABEL = { r1a:'1라운드 · 100만 문턱', r1b:'1라운드 · 100만 문턱', r2a:'2라운드 · 4턴부터', r2b:'2라운드 · 8턴부터', t1:'1라운드 · 문턱', t2:'2라운드 · 12턴부터', k1:'1라운드 · 문턱', k2:'2라운드 · 8턴부터', y1:'1라운드 · 문턱', y2:'2라운드 · 12턴부터', m1:'1라운드 · 문턱', m2:'2라운드 · 12턴부터' };
 
 
@@ -1906,6 +1924,31 @@ const MKEY_MINE = 'sknr-goal-mine';
 let mine = {};
 try { mine = JSON.parse(localStorage.getItem(MKEY_MINE) || '{}') || {}; } catch { mine = {}; }
 const mPersist = () => { try { localStorage.setItem(MKEY_MINE, JSON.stringify(mine)); } catch {} };
+/* 내 스펙은 캐릭터 단위로 한 번만 넣는다: mine['*'][이름] = 공통값.
+   콘텐츠마다 장비가 다를 때만 mine[콘텐츠][이름] = 그 콘텐츠 전용값(덮어쓰기). */
+const ALL = '*';
+const myOwn = (cid, n) => (mine[cid] && mine[cid][n]) || null;                    // 콘텐츠 전용값
+/* 공유 링크로 연 경우: 그 사람 스펙을 보기만 한다(내 기록은 건드리지 않음) */
+let shared = null;                                                                  // { o: 콘텐츠, m: { 이름: [치확, 치피, 약확, 주옵, 장신구] } }
+const sharedFor = (cid, n) => shared && (SET_OPTS.find(x => x.id === shared.o) || { parts: [] }).parts.includes(cid) && shared.m[n] ? shared.m[n] : null;
+const myOf = (cid, n) => sharedFor(cid, n) || myOwn(cid, n) || (mine[ALL] && mine[ALL][n]) || [];   // 화면에 쓰는 값
+const myRef = (cid, n) => shared ? [] : myOwn(cid, n) || ((mine[ALL] ||= {})[n] ||= []);          // 고칠 때 쓰는 배열
+function mineMigrate(){                                                             // 옛 저장(콘텐츠별)을 공통 + 전용으로
+  if (mine[ALL]) return;
+  const g = mine[ALL] = {};
+  const same = (a, b) => [0, 1, 2, 3].every(i => (a[i] ?? null) === (b[i] ?? null));
+  CONTENTS.forEach(c => {
+    const m = mine[c.id]; if (!m) return;
+    Object.keys(m).forEach(n => {
+      const v = m[n]; if (!Array.isArray(v) || v.slice(0, 3).every(x => x == null)) { delete m[n]; return; }
+      if (!g[n]) { g[n] = v.slice(); delete m[n]; }
+      else if (same(g[n], v)) delete m[n];
+    });
+    if (!Object.keys(m).length) delete mine[c.id];
+  });
+  mPersist();
+}
+mineMigrate();
 
 /* 내 스탯(마을) → 그 캐릭터 점수. 세공은 셋 중 가장 유리한 것으로 가정 */
 
@@ -1961,7 +2004,7 @@ function renderDetail(key){
   const { c, U, k, T } = G, u = U.find(x => x.name === name), nP = goalLast.length;
   if (!safeCache[cid]) safeCache[cid] = solveContent(c, GOAL_CARRY, GOAL_MAXENH, true).U;
   const su = safeCache[cid].find(x => x.name === name);
-  const my = (mine[cid] || {})[name] || [];
+  const my = myOf(cid, name);
   const have = my[0] != null && my[1] != null && my[2] != null;
   const rows = [];
   const add = (nm, vc, vd, vq, cv, note) => rows.push({ nm, vc, vd, vq, cv, note, ev: T.evalOne(u, vc, vd, vq, cv) });
@@ -2043,8 +2086,7 @@ function renderDetail(key){
   }));
   row.querySelectorAll('[data-rk]').forEach(el => el.addEventListener('change', () => {
     const v = ringRead(row.querySelector('[data-rk][data-rp="b"]'), row.querySelector('[data-rk][data-rp="c"]'));
-    mine[cid] ||= {}; mine[cid][name] ||= [];
-    mine[cid][name][4] = v === 'auto' ? undefined : v;
+    myRef(cid, name)[4] = v === 'auto' ? undefined : v;
     mPersist(); mineEval();                                         // 표·펼침 칸 다시 그림
   }));
   const cl = row.querySelector('[data-tclear]');
@@ -2098,12 +2140,14 @@ function goalRun(){
         '  [주옵 ' + mainTxt + ', 세공 ' + CARVENAME[b.cv] +
         ', 강화 ' + (b.uc-UNIT_MIN) + '·' + (b.ud-UNIT_MIN) + '·' + Math.max(0, b.uw-UNIT_MIN) + ']' +
         (lo === hi ? '' : '  치확 ' + lo + '~' + hi + ' 무방'));
-      const my = (mine[c.id] || {})[u.name] || [];
+      const my = myOf(c.id, u.name), own = !!myOwn(c.id, u.name);
       const inp = (i, ph) => '<td data-l="' + ['내 치확','내 치피','내 약확'][i] + '"><input type="number" data-c="' + c.id + '" data-n="' + u.name + '" data-i="' + i + '" value="' + (my[i] ?? '') + '" placeholder="" data-ideal="' + ph + '" step="' + [LINE.c, LINE.d, LINE.w][i] + '" title="화살표 1칸 = ' + ['치확 4','치피 6','약확 5'][i] + ' (부옵 1줄)"></td>';
       const mainSel = '<td data-l="무기 주옵"><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
-      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + '<span class="ideal">최고 ' + b.vc + '/' + b.vd + '/' + qTxt(c, u, b) + '</span></td>' +
+      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) +
+        '<button type="button" class="ovr' + (own ? ' on' : '') + '" data-ovr="' + dk + '" title="' + (own ? '이 콘텐츠에만 쓰는 값입니다. 누르면 지우고 공통값으로 돌아갑니다.' : '모든 콘텐츠가 같이 쓰는 값입니다. 이 콘텐츠만 장비가 다르면 눌러서 따로 저장하세요.') + '">' + (own ? '이 콘텐츠만 ✕' : '공통') + '</button>' +
+        '<span class="ideal">최고 ' + b.vc + '/' + b.vd + '/' + qTxt(c, u, b) + '</span></td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, qSpare(c, u, b) ? b.vq - LINE.w * UNIT_MIN : b.vq) +
         '<td class="num" data-l="유효 줄 (만점 32)" data-u="' + c.id + '|' + u.name + '">—</td>' +
         '<td class="num out" data-l="최고 대비"><span data-out="' + dk + '">—</span><span class="imp muted" data-imp="' + dk + '"></span></td>' +
@@ -2115,8 +2159,7 @@ function goalRun(){
   mb.querySelectorAll('input[data-c],select[data-c]').forEach(el => el.addEventListener('input', e => {
     if (el.tagName === 'INPUT' && el.value !== '' && +el.value < 0) el.value = 0;      // 스탯은 음수 불가
     const { c, n, i } = e.target.dataset;
-    mine[c] ||= {}; mine[c][n] ||= [];
-    mine[c][n][+i] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? null : +e.target.value);
+    myRef(c, n)[+i] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? null : +e.target.value);
     mPersist(); mineEval();
   }));
   // 가능한 수치로 맞추기: 칸을 벗어날 때(또는 화살표) 격자·32단위 한도에 맞춘다
@@ -2127,9 +2170,9 @@ function goalRun(){
     const ins = rowInputs(cid, n), main = mainOf(cid, n);
     const raw = ins.map(el => el.value === '' ? null : +el.value);
     const fx = fixStats(u, main, raw, ci);
-    mine[cid] ||= {}; mine[cid][n] ||= [];
+    const arr = myRef(cid, n);
     const fixed = fx.map((v, i) => raw[i] != null && v !== raw[i] ? ['치확', '치피', '약확'][i] + ' ' + raw[i] + '→' + (v ?? '빈 칸') : null).filter(Boolean);
-    fx.forEach((v, i) => { if (v !== raw[i]){ ins[i].value = v ?? ''; } if (v != null) ins[i].setAttribute('value', v); mine[cid][n][i] = v; });
+    fx.forEach((v, i) => { if (v !== raw[i]){ ins[i].value = v ?? ''; } if (v != null) ins[i].setAttribute('value', v); arr[i] = v; });
     if (fixed.length){
       const m = $('gSnapMsg');
       m.innerHTML = '<strong>' + n + '</strong> ' + fixed.join(', ') + ' — 게임에서 나올 수 있는 값으로 맞췄습니다(부옵 1줄 = 치확 4 · 치피 6 · 약확 5, 합계 32줄 이하). 게임 화면과 다르면 무기 주옵을 확인해 주세요.';
@@ -2146,6 +2189,12 @@ function goalRun(){
     el.addEventListener('mousedown', e => { if (e.offsetX > el.clientWidth - 22) anchor(); });   // 스피너 버튼만
     el.addEventListener('keydown', e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') anchor(); });
   });
+  mb.querySelectorAll('[data-ovr]').forEach(b => b.addEventListener('click', () => {
+    const [cid, n] = b.dataset.ovr.split('|');
+    if (myOwn(cid, n)) { delete mine[cid][n]; if (!Object.keys(mine[cid]).length) delete mine[cid]; }
+    else (mine[cid] ||= {})[n] = myOf(cid, n).slice();
+    mPersist(); goalRun();
+  }));
   mb.querySelectorAll('.det-btn').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.det, open = !detOpen.has(k);
     open ? detOpen.add(k) : detOpen.delete(k);
@@ -2154,6 +2203,7 @@ function goalRun(){
     if (open) renderDetail(k);
   }));
   mb.querySelectorAll('select[data-c]').forEach(el => { const u = findU(el.dataset.c, el.dataset.n); if (u) setBounds(rowInputs(el.dataset.c, el.dataset.n), u, el.value); });
+  if (shared) mb.querySelectorAll('input[data-c],select[data-c],[data-ovr]').forEach(el => { el.disabled = true; });
   mineEval();
 
   const c0 = parts[0];
@@ -2277,7 +2327,7 @@ function mineEval(){
     const key = c.id + '|' + u.name;
     const q = a => document.querySelector('[data-' + a + '="' + key + '"]');
     const cell = q('out'), ucell = q('u'), icell = q('imp'), ccell = q('cv');
-    const my = (mine[c.id] || {})[u.name] || [];
+    const my = myOf(c.id, u.name);
     if (my[0] == null || my[1] == null || my[2] == null){
       if (cell){ cell.textContent = '—'; cell.className = ''; }
       const blanks = ['치확', '치피', '약확'].filter((_, i) => my[i] == null);
@@ -2520,7 +2570,7 @@ $('stateIn').addEventListener('click', () => {
   if (!confirm('현재 기기의 설정을 덮어씁니다. 진행할까요?')) return;
   if (Array.isArray(o.gear)) gear = migrateGear(o.gear);
   if (o.trans && typeof o.trans === 'object') { trans = o.trans; tPersist(); }
-  if (o.mine && typeof o.mine === 'object') { mine = o.mine; mPersist(); }
+  if (o.mine && typeof o.mine === 'object') { mine = o.mine; mineMigrate(); mPersist(); }
   if (o.trial && typeof o.trial === 'object') { trial = o.trial; trPersist(); }
   if (Array.isArray(o.presets)) { presets = o.presets; pPersist(); }
   try {
@@ -2659,8 +2709,8 @@ function cRowsInit(){
     tb.appendChild(tr);
   });
   const nT = Object.keys(trans).length;
-  $('baseSum').textContent = '참고 — 캐릭터 기본값 · 세트 효과' +
-    (nT ? ' · 초월 예외 ' + nT + '명' : '');
+  $('baseSum').textContent = '참고 — 캐릭터 기본값 · 세트 효과';
+  $('trSum').textContent = nT ? '· 지정 ' + nT + '명: ' + Object.keys(trans).join(', ') : '· 지정 없음(전원 6초월 이상으로 계산)';
   // 초월 예외 목록
   const sel = $('trName');
   if (!sel.options.length) names.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
@@ -2882,9 +2932,9 @@ function presetApply(p){
   const s = presetStats(p);
   const cid = p.cid || (CONTENTS.find(c => SET_OPTS.find(x => x.id === $('gContent').value).parts.includes(c.id) && c.lu.some(l => l[0] === p.char)) || {}).id;
   if (!cid){ $('pMsg').textContent = '공통 프리셋은 목표 탭에서 이 캐릭터가 있는 콘텐츠를 먼저 고르십시오.'; setTimeout(() => { $('pMsg').textContent = ''; }, 4000); return; }
-  mine[cid] ||= {};
-  const prev = mine[cid][p.char] || [];
-  mine[cid][p.char] = [s.vc, s.vd, s.vq, s.mc || prev[3], p.ring && p.ring !== 'auto' ? p.ring : prev[4]];
+  const prev = myOf(cid, p.char), val = [s.vc, s.vd, s.vq, s.mc || prev[3], p.ring && p.ring !== 'auto' ? p.ring : prev[4]];
+  if (p.cid) (mine[cid] ||= {})[p.char] = val;           // 콘텐츠 전용 프리셋 → 그 콘텐츠만
+  else { (mine[ALL] ||= {})[p.char] = val; if (mine[cid]) delete mine[cid][p.char]; }   // 공통 프리셋 → 공통값
   mPersist();
   const opt = SET_OPTS.find(x => x.parts.includes(cid));
   if (opt) setContent(opt.id);
@@ -3240,9 +3290,9 @@ $('aSaveAll').addEventListener('click', () => { if (aLast) aSave(aLast.A.chars.m
 $('aApply').addEventListener('click', () => {
   if (!aLast) return;
   const { c, A, state } = aLast;
-  const cur = mine[c.id] || (mine[c.id] = {});
+  const cur = mine[c.id] || (mine[c.id] = {});              // 배정은 그 콘텐츠의 장비 → 콘텐츠 전용값으로
   A.chars.forEach((ch, i) => {
-    const s = presetStats(aPreset(c, A, state, i)), prev = cur[ch.name] || [];
+    const s = presetStats(aPreset(c, A, state, i)), prev = myOf(c.id, ch.name);
     cur[ch.name] = [s.vc, s.vd, s.vq, s.mc || prev[3], state.carve[i]];
   });
   mPersist();
@@ -3475,9 +3525,10 @@ function setRun(){
     : '숫자는 장비를 낀 마을 화면 기준(전투에 들어가면 패시브·버프가 더 붙음) · 이름 옆 % = 팀 딜에서 차지하는 비중 · OK 범위 = 치확이 이 안이면 점수 차 1% 미만 · 약확 — = 약확 줄 대신 모공 · 방어구 주옵은 둘 다 공%';
 
   const c0 = parts[0];
-  $('sCheck').innerHTML = verified(opt)
+  const ud = updOf(opt), age = Math.floor((Date.now() - new Date(ud + 'T00:00:00+09:00')) / 864e5);
+  $('sCheck').innerHTML = '<span class="' + (age > 14 ? 'flat' : 'muted') + '" title="래밍 공략을 이 날짜에 옮겨 적었습니다. 공략은 1~2주마다 바뀝니다.">공략 ' + (+ud.slice(5, 7)) + '/' + (+ud.slice(8)) + ' 기준' + (age > 14 ? ' · ' + age + '일 지남' : '') + '</span> · ' + (verified(opt)
     ? '<span class="win" title="캐릭터별 딜 비중을 실제 전투로 측정함 — ' + parts.map(c => SHARE_SRC[c.id]).join(' / ') + '">✓ 실전 검증</span>'
-    : '<span class="muted" title="캐릭터별 딜 비중이 아직 추정치라 숫자가 조금 바뀔 수 있습니다">딜 비중 추정치 기준</span>';
+    : '<span class="muted" title="캐릭터별 딜 비중이 아직 추정치라 숫자가 조금 바뀔 수 있습니다">딜 비중 추정치 기준</span>');
   const kind = c0.sc === 'siege' ? '공성전 · ' + (c0.tg === 3 ? '3인기' : '1인기')
              : multi ? '강림 · 1R은 100만 넘기기, 2R은 9판 중 상위 3판 합산' : '강림 · 1인기';
   $('sMeta').innerHTML = kind +
@@ -3494,6 +3545,35 @@ $('sContent').addEventListener('input', setRun);
   $('sPeak').setAttribute('aria-pressed', String(!on));
   setRun();
 }));
+
+/* ══════════ 공유 링크 — 이 콘텐츠의 내 스펙을 주소(#s=…) 하나에 담는다. 서버 없음 ══════════ */
+const SHARE_BASE = 'https://aceoberon.github.io/sknr-optimizer/';
+const b64e = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64d = t => JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g, '+').replace(/_/g, '/')))));
+$('shareBtn').addEventListener('click', () => {
+  const opt = SET_OPTS.find(x => x.id === $('cSel').value), m = {};
+  opt.parts.forEach(cid => (CONTENTS.find(c => c.id === cid) || { lu: [] }).lu.forEach(([n]) => {
+    const v = myOf(cid, n); if (v[0] != null && v[1] != null && v[2] != null) m[n] = v.slice(0, 5).map(x => x ?? null);
+  }));
+  if (!Object.keys(m).length){ $('shareMsg').textContent = '먼저 위 표에 스펙을 넣어 주세요.'; return; }
+  const url = SHARE_BASE + '#s=' + b64e({ v: 1, o: opt.id, m });
+  const done = ok => { $('shareMsg').innerHTML = (ok ? '복사했습니다 — 카톡 등에 붙여넣으세요. ' : '아래 주소를 복사해 보내세요. ') + '<input readonly value="' + esc(url) + '" style="margin-top:6px;font-size:12px" onclick="this.select()">'; };
+  try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+});
+function shareOpen(){
+  const h = location.hash.match(/[#&]s=([\w-]+)/); if (!h) return;
+  try { const o = b64d(h[1]); if (!o || !o.m || !SET_OPTS.some(x => x.id === o.o)) return; shared = o; } catch (e) { return; }
+  $('shareWho').textContent = (SET_OPTS.find(x => x.id === shared.o) || {}).n + ' · ' + Object.entries(shared.m).map(([n, v]) => n + ' ' + v[0] + '/' + v[1] + '/' + v[2]).join(', ');
+  $('shareBar').hidden = false;
+  setContent(shared.o); $('t-goal').click();
+}
+function shareEnd(){ shared = null; $('shareBar').hidden = true; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} goalRun(); }
+$('shareClose').addEventListener('click', shareEnd);
+$('shareKeep').addEventListener('click', () => {
+  const opt = SET_OPTS.find(x => x.id === shared.o);
+  Object.entries(shared.m).forEach(([n, v]) => { (mine[ALL] ||= {})[n] = v.slice(); opt.parts.forEach(cid => { if (mine[cid]) delete mine[cid][n]; }); });
+  mPersist(); shareEnd();
+});
 
 /* ══════════ 처음 안내 — 닫으면 이 브라우저에서는 다시 안 뜬다 ══════════ */
 (() => {
@@ -3584,6 +3664,7 @@ goalRun(); cRowsInit(); gRowsInit(); pRender(); demoBtn();
   twoLevel('cSel', fromSetOpt);
   $('cSel').addEventListener('change', () => setContent($('cSel').value));
   setContent(TODAY);
+  shareOpen();
 })();
 </script>
 
