@@ -59,7 +59,7 @@ details.gloss dd{margin:0;color:var(--ink-2,inherit)}
 .det-btn{all:unset;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 0}
 .det-btn::before{content:'▸';font-size:10px;color:var(--ink-3);transition:transform .15s}
 .det-btn[aria-expanded="true"]::before{transform:rotate(90deg)}
-.ovr{margin-left:6px;padding:1px 7px;font-size:10.5px;border-radius:999px;vertical-align:1px;color:var(--ink-3)}
+.ovr{display:inline-block;margin:2px 0 0 6px;padding:2px 9px;font-size:11px;border-radius:6px;vertical-align:1px;color:var(--ink-2);background:var(--card);border:1px solid var(--line)}
 .ovr.on{color:var(--flat);border-color:var(--flat)}
 .det-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 tr.mine-det>td{background:var(--bg,transparent);padding:10px 12px 14px;white-space:normal}
@@ -225,6 +225,9 @@ h1 .t{white-space:nowrap}
 .grow>summary::before{content:'▸';font-size:10px;color:var(--ink-3)}
 .grow[open]>summary::before{content:'▾'}
 .grow .gl-t{font-weight:600;font-size:13.5px}
+.pp>summary{font-size:12.5px;color:var(--ink-2);cursor:pointer;margin:2px 0}
+.ovr{min-height:26px}
+.mine-tbl input:disabled,.mine-tbl select:disabled{border-style:dashed;background:transparent;color:var(--ink-2);opacity:1}
 .demo-tag{font-size:10.5px;padding:0 6px;border-radius:999px;border:1px dashed var(--ink-3);color:var(--ink-3)}
 .grow .gl-m{font-size:12px;color:var(--ink-2)}
 .grow .gl-s{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
@@ -245,6 +248,11 @@ h1 .t{white-space:nowrap}
   .beta{font-size:10px;padding:1px 5px}
   #themeBtn,#helpBtn{padding:5px 8px;font-size:12px}
   #themeBtn .tl{display:none}
+  h1{font-size:19px;letter-spacing:-.03em}
+  #helpBtn,#themeBtn{padding:5px 7px}
+  .stepper button{width:36px;height:36px}
+  #helpBtn{min-width:38px;min-height:34px}
+  .chip button[data-tr]{min-width:32px;min-height:28px}
   .tgt-tbl th:nth-child(2),.tgt-tbl td:nth-child(2),.tgt-tbl th:nth-child(3),.tgt-tbl td:nth-child(3),
   .tgt-tbl th:nth-child(4),.tgt-tbl td:nth-child(4),.tgt-tbl th:nth-child(5),.tgt-tbl td:nth-child(5){display:none}
   .tgt-tbl tr.round td,.tgt-tbl td[colspan]{display:table-cell}
@@ -304,7 +312,7 @@ h1 .t{white-space:nowrap}
     <li>맨 위에서 콘텐츠를 고릅니다(공성전은 오늘 요일이 기본).</li>
     <li>표의 <strong>치확 · 치피 · 약확</strong>대로 마을 화면 스탯을 맞춥니다. 치확은 <strong>OK 범위</strong> 안이면 충분합니다.</li>
     <li>6초월 미만 캐릭터가 있으면 <strong>목표</strong> 탭 맨 위 <strong>내 캐릭터 초월</strong>에서 지정합니다(숫자가 달라집니다).</li>
-    <li>더 파고들려면 <strong>목표</strong> 탭에 지금 스탯을 넣어 몇 %인지, 어디를 고칠지 봅니다. 장비를 등록하면 <strong>장비</strong> 탭이 알아서 골라 줍니다.</li>
+    <li>더 파고들려면 <strong>목표</strong> 탭에 지금 스탯을 넣어 몇 %인지, 어디를 고칠지 봅니다. 장비를 등록하면(게임 캡처로도 가능) <strong>장비</strong> 탭이 알아서 골라 줍니다. 내 스펙은 링크로 공유할 수 있습니다.</li>
   </ol>
   <p class="note" style="margin-top:4px">숫자는 전부 <strong>장비를 낀 마을 화면</strong> 기준입니다 · 이름 옆 % = 팀 딜에서 그 캐릭터 비중 · 콘텐츠 앞 ✓ = 실제 전투로 검증한 콘텐츠</p>
   <p class="note" style="margin-top:4px"><strong>안전</strong> = 치확을 거의 100으로 맞추고 나머지는 치피, 매판 점수가 고름 · <strong>고점</strong> = 최고 기록을 노리는 배분(공성전은 점수 이월이라 이쪽이 이득)</p>
@@ -356,7 +364,7 @@ h1 .t{white-space:nowrap}
 <div class="stack">
 
 <details class="card" id="trCard">
-  <summary>내 캐릭터 초월 — 6초월 미만이 있으면 꼭 설정 <span class="muted" id="trSum"></span></summary>
+  <summary>내 캐릭터 초월 — 6초월 미만이 있으면 설정 <span class="muted" id="trSum"></span></summary>
   <p class="note">표는 전부 <strong>6초월 이상 기준</strong>입니다. 6초 미만인 캐릭터만 여기서 지정하십시오 — 이 브라우저에 저장되고 백업에 포함됩니다. 4초(스탯 증가)처럼 숫자로 떨어지는 차이만 반영하며, 2초·6초 스킬 강화는 6초 기준으로 고정합니다.</p>
   <div class="row-actions" style="margin-top:8px">
     <select id="trName" style="width:auto"></select>
@@ -477,10 +485,10 @@ h1 .t{white-space:nowrap}
     <span class="note" id="gMsg"></span>
   </div>
   <div id="ocrBox" class="gedit" hidden>
-    <p class="note" style="margin:0 0 6px"><strong>장비 카드 부분을 드래그해서 네모로 감싸 주세요</strong> — 이름(+15)부터 세트 이름까지. 감싸지 않으면 사진 전체를 읽는데, 캐릭터 스탯 같은 다른 글자가 섞이면 틀리기 쉽습니다. 휴대폰은 가로로 돌리면 더 크게 보입니다. 사진은 이 기기 안에서만 읽고 어디에도 올리지 않습니다. <span id="ocrCount"></span></p>
+    <p class="note" style="margin:0 0 6px"><strong>① 장비 카드 근처를 대충 감싸고 “감싼 부분 확대” → ② 카드(이름 +15부터 세트 이름까지)를 다시 감싸고 “읽기”.</strong> 카드 밖 글자(캐릭터 스탯 등)가 들어가면 틀리기 쉽습니다. 사진은 이 기기 안에서만 읽고 어디에도 올리지 않습니다. <span id="ocrCount"></span></p>
     <canvas id="ocrCv" style="width:100%;border-radius:6px;touch-action:none;cursor:crosshair;background:#000"></canvas>
     <div class="row-actions" style="margin-top:8px">
-      <button type="button" id="ocrRead">읽기</button><button type="button" id="ocrSkip">이 사진 건너뛰기</button><button type="button" id="ocrStop" class="ghost" style="font-size:13px">그만하기</button>
+      <button type="button" id="ocrRead" disabled>읽기</button><button type="button" id="ocrZoom" disabled>감싼 부분 확대</button><button type="button" id="ocrReset" hidden>전체 사진</button><button type="button" id="ocrSkip">이 사진 건너뛰기</button><button type="button" id="ocrStop" class="ghost" style="font-size:13px">그만하기</button>
       <span class="note" id="ocrMsg"></span>
     </div>
   </div>
@@ -2155,8 +2163,8 @@ function goalRun(){
       const mainSel = '<td data-l="무기 주옵"><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
-      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) +
-        '<button type="button" class="ovr' + (own ? ' on' : '') + '" data-ovr="' + dk + '" title="' + (own ? '이 콘텐츠에만 쓰는 값입니다. 누르면 지우고 공통값으로 돌아갑니다.' : '모든 콘텐츠가 같이 쓰는 값입니다. 이 콘텐츠만 장비가 다르면 눌러서 따로 저장하세요.') + '">' + (own ? '이 콘텐츠만 ✕' : '공통') + '</button>' +
+      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + (trans[u.name] !== undefined ? '<span class="set-tag" title="내 캐릭터 초월에서 지정">' + TLABEL[trans[u.name]] + '</span>' : '') +
+        '<button type="button" class="ovr' + (own ? ' on' : '') + '" data-ovr="' + dk + '" title="' + (own ? '이 콘텐츠에만 쓰는 값입니다. 누르면 지우고 공통값으로 돌아갑니다.' : '모든 콘텐츠가 같이 쓰는 값입니다. 이 콘텐츠만 장비가 다르면 눌러서 따로 저장하세요.') + '">' + (own ? '이 콘텐츠만 따로 · 공통으로 되돌리기' : '모든 콘텐츠 공통 · 여기만 따로 쓰기') + '</button>' +
         '<span class="ideal">최고 ' + b.vc + '/' + b.vd + '/' + qTxt(c, u, b) + '</span></td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, qSpare(c, u, b) ? b.vq - LINE.w * UNIT_MIN : b.vq) +
         '<td class="num" data-l="유효 줄 (만점 32)" data-u="' + c.id + '|' + u.name + '">—</td>' +
@@ -2192,8 +2200,17 @@ function goalRun(){
     mPersist(); mineEval();
   }
   mb.querySelectorAll('select[data-c]').forEach(el => el.addEventListener('change', () => snapRow(el.dataset.c, el.dataset.n, null)));
+  const commonNote = (cid, n) => {                                   // 공통값을 고치면 같이 바뀌는 콘텐츠를 알려 준다
+    if (myOwn(cid, n)) return;
+    const others = SET_OPTS.filter(o => !o.parts.includes(cid) && o.parts.some(pid => !myOwn(pid, n) && (CONTENTS.find(c => c.id === pid) || { lu: [] }).lu.some(l => l[0] === n)))
+      .map(o => o.n.replace(/^공성전 · /, '').replace(/ \(.*\)$/, ''));
+    if (!others.length) return;
+    const m = $('gSnapMsg'); if (m.textContent) return;
+    m.innerHTML = '<strong>' + n + '</strong> 공통값을 고쳤습니다 — ' + others.slice(0, 5).join('·') + (others.length > 5 ? ' 등 ' + others.length + '곳' : '') + '에도 같이 적용됩니다. 이 콘텐츠만 다르면 이름 옆 “여기만 따로 쓰기”를 먼저 누르세요.';
+    m.className = 'note muted'; clearTimeout(m._t); m._t = setTimeout(() => { m.textContent = ''; }, 9000);
+  };
   mb.querySelectorAll('input[type=number][data-c]').forEach(el => {
-    el.addEventListener('change', () => snapRow(el.dataset.c, el.dataset.n, +el.dataset.i));
+    el.addEventListener('change', () => { snapRow(el.dataset.c, el.dataset.n, +el.dataset.i); commonNote(el.dataset.c, el.dataset.n); });
     // 빈 칸에서 화살표를 누르면 0이 아니라 이상치(placeholder)를 기준으로 움직인다
     const anchor = () => { if (el.value === ''){ el.value = el.dataset.ideal; el.setAttribute('value', el.dataset.ideal); } };
     el.addEventListener('mousedown', e => { if (e.offsetX > el.clientWidth - 22) anchor(); });   // 스피너 버튼만
@@ -2534,6 +2551,7 @@ const optLabel = opt => (verified(opt) ? '✓ ' : '  ') + opt.n;
 SET_OPTS.forEach(x => ['gContent', 'cSel'].forEach(id => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $(id).appendChild(o); }));
 /* 콘텐츠는 탭 위 한 칸에서만 고른다 — 세팅·목표·공략·배정이 전부 따라간다 */
 function setContent(id){
+  if (shared && id !== shared.o) shareEnd(true);                   // 공유 보기 중 다른 콘텐츠로 가면 공유 보기를 끝낸다
   const opt = SET_OPTS.find(x => x.id === id); if (!opt) return;
   $('cSel').value = id; PICK.cSel && PICK.cSel();
   $('sContent').value = id; $('gContent').value = id;
@@ -2542,6 +2560,7 @@ function setContent(id){
   if (keep) as.value = keep;
   $('aRoundBox').hidden = opt.parts.length < 2;
   setRun(); goalRun(); gRender();
+  if (typeof cRowsInit === 'function') cRowsInit();               // 초월 목록 순서(지금 편성 먼저)
 }
 $('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 function guessShare(c){
@@ -2723,9 +2742,16 @@ function cRowsInit(){
   $('trSum').textContent = nT ? '· 지정 ' + nT + '명: ' + Object.keys(trans).join(', ') : '· 지정 없음(전원 6초월 이상으로 계산)';
   // 초월 예외 목록
   const sel = $('trName');
-  if (!sel.options.length) names.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  const FL = { bc:'기본 치확', bd:'기본 치피', bq:'기본 약확', pf:'패시브 치확', pq:'패시브 약확' };
+  const trFx = (n, lv) => { const d = (TRANS[n] || []).filter(([th]) => lv < th).map(([, f, v]) => (FL[f] || f) + ' −' + v);
+    return d.length ? d.join(', ') : '6초와 스탯 차이 없음'; };
+  // 이름 목록: 지금 콘텐츠 편성을 맨 위에
+  const curNames = [...new Set(((SET_OPTS.find(x => x.id === ($('cSel') && $('cSel').value)) || { parts: [] }).parts)
+    .flatMap(cid => (CONTENTS.find(c => c.id === cid) || { lu: [] }).lu.map(l => l[0])))];
+  const order = [...curNames.filter(n => names.includes(n)), ...names.filter(n => !curNames.includes(n))];
+  if (sel.dataset.order !== order.join()){ const keep = sel.value; sel.innerHTML = order.map((n, i) => (i === curNames.length && curNames.length ? '<option disabled>──────</option>' : '') + '<option>' + esc(n) + '</option>').join(''); sel.dataset.order = order.join(); sel.value = curNames.includes(keep) ? keep : order[0]; }
   $('trList').innerHTML = nT
-    ? Object.entries(trans).map(([n, lv]) => '<span class="chip">' + esc(n) + ' ' + TLABEL[lv] +
+    ? Object.entries(trans).map(([n, lv]) => '<span class="chip">' + esc(n) + ' ' + TLABEL[lv] + ' <span class="muted">(' + trFx(n, +lv) + ')</span>' +
         ' <button type="button" class="ghost" data-tr="' + esc(n) + '" aria-label="해제" style="font-size:13px;padding:0 2px">×</button></span>').join('')
     : '<span class="note">지정된 예외 없음 — 전원 6초 이상으로 계산합니다.</span>';
   $('trList').querySelectorAll('[data-tr]').forEach(b => b.addEventListener('click', () => {
@@ -2815,6 +2841,7 @@ function gEdit(id, init){
     ed.innerHTML =
       '<div class="row"><label>부위</label><select data-ge="slot">' + SLOTS.map(([v, l]) => '<option value="' + v + '"' + (g.slot === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
         '<label>출처</label><select data-ge="name">' + GSRC.map(n => '<option' + (g.name === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+        '<label>세트</label><select data-ge="set">' + Object.keys(SETS).map(n => '<option' + ((g.set || '복수자') === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
         '<label>태생</label><select data-ge="born"><option value="4"' + (g.born !== 3 ? ' selected' : '') + '>4옵</option><option value="3"' + (g.born === 3 ? ' selected' : '') + '>3옵</option></select></div>' +
       (() => {
         const top = MAIN_TOP[g.slot === 'ar' ? 'ar' : 'w'], isTop = top.includes(g.main);
@@ -2914,7 +2941,13 @@ function ocrParse(lines){
   return { slot, main: mainRaw ? mainRaw.k : null, subs, set, name, nStat: st.length };
 }
 
-let ocrQ = [], ocrImg = null, ocrRect = null, ocrWorker = null, ocrDone = 0;
+let ocrQ = [], ocrImg = null, ocrRect = null, ocrWorker = null, ocrDone = 0, ocrView = null;   // ocrView = 화면에 보이는 사진 범위(사진 좌표)
+function ocrFit(){                                                    // 보이는 범위에 맞춰 캔버스 크기
+  const cv = $('ocrCv'), v = ocrView, sc = Math.min(1600 / v.w, 4);
+  cv.width = Math.round(v.w * sc); cv.height = Math.round(v.h * sc);
+  ocrRect = null; ocrBtns(); ocrDraw();
+}
+function ocrBtns(){ $('ocrRead').disabled = !ocrRect; $('ocrZoom').disabled = !ocrRect; $('ocrReset').hidden = !ocrView || (ocrView.x === 0 && ocrView.y === 0 && ocrView.w === ocrImg.width); }
 function ocrLoad(){
   if (ocrWorker) return ocrWorker;
   ocrWorker = new Promise((ok, bad) => {
@@ -2929,7 +2962,7 @@ function ocrLoad(){
 }
 function ocrDraw(){
   const cv = $('ocrCv'), ctx = cv.getContext('2d');
-  ctx.drawImage(ocrImg, 0, 0, cv.width, cv.height);
+  const v = ocrView; ctx.drawImage(ocrImg, v.x, v.y, v.w, v.h, 0, 0, cv.width, cv.height);
   if (ocrRect){
     const { x, y, w, h } = ocrRect;
     ctx.fillStyle = 'rgba(0,0,0,.55)';
@@ -2941,11 +2974,11 @@ function ocrDraw(){
 function ocrNext(){
   $('gEditor').hidden = true; $('gEditor').innerHTML = '';
   const f = ocrQ.shift();
-  if (!f){ $('ocrBox').hidden = true; if (ocrDone) { $('gMsg').textContent = '캡처 ' + ocrDone + '장 처리를 마쳤습니다.'; } return; }
-  $('ocrBox').hidden = false; $('ocrMsg').textContent = ''; $('ocrRead').disabled = false; ocrRect = null;
+  if (!f){ $('ocrBox').hidden = true; ocrImg = null; if (ocrDone) { $('gMsg').textContent = '캡처 ' + ocrDone + '장 처리를 마쳤습니다.'; } return; }
+  $('ocrBox').hidden = false; $('ocrMsg').textContent = ''; ocrRect = null;
   $('ocrCount').textContent = ocrQ.length ? '(뒤에 ' + ocrQ.length + '장 더)' : '';
   const im = new Image();
-  im.onload = () => { ocrImg = im; const cv = $('ocrCv'); const sc = Math.min(1, 1600 / im.width); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc); ocrDraw(); URL.revokeObjectURL(im.src); };
+  im.onload = () => { ocrImg = im; ocrView = { x: 0, y: 0, w: im.width, h: im.height }; ocrFit(); URL.revokeObjectURL(im.src); };
   im.src = URL.createObjectURL(f);
   $('ocrBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -2954,17 +2987,22 @@ function ocrNext(){
   const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
   cv.addEventListener('pointerdown', e => { st = pt(e); cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => { if (!st) return; const [x, y] = pt(e); ocrRect = { x: Math.min(st[0], x), y: Math.min(st[1], y), w: Math.abs(x - st[0]), h: Math.abs(y - st[1]) }; ocrDraw(); });
-  cv.addEventListener('pointerup', () => { st = null; if (ocrRect && (ocrRect.w < 20 || ocrRect.h < 20)) { ocrRect = null; ocrDraw(); } });
+  cv.addEventListener('pointerup', () => { st = null; if (ocrRect && (ocrRect.w < 20 || ocrRect.h < 20)) { ocrRect = null; ocrDraw(); } ocrBtns(); });
+  const toImg = r => { const k = ocrView.w / cv.width; return { x: ocrView.x + r.x * k, y: ocrView.y + r.y * k, w: r.w * k, h: r.h * k }; };
+  $('ocrZoom').addEventListener('click', () => { if (!ocrRect) return; const r = toImg(ocrRect), pad = Math.max(r.w, r.h) * 0.08;
+    const x = Math.max(0, r.x - pad), y = Math.max(0, r.y - pad);
+    ocrView = { x, y, w: Math.min(ocrImg.width - x, r.w + 2 * pad), h: Math.min(ocrImg.height - y, r.h + 2 * pad) }; ocrFit(); });
+  $('ocrReset').addEventListener('click', () => { ocrView = { x: 0, y: 0, w: ocrImg.width, h: ocrImg.height }; ocrFit(); });
 })();
 $('gOcr').addEventListener('click', () => $('gOcrFile').click());
 $('gOcrFile').addEventListener('change', e => { ocrQ = [...e.target.files]; ocrDone = 0; e.target.value = ''; if (ocrQ.length){ ocrLoad(); ocrNext(); } });
 $('ocrSkip').addEventListener('click', ocrNext);
 $('ocrStop').addEventListener('click', () => { ocrQ = []; ocrNext(); });
 $('ocrRead').addEventListener('click', async () => {
-  if (!ocrImg) return;
+  if (!ocrImg || !ocrRect) return;
   $('ocrRead').disabled = true; $('ocrMsg').textContent = '읽는 중… (처음 한 번은 준비에 몇 초 걸립니다)';
-  const k = ocrImg.width / $('ocrCv').width, r = ocrRect || { x: 0, y: 0, w: $('ocrCv').width, h: $('ocrCv').height };
-  const sx = r.x * k, sy = r.y * k, sw = r.w * k, sh = r.h * k;
+  const k = ocrView.w / $('ocrCv').width, r = ocrRect;
+  const sx = ocrView.x + r.x * k, sy = ocrView.y + r.y * k, sw = r.w * k, sh = r.h * k;
   const up = Math.min(2, 2000 / sw), c = document.createElement('canvas');           // 2배 확대 + 흑백 + 대비 늘리기
   c.width = Math.round(sw * up); c.height = Math.round(sh * up);
   const ctx = c.getContext('2d'); ctx.drawImage(ocrImg, sx, sy, sw, sh, 0, 0, c.width, c.height);
@@ -2984,19 +3022,25 @@ $('ocrRead').addEventListener('click', async () => {
     if (!main) warn.push('주옵');
     if (P.subs.length < 4) warn.push('부옵 ' + (4 - P.subs.length) + '칸');
     P.subs.forEach((x, i) => { if (!x.ok) warn.push('부옵' + (i + 1) + ' 강화'); });
+    const dup = P.subs.map(x => x.t).filter((t, i, a) => a.indexOf(t) !== i);
+    if (dup.length) warn.unshift('같은 부옵이 두 번 읽힘(' + [...new Set(dup)].map(t => SUBN[t]).join(', ') + ') — 카드만 다시 감싸서 읽는 것을 권합니다');
     if (!P.set) warn.push('세트');
     if (P.subs.length < 2){ $('ocrMsg').textContent = '장비 카드를 찾지 못했습니다. 카드 부분만 네모로 감싸고 다시 읽어 주세요.'; $('ocrRead').disabled = false; return; }
     ocrDone++;
     $('ocrBox').hidden = true;
     gEdit(null, Object.assign({ slot: P.slot, set: P.set || '복수자', memo: P.name || '', subs }, main ? { main } : { main: wOK ? 'crit' : 'atkp' }));
-    $('gMsg').innerHTML = '<strong>캡처에서 읽었습니다</strong> — 게임 화면과 맞는지 보고 <strong>추가</strong>를 누르세요. 출처(레이드·돌발레이드·이벤트)는 직접 고르세요.' +
+    $('gMsg').innerHTML = '<strong>캡처에서 읽었습니다</strong> — 게임 화면과 맞는지 보고 <strong>추가</strong>를 누르세요. 출처(레이드·돌발레이드·이벤트)는 카드에 없어 기본값이 레이드입니다 — 다르면 바꾸세요.' +
       (warn.length ? ' <span class="flat">확인 필요: ' + warn.join(', ') + '</span>' : '');
   } catch (err){
     $('ocrMsg').textContent = (err && err.message) || '읽기에 실패했습니다.'; $('ocrRead').disabled = false;
   }
 });
 /* 편집기를 닫으면(추가·취소) 다음 캡처로 */
-new MutationObserver(() => { if ($('gEditor').hidden && (ocrQ.length || !$('ocrBox').hidden) && ocrImg && $('ocrBox').hidden) ocrNext(); })
+new MutationObserver(() => {
+  if (!$('gEditor').hidden || !ocrImg || !$('ocrBox').hidden || !ocrDone) return;
+  if (ocrQ.length) ocrNext();
+  else { const m = $('gMsg'); if (!/했습니다/.test(m.textContent)) m.textContent = '캡처 추가를 마쳤습니다.'; ocrImg = null; }
+})
   .observe($('gEditor'), { attributes: true, attributeFilter: ['hidden'] });
 function demoBtn(){ const n = gear.filter(g => g.demo).length; $('gDemo').textContent = n ? '예시 장비 지우기 (' + n + ')' : '예시 장비 넣기'; }
 $('gDemo').addEventListener('click', () => {
@@ -3356,7 +3400,8 @@ function aRun(){
     const un = mc ? unitsOf(ch.u.cc, mc, s.vc, s.vd, s.vq) : null;
     return '<div class="pcard"><div class="p-h"><div><b>' + esc(ch.name) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
         '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
-      '<div class="p-pieces">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div>' +
+      '<details class="pp"' + (innerWidth > 600 ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
+      '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div></details>' +
       '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong> · 최고 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
         ' <span class="muted">(' + (un && !un.neg ? '유효 ' + un.u.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span>' +
         (() => { const sc = spdCheck(c.id, ch.name, state.pieces[i]), v = spdSum(state.pieces[i]);
@@ -3593,7 +3638,7 @@ function setRows(c, safe){
       return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">' + setText(c.id, u.name) + '생존·토템 세팅</td></tr>';
     const b = u.pick;
     const main = MLABEL[b.main[0]] + '·' + MLABEL[b.main[1]];
-    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) +
+    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + (trans[u.name] !== undefined ? '<span class="set-tag" title="내 캐릭터 초월에서 지정">' + TLABEL[trans[u.name]] + '</span>' : '') +
       '<span class="mob"><span>주옵 ' + main + '</span> <span>장신구 ' + CARVENAME[b.cv] + '</span></span></td>' +
       '<td class="muted">' + main + '</td><td class="muted">' + CARVENAME[b.cv] + '</td>' +
       '<td class="v">' + b.vc + (safe && b.p < 99 ? '<span class="sub" title="약확 100을 채우면 장비 예산(32단위)으로는 치확 99까지 못 감 — 닿을 수 있는 최대치">최대</span>' : '') + '</td>';
@@ -3696,23 +3741,28 @@ $('shareBtn').addEventListener('click', () => {
     const v = myOf(cid, n); if (v[0] != null && v[1] != null && v[2] != null) m[n] = v.slice(0, 5).map(x => x ?? null);
   }));
   if (!Object.keys(m).length){ $('shareMsg').textContent = '먼저 위 표에 스펙을 넣어 주세요.'; return; }
-  const url = SHARE_BASE + '#s=' + b64e({ v: 1, o: opt.id, m });
+  const t = {}; Object.keys(m).forEach(n => { if (trans[n] !== undefined) t[n] = trans[n]; });
+  const url = SHARE_BASE + '#s=' + b64e(Object.keys(t).length ? { v: 1, o: opt.id, m, t } : { v: 1, o: opt.id, m });
   const done = ok => { $('shareMsg').innerHTML = (ok ? '복사했습니다 — 카톡 등에 붙여넣으세요. ' : '아래 주소를 복사해 보내세요. ') + '<input readonly value="' + esc(url) + '" style="margin-top:6px;font-size:12px" onclick="this.select()">'; };
   try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); }
 });
 function shareOpen(){
   const h = location.hash.match(/[#&]s=([\w-]+)/); if (!h) return;
   try { const o = b64d(h[1]); if (!o || !o.m || !SET_OPTS.some(x => x.id === o.o)) return; shared = o; } catch (e) { return; }
-  $('shareWho').textContent = (SET_OPTS.find(x => x.id === shared.o) || {}).n + ' · ' + Object.entries(shared.m).map(([n, v]) => n + ' ' + v[0] + '/' + v[1] + '/' + v[2]).join(', ');
+  $('shareWho').textContent = (SET_OPTS.find(x => x.id === shared.o) || {}).n + ' · ' + Object.entries(shared.m).map(([n, v]) => n + ' ' + v[0] + '/' + v[1] + '/' + v[2] + (shared.t && shared.t[n] !== undefined ? '(' + TLABEL[shared.t[n]] + ')' : '')).join(', ') +
+    ' — 다른 콘텐츠를 고르면 공유 보기가 끝납니다.';
   $('shareBar').hidden = false;
   setContent(shared.o); $('t-goal').click();
 }
-function shareEnd(){ shared = null; $('shareBar').hidden = true; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} goalRun(); }
+function shareEnd(quiet){ shared = null; $('shareBar').hidden = true; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} if (!quiet) goalRun(); }
 $('shareClose').addEventListener('click', shareEnd);
 $('shareKeep').addEventListener('click', () => {
   const opt = SET_OPTS.find(x => x.id === shared.o);
+  const diff = Object.entries(shared.m).map(([n, v]) => { const o = (mine[ALL] || {})[n]; return n + ' ' + (o && o[0] != null ? o[0] + '/' + o[1] + '/' + o[2] : '(없음)') + ' → ' + v[0] + '/' + v[1] + '/' + v[2]; });
+  if (!confirm('내 기록을 이 값으로 바꿉니다(모든 콘텐츠 공통값):\n\n' + diff.join('\n') + '\n\n계속할까요?')) return;
   Object.entries(shared.m).forEach(([n, v]) => { (mine[ALL] ||= {})[n] = v.slice(); opt.parts.forEach(cid => { if (mine[cid]) delete mine[cid][n]; }); });
   mPersist(); shareEnd();
+  const m = $('gSnapMsg'); m.textContent = '공유받은 값을 내 기록(공통값)으로 저장했습니다.'; m.className = 'note win'; clearTimeout(m._t); m._t = setTimeout(() => { m.textContent = ''; }, 6000);
 });
 
 /* ══════════ 처음 안내 — 닫으면 이 브라우저에서는 다시 안 뜬다 ══════════ */
