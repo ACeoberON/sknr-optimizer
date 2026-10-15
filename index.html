@@ -74,7 +74,7 @@ tr.mine-det>td{background:var(--bg,transparent);padding:10px 12px 14px;white-spa
 
 /* 탭: 세팅 · 목표(이상치 + 내 스펙 평가 + 줄 옮기기) · 장비 · 비교 · 공략 · 백업 */
 :root{
-  --ink:#1b1d1a; --ink-2:#56594f; --ink-3:#878a7d;
+  --ink:#1b1d1a; --ink-2:#56594f; --ink-3:#6a6d61;
   --paper:#f6f5ef; --card:#fffefa; --line:#ddddd0; --line-2:#ececdf;
   --accent:#4f6b3a; --accent-soft:#e7edde;
   --win:#2f6b45; --lose:#9a3a2c; --flat:#7a6a2e;
@@ -82,12 +82,12 @@ tr.mine-det>td{background:var(--bg,transparent);padding:10px 12px 14px;white-spa
   --mono:"IBM Plex Mono","IBM Plex Sans KR",ui-monospace,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ink:#eceade; --ink-2:#a9ac9d; --ink-3:#7e8174;
+  --ink:#eceade; --ink-2:#a9ac9d; --ink-3:#94978a;
   --paper:#15170f; --card:#1e211a; --line:#343828; --line-2:#272b1f;
   --accent:#9cc178; --accent-soft:#2a3220;
   --win:#79c194; --lose:#e08a79; --flat:#d4bd6b; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --ink:#eceade; --ink-2:#a9ac9d; --ink-3:#7e8174;
+  --ink:#eceade; --ink-2:#a9ac9d; --ink-3:#94978a;
   --paper:#15170f; --card:#1e211a; --line:#343828; --line-2:#272b1f;
   --accent:#9cc178; --accent-soft:#2a3220;
   --win:#79c194; --lose:#e08a79; --flat:#d4bd6b; color-scheme:dark}
@@ -239,6 +239,9 @@ h1 .t{white-space:nowrap}
 .tgt-tbl .mob{display:none}
 .intro{position:relative;margin:0 0 14px;padding:11px 36px 11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--accent-soft);font-size:13.5px;line-height:1.6}
 .intro ol{margin:4px 0 0;padding-left:20px}
+.intro .more{margin-top:4px}
+.intro .more ul{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2)}
+.intro .more li{margin:2px 0}
 .intro li{margin:1px 0}
 .intro .x{position:absolute;top:4px;right:4px;min-width:36px;min-height:36px}
 #helpBtn,#themeBtn{white-space:nowrap}
@@ -311,11 +314,16 @@ h1 .t{white-space:nowrap}
   <ol>
     <li>맨 위에서 콘텐츠를 고릅니다(공성전은 오늘 요일이 기본).</li>
     <li>표의 <strong>치확 · 치피 · 약확</strong>대로 마을 화면 스탯을 맞춥니다. 치확은 <strong>OK 범위</strong> 안이면 충분합니다.</li>
-    <li>6초월 미만 캐릭터가 있으면 <strong>목표</strong> 탭 맨 위 <strong>내 캐릭터 초월</strong>에서 지정합니다(숫자가 달라집니다).</li>
-    <li>더 파고들려면 <strong>목표</strong> 탭에 지금 스탯을 넣어 몇 %인지, 어디를 고칠지 봅니다. 장비를 등록하면(게임 캡처로도 가능) <strong>장비</strong> 탭이 알아서 골라 줍니다. 내 스펙은 링크로 공유할 수 있습니다.</li>
   </ol>
-  <p class="note" style="margin-top:4px">숫자는 전부 <strong>장비를 낀 마을 화면</strong> 기준입니다 · 이름 옆 % = 팀 딜에서 그 캐릭터 비중 · 콘텐츠 앞 ✓ = 실제 전투로 검증한 콘텐츠</p>
-  <p class="note" style="margin-top:4px"><strong>안전</strong> = 치확을 거의 100으로 맞추고 나머지는 치피, 매판 점수가 고름 · <strong>고점</strong> = 최고 기록을 노리는 배분(공성전은 점수 이월이라 이쪽이 이득)</p>
+  <details class="more"><summary>더 보기</summary>
+  <ul>
+    <li>숫자는 전부 <strong>장비를 낀 마을 화면</strong> 기준 · 이름 옆 % = 팀 딜에서 그 캐릭터 비중 · 콘텐츠 앞 ✓ = 실제 전투로 검증</li>
+    <li><strong>안전</strong> = 치확을 거의 100으로, 매판 점수가 고름 · <strong>고점</strong> = 최고 기록을 노리는 배분(공성전은 점수 이월이라 이쪽이 이득)</li>
+    <li>6초월 미만 캐릭터는 <strong>목표</strong> 탭 맨 위 <strong>내 캐릭터 초월</strong>에서 지정</li>
+    <li><strong>목표</strong> 탭: 지금 스탯을 넣으면 몇 %인지, 어디를 고칠지 · 링크로 공유</li>
+    <li><strong>장비</strong> 탭: 장비를 등록(게임 캡처로도 가능)하면 콘텐츠별로 알아서 골라 줌</li>
+  </ul>
+  </details>
   <button type="button" class="ghost x" id="introX" aria-label="안내 닫기" title="닫기">✕</button>
 </div>
 <section class="card">
@@ -335,6 +343,7 @@ h1 .t{white-space:nowrap}
     </table>
   </div>
   <p class="note" style="margin-top:6px" id="sFoot"></p>
+  <div class="row-actions" style="margin-top:10px"><button type="button" id="toGoal">내 스펙으로 확인하기 →</button><span class="note">지금 스탯을 넣으면 최고 대비 몇 %인지, 어디를 고칠지 알려 줍니다.</span></div>
   <div id="sOps" class="set-ops"></div>
 </section>
 <details class="card" id="tgtCard" style="margin-top:14px">
@@ -386,13 +395,14 @@ h1 .t{white-space:nowrap}
   <p class="note" style="margin:0 0 6px;color:var(--ink-2)">① 캐릭터마다 마을 화면의 치확·치피·약확과 무기 주옵을 넣고 → ② 아래 <strong>줄 옮기기 안내</strong>대로 바꿉니다. 이름(▸)을 누르면 다음 강화 위치와 시험 칸이 열립니다.</p>
   <p class="note" id="gMeta" style="margin:0 0 8px"></p>
   <p class="note" id="gSnapMsg" role="status"></p>
-  <details class="gloss"><summary>용어 설명 (눌러서 펼치기)</summary>
+  <details class="gloss"><summary>용어 설명</summary>
   <dl>
-    <dt>최고</dt><dd>이 콘텐츠에서 이론상 가장 점수가 높은 마을 치확 / 치피 / 약확. 캐릭터 이름 아래 작은 글씨.</dd>
-    <dt>유효 줄</dt><dd>치확·치피·약확에 들어간 부옵 줄 수 + 강화 횟수. 다 맞추면 <strong>32</strong>.<br>32보다 작으면 그만큼 공%처럼 쓸모없는 옵션에 강화가 붙었거나, 부옵이 없는 장비를 끼고 있다는 뜻입니다.</dd>
-    <dt>최고 대비</dt><dd>내 스펙 점수 ÷ 최고 점수. 100%면 끝.<br>아래 작은 글씨 <strong>팀 −0.5%p</strong>는 이 캐릭터 때문에 팀 점수가 깎인 양입니다. 지분이 작은 캐릭터는 "무시"로 나옵니다.</dd>
-    <dt>세공</dt><dd>장신구에 붙이는 두 번째 효과. 본체는 보통 <strong>토벌</strong>(보스 피해 +12%)이고, 세공은 지금 스탯에 가장 유리한 것(치확 +10 / 약확 +12 / 공성 = 스킬 피해 +10%)이 나옵니다. 권능이 필수인 캐릭터는 본체가 권능입니다.</dd>
-    <dt>장비 · 배분</dt><dd>이름을 눌러 펼치면 나옵니다.<br><strong>장비</strong>가 낮으면 → 장비 교체나 강화 초기화가 필요.<br><strong>배분</strong>이 낮으면 → 줄만 옮기면 오릅니다(아래 "줄 옮기기 안내").</dd>
+    <dt>최고</dt><dd>이 콘텐츠에서 점수가 가장 높은 마을 치확 / 치피 / 약확(이름 옆 작은 글씨). 약확 <strong>—</strong> = 약확 줄 대신 모공.</dd>
+    <dt>공통 / 여기만 따로</dt><dd>스펙은 캐릭터마다 한 번만 넣으면 모든 콘텐츠가 같이 씁니다. 이 콘텐츠만 장비가 다르면 이름 옆 <strong>여기만 따로 쓰기</strong>를 누르고 넣으세요.</dd>
+    <dt>최고 대비</dt><dd>내 스펙 점수 ÷ 최고 점수. 100%면 끝. 아래 <strong>팀 −0.5%p</strong>는 이 캐릭터 때문에 팀 점수가 깎인 양(비중이 작으면 "팀 영향 무시").</dd>
+    <dt>유효 줄</dt><dd>치확·치피·약확 부옵 줄 + 그 줄에 붙은 강화 횟수. 만점 <strong>32</strong>. 모자라면 공% 같은 다른 옵션에 강화가 붙었거나 그 부옵이 없는 장비입니다.</dd>
+    <dt>세공</dt><dd>장신구의 두 번째 효과. 지금 스탯에 가장 유리한 것을 추천합니다(치확 +10 / 약확 +12 / 공성).</dd>
+    <dt>장비 · 배분</dt><dd>이름(▸)을 펼치면 나옵니다. <strong>장비</strong>가 낮으면 교체·강화 초기화, <strong>배분</strong>이 낮으면 줄만 옮기면 됩니다.</dd>
   </dl>
   </details>
   <div class="scroll" style="margin-top:10px">
@@ -1702,11 +1712,9 @@ const SET_OPTS = [
   { id:'yeon', n:'강림 · 연희', parts:['y1','y2'] },
   { id:'karma',n:'강림 · 카르마', parts:['m1','m2'] },
   { id:'pg4',  n:'강림 · 파괴신 4턴 ver', parts:['r1a','r2a'] },
-  { id:'pg8',  n:'강림 · 파괴신 8턴 ver', parts:['r1b','r2b'] },
-  /* 공략 준비 중 — 종류만 보이고 세부 칸은 잠김. 공략이 들어오면 soon을 지우고 세부 항목을 추가 */
-  { id:'raid',  n:'레이드 · 준비 중', parts:[], soon:true },
-  { id:'sraid', n:'돌발 레이드 · 준비 중', parts:[], soon:true },
-  { id:'grow',  n:'성장던전 · 준비 중', parts:[], soon:true }
+  { id:'pg8',  n:'강림 · 파괴신 8턴 ver', parts:['r1b','r2b'] }
+  /* 새 종류(레이드 등)는 'n: 종류 · 세부' 형식으로 추가하면 위쪽 종류 칸에 저절로 생긴다.
+     공략 없이 자리만 둘 때는 parts:[], soon:true (세부 칸이 잠기고 '준비 중'으로 나옴) */
 ];
 /* 공략 기준일 — 공략을 갱신하면 여기(전체) 또는 SET_OPTS 항목의 upd(그 콘텐츠만)를 고친다. 세팅 탭에 표시된다 */
 const GUIDE_DATE = '2026-09-30';
@@ -3730,6 +3738,7 @@ function setRun(){
   alignNotes($('sOps'));
 }
 $('sContent').addEventListener('input', setRun);
+$('toGoal').addEventListener('click', () => { $('t-goal').click(); });
 [['sSafe', true], ['sPeak', false]].forEach(([id, on]) => $(id).addEventListener('click', () => {
   $('sSafe').setAttribute('aria-pressed', String(on));
   $('sPeak').setAttribute('aria-pressed', String(!on));
