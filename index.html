@@ -214,6 +214,18 @@ mark.sk-r{background:#f3c6bc;color:inherit;border-radius:3px;padding:0 2px}
   overflow-x:auto;font:500 12px/1.7 var(--mono);margin:6px 0 0}
 .flow .big{font-size:22px}
 h1 .t{white-space:nowrap}
+.gpick{margin:-8px 0 14px}
+.gpick .pick2{max-width:560px}
+.glist{display:flex;flex-direction:column;gap:5px}
+.grow{border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.grow>summary{list-style:none;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:7px 10px;color:var(--ink);font-weight:400;cursor:pointer}
+.grow>summary::-webkit-details-marker{display:none}
+.grow>summary::before{content:'▸';font-size:10px;color:var(--ink-3)}
+.grow[open]>summary::before{content:'▾'}
+.grow .gl-t{font-weight:600;font-size:13.5px}
+.grow .gl-m{font-size:12px;color:var(--ink-2)}
+.grow .gl-s{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
+.grow>.gcard{border:none;border-top:1px solid var(--line-2);border-radius:0 0 8px 8px}
 .pick2{display:flex;gap:6px;flex:1 1 260px;min-width:0}
 .pick2 select{width:auto}
 .pick2 select:first-child{flex:0 0 auto;font-weight:600}
@@ -272,13 +284,14 @@ h1 .t{white-space:nowrap}
   <button role="tab" id="t-guide" aria-selected="false" aria-controls="p-guide">공략</button>
   <button role="tab" id="t-cfg" aria-selected="false" aria-controls="p-cfg">백업</button>
 </div>
+<div class="gpick" id="gpick"><select id="cSel" aria-label="콘텐츠"></select></div>
 
 <!-- ───────────── 목표 ───────────── -->
 <div class="panel" id="p-set" role="tabpanel" aria-labelledby="t-set">
 <div class="intro" id="intro">
   <strong>이렇게 쓰세요</strong>
   <ol>
-    <li>아래에서 오늘 콘텐츠를 고릅니다.</li>
+    <li>맨 위에서 콘텐츠를 고릅니다(공성전은 오늘 요일이 기본).</li>
     <li>표의 <strong>치확 · 치피 · 약확</strong>대로 마을 화면 스탯을 맞춥니다. 치확은 <strong>OK 범위</strong> 안이면 충분합니다.</li>
     <li>더 파고들려면 <strong>목표</strong> 탭에 지금 스탯을 넣어 몇 %인지, 어디를 고칠지 봅니다. 장비를 등록하면 <strong>장비</strong> 탭이 알아서 골라 줍니다.</li>
   </ol>
@@ -287,7 +300,7 @@ h1 .t{white-space:nowrap}
 </div>
 <section class="card">
   <div class="set-head">
-    <select id="sContent" aria-label="콘텐츠"></select>
+    <select id="sContent" aria-label="콘텐츠" hidden></select>
     <div class="seg" role="group" aria-label="세팅 방향">
       <button type="button" id="sSafe" aria-pressed="false">안전</button>
       <button type="button" id="sPeak" aria-pressed="true">고점</button>
@@ -304,16 +317,9 @@ h1 .t{white-space:nowrap}
   <p class="note" style="margin-top:6px" id="sFoot"></p>
   <div id="sOps" class="set-ops"></div>
 </section>
-</div>
-
-<div class="panel" id="p-goal" role="tabpanel" aria-labelledby="t-goal" hidden>
-<div class="stack">
-
-<section class="card">
-  <h2>최고 목표 — 마을 기준</h2>
-  <div class="steps"><span>① 콘텐츠 고르기</span><span>② <strong>내 스펙 평가</strong>에 마을 스탯 넣기</span><span>③ <strong>줄 옮기기 안내</strong>대로 바꾸기</span></div>
-  <select id="gContent" aria-label="콘텐츠"></select>
-  <p class="note" id="gMeta" style="margin-top:10px"></p>
+<details class="card" id="tgtCard" style="margin-top:14px">
+  <summary>고점 상세 — 줄 수 · 강화 횟수</summary>
+  <select id="gContent" aria-label="콘텐츠" hidden></select>
   <div class="scroll" style="margin-top:12px">
   <table class="tgt-tbl">
     <thead><tr><th>캐릭터</th><th>무기 주옵</th><th>장신구</th><th title="부옵 줄 + 강화 횟수 (치확 4 · 치피 6 · 약확 5 = 1줄)">줄 수 치확/치피/약확</th>
@@ -331,10 +337,16 @@ h1 .t{white-space:nowrap}
     <dt>주옵</dt><dd>치확 24와 치피 36은 둘 다 6줄이라 같은 값이고, 약확 28은 약확을 꼭 채워야 할 때만 씁니다.</dd>
   </dl>
   </details>
-</section>
+</details>
+</div>
+
+<div class="panel" id="p-goal" role="tabpanel" aria-labelledby="t-goal" hidden>
+<div class="stack">
 
 <section class="card">
   <h2>내 스펙 평가</h2>
+  <div class="steps"><span>① 마을 스탯 넣기</span><span>② <strong>줄 옮기기 안내</strong>대로 바꾸기</span><span>이름(▸) = 후보 비교</span></div>
+  <p class="note" id="gMeta" style="margin:0 0 8px"></p>
   <p class="note"><strong>마을 화면</strong>의 치확·치피·약확과 무기 주옵을 넣으면 최고 대비 몇 %인지 나옵니다. 이름(▸)을 누르면 다음 강화 위치와 시험 칸이 열립니다.</p>
   <details class="gloss"><summary>용어 설명 (눌러서 펼치기)</summary>
   <dl>
@@ -425,10 +437,10 @@ h1 .t{white-space:nowrap}
 <section class="card">
   <h2>콘텐츠별 배정</h2>
   <div class="grid2">
-    <div><label for="aContent">콘텐츠</label><select id="aContent"></select></div>
+    <div id="aRoundBox" hidden><label for="aContent">라운드</label><select id="aContent"></select></div>
     <div style="display:flex;align-items:flex-end"><button type="button" id="aRun" style="width:100%">배정 계산</button></div>
   </div>
-  <p class="note" id="aMeta" style="margin-top:10px">보유 장비로 딜러마다 무기 2 + 방어구 2와 장신구를 고릅니다. 버퍼·생존 캐릭터는 딜에 영향이 없어 제외합니다.</p>
+  <p class="note" id="aMeta" style="margin-top:10px">위에서 고른 콘텐츠에 맞춰, 보유 장비로 딜러마다 무기 2 + 방어구 2와 장신구를 고릅니다. 버퍼·생존 캐릭터는 딜에 영향이 없어 제외합니다.</p>
 </section>
 
 <section class="card" id="aResultCard" hidden>
@@ -470,8 +482,7 @@ h1 .t{white-space:nowrap}
 <div class="stack">
 <section class="card">
   <h2>공략 원문</h2>
-  <label for="gSel">콘텐츠</label>
-  <select id="gSel"></select>
+  <select id="gSel" hidden></select>
   <p class="note" style="margin-top:10px">출처: 유튜브 <strong>래밍</strong> · <a href="https://www.youtube.com/@%EB%9E%98%EB%B0%8D-r5j/videos" style="color:var(--accent)">채널 바로가기</a> · 수집일 2026-09-30. 공략은 1~2주 단위로 갱신되며 편성 자체가 바뀝니다.</p>
 </section>
 <section class="card md" id="gBody"></section>
@@ -2073,7 +2084,7 @@ function goalRun(){
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
       mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + '<span class="ideal">최고 ' + b.vc + '/' + b.vd + '/' + qTxt(c, u, b) + '</span></td>' +
-        mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, b.vq) +
+        mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, qSpare(c, u, b) ? b.vq - LINE.w * UNIT_MIN : b.vq) +
         '<td class="num" data-l="유효 단위" data-u="' + c.id + '|' + u.name + '">—</td>' +
         '<td class="num out" data-l="최고 대비"><span data-out="' + dk + '">—</span><span class="imp muted" data-imp="' + dk + '"></span></td>' +
         '<td class="muted" data-l="세공" data-cv="' + dk + '">—</td></tr>' +
@@ -2402,13 +2413,11 @@ const CKEY = 'sknr-judge-chars';
 try { localStorage.removeItem('sknr-judge-v3'); } catch {}   // 옛 판정 탭(전투 기준) 입력값 — 목표 탭에 통합되며 폐기
 const charOf = name => ({ wm: valOf(name, 'wm'), pf: valOf(name, 'pf') });
 CONTENTS.forEach(c => {
-  ['gSel','aContent'].forEach(id => {
+  ['gSel'].forEach(id => {
     const o = document.createElement('option');
     o.value = c.id; o.textContent = c.n; $(id).appendChild(o);
   });
 });
-$('aContent').value = 'r2a';
-queueMicrotask(() => { const o = SET_OPTS.find(x => x.id === $('gContent').value); if (o && o.parts[0]) $('aContent').value = o.parts[0]; PICK.aContent && PICK.aContent(); });   // 배정 기본 = 오늘 콘텐츠
 
 /* 딜 지분. 실측값이 있으면 항상 실측을 쓰고, 없을 때만 시전 가중치로 추정한다.
    SRC 에 측정 판수·날짜·평균 총점을 남겨 두면 목표 탭 머리말에 그대로 표시된다. */
@@ -2434,7 +2443,18 @@ const SHARE_SRC = {
 const verified = opt => opt.parts.length > 0 &&
   opt.parts.every(id => { const m = /^실측 (\d+)판/.exec(SHARE_SRC[id] || ''); return m && +m[1] >= 5; });
 const optLabel = opt => (verified(opt) ? '✓ ' : '  ') + opt.n;
-SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('gContent').appendChild(o); });
+SET_OPTS.forEach(x => ['gContent', 'cSel'].forEach(id => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $(id).appendChild(o); }));
+/* 콘텐츠는 탭 위 한 칸에서만 고른다 — 세팅·목표·공략·배정이 전부 따라간다 */
+function setContent(id){
+  const opt = SET_OPTS.find(x => x.id === id); if (!opt) return;
+  $('cSel').value = id; PICK.cSel && PICK.cSel();
+  $('sContent').value = id; $('gContent').value = id;
+  const as = $('aContent'), keep = opt.parts.includes(as.value) ? as.value : opt.parts[0];
+  as.innerHTML = opt.parts.map(p => '<option value="' + p + '">' + esc(ROUND_LABEL[p] || cName(p)) + '</option>').join('');
+  if (keep) as.value = keep;
+  $('aRoundBox').hidden = opt.parts.length < 2;
+  setRun(); goalRun(); gRender();
+}
 $('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 function guessShare(c){
   if (SHARE[c.id]) return SHARE[c.id].slice();
@@ -2633,6 +2653,11 @@ const gById = id => gear.find(g => g.id === id);
 const gSlotName = s => (SLOTS.find(x => x[0] === s) || [, s])[1];
 const gTitle = g => g ? (g.name || '레이드') + ' ' + (g.slot === 'ar' ? '방어구' : '무기') + ' #' + g.id : '없음';
 let gFilter = 'all', gGrade = null;
+let gView = 'brief';                       // 장비 목록 보기: brief = 한 줄 요약(눌러서 펼침) · full = 카드
+try { gView = localStorage.getItem('sknr-gview') || 'brief'; } catch (e) {}
+const gLine = g => '<span class="gl-t">' + esc(gTitle(g)) + '</span> ' + gradeBadge(g) +
+  ' <span class="gl-m">' + gSlotName(g.slot).replace('무기 · ', '') + ' · ' + (MAINN[g.main] || g.main) + '</span>' +
+  ' <span class="gl-s">' + (g.subs || []).map(([t, e]) => (SUBS[t] || t) + (e > 0 ? '+' + e : '')).join(' ') + '</span>';
 
 /* 게임 장비 카드 모양 */
 function gCard(g, mini, actions){
@@ -2659,12 +2684,17 @@ function gRowsInit(){
   $('gFilt').innerHTML = [['all','전체'],['w','무기'],['ar','방어구']].map(([v, l]) =>
     '<button type="button" data-gf="' + v + '" aria-pressed="' + (gFilter === v) + '">' + l + ' ' + cnt(v) + '</button>').join(' ') +
     ' <span style="display:inline-block;width:8px"></span>' +
-    GRADES.map(([k, n]) => '<button type="button" data-gg="' + k + '" aria-pressed="' + (gGrade === k) + '">' + n + ' ' + gcnt(k) + '</button>').join(' ');
+    GRADES.map(([k, n]) => '<button type="button" data-gg="' + k + '" aria-pressed="' + (gGrade === k) + '">' + n + ' ' + gcnt(k) + '</button>').join(' ') +
+    ' <span style="display:inline-block;width:8px"></span>' +
+    [['brief','한 줄'],['full','카드']].map(([v, l]) => '<button type="button" data-gv="' + v + '" aria-pressed="' + (gView === v) + '">' + l + '</button>').join(' ');
   $('gFilt').querySelectorAll('[data-gf]').forEach(b => b.addEventListener('click', () => { gFilter = b.dataset.gf; gRowsInit(); }));
   $('gFilt').querySelectorAll('[data-gg]').forEach(b => b.addEventListener('click', () => { gGrade = gGrade === b.dataset.gg ? null : b.dataset.gg; gRowsInit(); }));
+  $('gFilt').querySelectorAll('[data-gv]').forEach(b => b.addEventListener('click', () => { gView = b.dataset.gv; try { localStorage.setItem('sknr-gview', gView); } catch (e) {} gRowsInit(); }));
   const list = gear.filter(g => slotOk(g, gFilter) && (!gGrade || gradeOf(g).key === gGrade))
     .sort((a, b) => gradeOf(b).score - gradeOf(a).score || a.id - b.id);
-  $('gList').innerHTML = list.length ? list.map(g => gCard(g, false, true)).join('')
+  $('gList').className = gView === 'full' ? 'ggrid' : 'glist';
+  $('gList').innerHTML = list.length ? list.map(g => gView === 'full' ? gCard(g, false, true)
+      : '<details class="grow"><summary>' + gLine(g) + '</summary>' + gCard(g, false, true) + '</details>').join('')
     : '<p class="note">등록된 장비가 없습니다. “장비 추가”를 누르십시오.</p>';
   $('gList').querySelectorAll('[data-gedit]').forEach(b => b.addEventListener('click', () => gEdit(+b.dataset.gedit)));
   $('gList').querySelectorAll('[data-gdup]').forEach(b => b.addEventListener('click', () => {
@@ -2828,7 +2858,7 @@ function presetApply(p){
   mine[cid][p.char] = [s.vc, s.vd, s.vq, s.mc || prev[3], p.ring && p.ring !== 'auto' ? p.ring : prev[4]];
   mPersist();
   const opt = SET_OPTS.find(x => x.parts.includes(cid));
-  if (opt){ $('gContent').value = opt.id; goalRun(); }
+  if (opt) setContent(opt.id);
   $('pMsg').textContent = p.char + ' → 목표 탭 › 내 스펙 평가(' + cName(cid) + ')에 넣었습니다.'; setTimeout(() => { $('pMsg').textContent = ''; }, 3500);
 }
 function pEdit(id){
@@ -3091,6 +3121,7 @@ function optimizeAssign(c){
 
 function aRun(){
   const c = CONTENTS.find(x => x.id === $('aContent').value);
+  if (!c){ $('aMeta').textContent = '이 콘텐츠는 공략 데이터가 아직 없습니다.'; return; }
   const r = optimizeAssign(c);
   $('aResultCard').hidden = false;
   const box = $('aRows'); box.innerHTML = '';
@@ -3186,7 +3217,7 @@ $('aApply').addEventListener('click', () => {
   });
   mPersist();
   const opt = SET_OPTS.find(x => x.parts.includes(c.id));
-  if (opt){ $('gContent').value = opt.id; goalRun(); }
+  if (opt) setContent(opt.id);
   $('aMsg').textContent = opt ? '목표 탭 › 내 스펙 평가에 넣었습니다.' : '넣었지만 목표 탭 목록에 없는 콘텐츠입니다.';
   setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
 });
@@ -3251,15 +3282,14 @@ function gOpsRender(){
 }
 
 function gRender(){
-  PICK.gSel && PICK.gSel();
-  const c = CONTENTS.find(x => x.id === $('gSel').value);
-  const sec = SECTIONS.find(s => s.title.startsWith(c.g));
-  $('gBody').innerHTML = sec
-    ? '<h3>' + esc(sec.title) + '</h3>' + md(sec.body)
+  const opt = SET_OPTS.find(x => x.id === $('cSel').value) || SET_OPTS[0];
+  const secs = [...new Set(opt.parts.map(id => { const c = CONTENTS.find(x => x.id === id); return c && SECTIONS.find(sc => sc.title.startsWith(c.g)); }).filter(Boolean))];
+  $('gBody').innerHTML = secs.length
+    ? secs.map(sec => '<h3>' + esc(sec.title) + '</h3>' + md(sec.body)).join('<hr style="border:none;border-top:1px solid var(--line);margin:18px 0">')
     : '<p class="muted">이 콘텐츠의 공략 원문이 아직 없습니다.</p>';
   alignNotes($('gBody'));
 }
-$('gSel').addEventListener('change', gRender);
+
 
 /* ══════════ 세팅 탭 — 한 화면 요약 ══════════ */
 SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('sContent').appendChild(o); });
@@ -3368,7 +3398,7 @@ function setOps(c){
   const hasNum = /\(\d+\)/.test(o.speed) || /상관 ?X/.test(o.speed);   // '속공 상관 X'면 수치 불필요
   const speed = o.speed ? inl(o.speed) + (hasNum ? '' : ' <span class="tag" style="display:inline-block">속공 수치 미입력</span>') : '';
   return '<dl>' + row('진형', o.form) + (speed ? '<dt>속공</dt><dd>' + speed + '</dd>' : '') + row('주의', o.warn) + row('펫', o.pet) + '</dl>' +
-    (o.skill ? '<details open style="margin-top:8px"><summary>스킬 순서</summary>' +
+    (o.skill ? '<details' + (innerWidth > 600 ? ' open' : '') + ' style="margin-top:8px"><summary>스킬 순서</summary>' +
       (o.skillNote ? '<p class="note" style="margin:6px 0 0">' + skillLegend(o.skillNote) + '</p>' : '') +
       skillHTML(o.skill) + '</details>' : '');
 }
@@ -3411,7 +3441,7 @@ function setRun(){
   $('sRows').innerHTML = parts.map(c => (multi ? band(ROUND_LABEL[c.id] || c.n) : '') + setRows(c, safe) + spdLine(c)).join('');
   $('sFoot').textContent = safe
     ? '마을 화면 기준 · 치피 최대한 = 남는 부옵·강화는 전부 치피 · 약확 — = 약확 줄 대신 모공'
-    : '마을 화면 기준 · OK 범위 = 치확이 이 안이면 점수 차 1% 미만 · 약확 — = 약확 줄 대신 모공';
+    : '마을 화면 기준 · 이름 옆 % = 딜 비중 · OK 범위 = 치확이 이 안이면 점수 차 1% 미만 · 약확 — = 약확 줄 대신 모공';
 
   const c0 = parts[0];
   $('sCheck').innerHTML = verified(opt)
@@ -3422,7 +3452,7 @@ function setRun(){
   $('sMeta').innerHTML = kind +
     (c0.missZero ? ' · <strong class="lose">약확 100 필수</strong>' : '') +
     (c0.cb ? ' · 아군 전체 치확 +' + c0.cb + ' 포함' : '') +
-    ' · ' + (safe ? '<strong>안전</strong> — 치확 99, 나머지는 치피' : '<strong>고점</strong> — 최고 기록용 배분') + ' · 이름 옆 % = 딜 비중';
+    ' · ' + (safe ? '<strong>안전</strong> — 치확 99, 나머지는 치피' : '<strong>고점</strong> — 최고 기록용 배분');
 
   $('sOps').innerHTML = parts.map(c => (multi ? '<h3 style="margin:14px 0 6px">' + (ROUND_LABEL[c.id] || c.n) + '</h3>' : '') + setOps(c)).join('');
   alignNotes($('sOps'));
@@ -3468,6 +3498,7 @@ TABS.forEach(([t]) => $(t).addEventListener('click', () => {
     $(tb).setAttribute('aria-selected', String(on));
     $(pb).hidden = !on;
   });
+  $('gpick').hidden = t === 't-cfg';
   window.scrollTo({ top: 0, behavior: 'smooth' });
   alignNotes();
 }));
@@ -3480,8 +3511,6 @@ function legacyClean(){
 /* 초기화 */
 legacyClean();
 goalRun(); cRowsInit(); gRowsInit(); pRender(); demoBtn();
-$('gSel').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()]; gRender();
-setRun();
 
 /* ══════════ 콘텐츠 고르기 — 2단 (종류 → 세부) ══════════
    원래 select는 숨겨 두고 값의 기준으로 계속 쓴다(다른 코드가 .value를 바로 읽고 쓰므로).
@@ -3517,10 +3546,9 @@ setRun();
     PICK[id] = sync;
     sel.hidden = true; sel.after(wrap); wrap.append(a, b); sync();
   }
-  twoLevel('sContent', fromSetOpt);
-  twoLevel('gContent', fromSetOpt);
-  twoLevel('gSel', fromContent);
-  twoLevel('aContent', fromContent);
+  twoLevel('cSel', fromSetOpt);
+  $('cSel').addEventListener('change', () => setContent($('cSel').value));
+  setContent(TODAY);
 })();
 </script>
 
