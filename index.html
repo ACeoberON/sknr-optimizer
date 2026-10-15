@@ -471,8 +471,18 @@ h1 .t{white-space:nowrap}
   <div class="row-actions" style="margin-top:10px">
     <span class="gfilt" id="gFilt"></span>
     <button type="button" id="gAdd">장비 추가</button>
+    <button type="button" id="gOcr" title="게임 장비 카드 캡처를 읽어 자동으로 채웁니다">캡처로 추가</button>
+    <input type="file" id="gOcrFile" accept="image/*" multiple hidden>
     <button type="button" id="gDemo" title="체험용 예시 장비 52개(메모 '예시')를 넣습니다. 내 장비는 그대로 둡니다.">예시 장비 넣기</button>
     <span class="note" id="gMsg"></span>
+  </div>
+  <div id="ocrBox" class="gedit" hidden>
+    <p class="note" style="margin:0 0 6px"><strong>장비 카드 부분을 드래그해서 네모로 감싸 주세요</strong> — 이름(+15)부터 세트 이름까지. 감싸지 않으면 사진 전체를 읽는데, 캐릭터 스탯 같은 다른 글자가 섞이면 틀리기 쉽습니다. 휴대폰은 가로로 돌리면 더 크게 보입니다. 사진은 이 기기 안에서만 읽고 어디에도 올리지 않습니다. <span id="ocrCount"></span></p>
+    <canvas id="ocrCv" style="width:100%;border-radius:6px;touch-action:none;cursor:crosshair;background:#000"></canvas>
+    <div class="row-actions" style="margin-top:8px">
+      <button type="button" id="ocrRead">읽기</button><button type="button" id="ocrSkip">이 사진 건너뛰기</button><button type="button" id="ocrStop" class="ghost" style="font-size:13px">그만하기</button>
+      <span class="note" id="ocrMsg"></span>
+    </div>
   </div>
   <div id="gEditor" class="gedit" hidden></div>
   <div id="gList" class="ggrid" style="margin-top:10px"></div>
@@ -2790,10 +2800,10 @@ function gRowsInit(){
 }
 
 /* 장비 편집기 — 게임 카드 순서: 부위·이름·태생 / 주옵 / 부옵 4줄 / 메모 */
-function gEdit(id){
+function gEdit(id, init){
   const isNew = id == null;
-  const g = isNew ? { id: Math.max(0, ...gear.map(x => x.id)) + 1, slot:'wp', set:'복수자', name:'레이드', born:4, main:'crit',
-                      subs:[['crit',0],['cd',0],['weak',0],['atkp',0]], memo:'' }
+  const g = isNew ? Object.assign({ id: Math.max(0, ...gear.map(x => x.id)) + 1, slot:'wp', set:'복수자', name:'레이드', born:4, main:'crit',
+                      subs:[['crit',0],['cd',0],['weak',0],['atkp',0]], memo:'' }, init || {})
                   : JSON.parse(JSON.stringify(gById(id)));
   // 부옵은 4칸 모두 채운 상태로 편집 (예전 데이터에 빈 칸이 있으면 안 쓰인 종류로 채움, 강화 0)
   while (g.subs.length < 4){ const t = SUBT.map(x => x[0]).find(t => !g.subs.some(s => s[0] === t) && !(t in USE)) || SUBT.find(x => !g.subs.some(s => s[0] === x[0]))[0]; g.subs.push([t, 0]); }
@@ -2858,6 +2868,136 @@ function gEdit(id){
   ed.scrollIntoView({ block:'nearest' });
 }
 $('gAdd').addEventListener('click', () => gEdit(null));
+
+/* ══════════ 캡처로 장비 추가 — 브라우저 안에서 글자 읽기(Tesseract.js, 한국어). 사진은 어디에도 올라가지 않는다 ══════════ */
+// 장비 카드 OCR 결과(줄 목록) → 장비 객체. 페이지에 그대로 옮겨 넣는다.
+const OCR_PAT = [   // 공백 제거·오인식 보정 후 매칭. 긴 이름 먼저
+  ['base', /(물리|마법)공격력/], ['dmgred', /받는피해감소/],
+  ['atkp', /모든공격력\(?%/], ['atk', /모든공격력/],
+  ['defp', /방어력\(?%/], ['def', /방어력/],
+  ['hpp', /생명력\(?%/], ['hp', /생명력/],
+  ['crit', /치명타?확/], ['cd', /치명타?피/], ['weak', /약점공?격?확/],
+  ['block', /막기/], ['eff', /효과적/], ['res', /효과저/], ['spd', /속공/]
+];
+const OCR_LINE = { crit:4, cd:6, weak:5, atkp:5, atk:50, spd:4, hpp:5, block:4, eff:5, hp:180 };
+const OCR_SETS = ['선봉장','추적자','성기사','수문장','수호자','암살자','복수자','주술사','조율자'];
+function ocrNorm(t){ return t.replace(/\s+/g, '').replace(/지명타|치멍타|치영타/g, '치명타').replace(/확를|확튤|확듈/g, '확률').replace(/[\[\]{}|]/g, ''); }
+function ocrParse(lines){
+  const st = [];          // {k, after}
+  let name = '', set = '', base = null;
+  lines.forEach(raw => {
+    if (set) return;                                   // 세트 이름 아래(세트 효과 설명)는 읽지 않는다
+    const n = ocrNorm(raw);
+    const nm = raw.match(/([가-힣][가-힣 ]{1,}[가-힣])\s*\+\s*1?\d/);
+    if (nm && !name) name = nm[1].trim().split(/\s+/).filter((w, i, a) => w.length > 1 || i === a.length - 1).join(' ');
+    OCR_SETS.forEach(x => { if (!set && n.includes(x)) set = x; });
+    if (set) return;
+    for (const [k0, re] of OCR_PAT){
+      const m = n.match(re); if (!m) continue;
+      const after = n.slice(m.index + m[0].length);
+      let k = k0;
+      if (/%/.test(after.slice(0, 8)) && ({ def:1, hp:1, atk:1 })[k]) k = { def:'defp', hp:'hpp', atk:'atkp' }[k];   // '(%)'가 지워져도 값에 %가 있으면 % 옵션
+      if (k === 'base'){ if (!base) base = m[1]; }
+      else st.push({ k, after });
+      break;
+    }
+  });
+  const val = (k, after) => {
+    const d = (after.match(/\d[\d,]*/) || [''])[0].replace(/,/g, '');
+    const L = OCR_LINE[k]; if (!L || !d) return { e: 0, ok: false };
+    for (let i = d.length; i > 0; i--){ const v = +d.slice(0, i); if (v % L === 0 && v / L >= 1 && v / L <= 6) return { e: v / L - 1, ok: true }; }
+    return { e: 0, ok: false };
+  };
+  const subsRaw = st.slice(-4), mainRaw = st.length > 4 ? st[st.length - 5] : null;
+  const subs = subsRaw.map(x => { const v = val(x.k, x.after); return { t: x.k, e: v.e, ok: v.ok }; });
+  const slot = base === '물리' ? 'wp' : base === '마법' ? 'wm' : 'ar';
+  return { slot, main: mainRaw ? mainRaw.k : null, subs, set, name, nStat: st.length };
+}
+
+let ocrQ = [], ocrImg = null, ocrRect = null, ocrWorker = null, ocrDone = 0;
+function ocrLoad(){
+  if (ocrWorker) return ocrWorker;
+  ocrWorker = new Promise((ok, bad) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    sc.onload = () => Tesseract.createWorker('kor', 1, { langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/kor/4.0.0_best_int' }).then(ok, bad);
+    sc.onerror = () => bad(new Error('글자 읽기 도구를 불러오지 못했습니다(인터넷 연결 확인)'));
+    document.head.appendChild(sc);
+  });
+  ocrWorker.catch(() => { ocrWorker = null; });
+  return ocrWorker;
+}
+function ocrDraw(){
+  const cv = $('ocrCv'), ctx = cv.getContext('2d');
+  ctx.drawImage(ocrImg, 0, 0, cv.width, cv.height);
+  if (ocrRect){
+    const { x, y, w, h } = ocrRect;
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(0, 0, cv.width, y); ctx.fillRect(0, y + h, cv.width, cv.height - y - h);
+    ctx.fillRect(0, y, x, h); ctx.fillRect(x + w, y, cv.width - x - w, h);
+    ctx.strokeStyle = '#9cc178'; ctx.lineWidth = Math.max(2, cv.width / 300); ctx.strokeRect(x, y, w, h);
+  }
+}
+function ocrNext(){
+  $('gEditor').hidden = true; $('gEditor').innerHTML = '';
+  const f = ocrQ.shift();
+  if (!f){ $('ocrBox').hidden = true; if (ocrDone) { $('gMsg').textContent = '캡처 ' + ocrDone + '장 처리를 마쳤습니다.'; } return; }
+  $('ocrBox').hidden = false; $('ocrMsg').textContent = ''; $('ocrRead').disabled = false; ocrRect = null;
+  $('ocrCount').textContent = ocrQ.length ? '(뒤에 ' + ocrQ.length + '장 더)' : '';
+  const im = new Image();
+  im.onload = () => { ocrImg = im; const cv = $('ocrCv'); const sc = Math.min(1, 1600 / im.width); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc); ocrDraw(); URL.revokeObjectURL(im.src); };
+  im.src = URL.createObjectURL(f);
+  $('ocrBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+(() => {
+  const cv = $('ocrCv'); let st = null;
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  cv.addEventListener('pointerdown', e => { st = pt(e); cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (!st) return; const [x, y] = pt(e); ocrRect = { x: Math.min(st[0], x), y: Math.min(st[1], y), w: Math.abs(x - st[0]), h: Math.abs(y - st[1]) }; ocrDraw(); });
+  cv.addEventListener('pointerup', () => { st = null; if (ocrRect && (ocrRect.w < 20 || ocrRect.h < 20)) { ocrRect = null; ocrDraw(); } });
+})();
+$('gOcr').addEventListener('click', () => $('gOcrFile').click());
+$('gOcrFile').addEventListener('change', e => { ocrQ = [...e.target.files]; ocrDone = 0; e.target.value = ''; if (ocrQ.length){ ocrLoad(); ocrNext(); } });
+$('ocrSkip').addEventListener('click', ocrNext);
+$('ocrStop').addEventListener('click', () => { ocrQ = []; ocrNext(); });
+$('ocrRead').addEventListener('click', async () => {
+  if (!ocrImg) return;
+  $('ocrRead').disabled = true; $('ocrMsg').textContent = '읽는 중… (처음 한 번은 준비에 몇 초 걸립니다)';
+  const k = ocrImg.width / $('ocrCv').width, r = ocrRect || { x: 0, y: 0, w: $('ocrCv').width, h: $('ocrCv').height };
+  const sx = r.x * k, sy = r.y * k, sw = r.w * k, sh = r.h * k;
+  const up = Math.min(2, 2000 / sw), c = document.createElement('canvas');           // 2배 확대 + 흑백 + 대비 늘리기
+  c.width = Math.round(sw * up); c.height = Math.round(sh * up);
+  const ctx = c.getContext('2d'); ctx.drawImage(ocrImg, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  const d = ctx.getImageData(0, 0, c.width, c.height), px = d.data; let lo = 255, hi = 0;
+  for (let i = 0; i < px.length; i += 4){ const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]; px[i] = g; if (g < lo) lo = g; if (g > hi) hi = g; }
+  const span = Math.max(1, hi - lo);
+  for (let i = 0; i < px.length; i += 4){ const g = (px[i] - lo) * 255 / span; px[i] = px[i + 1] = px[i + 2] = g; }
+  ctx.putImageData(d, 0, 0);
+  try {
+    const w = await ocrLoad();
+    const res = await w.recognize(c);
+    const P = ocrParse(res.data.text.split('\n').filter(x => x.trim()));
+    const wOK = ['wp', 'wm'].includes(P.slot), mains = (wOK ? WMAIN : AMAIN).map(x => x[0]);
+    const main = P.main && mains.includes(P.main) ? P.main : null;
+    const subs = P.subs.map(x => [x.t, x.e]);
+    const warn = [];
+    if (!main) warn.push('주옵');
+    if (P.subs.length < 4) warn.push('부옵 ' + (4 - P.subs.length) + '칸');
+    P.subs.forEach((x, i) => { if (!x.ok) warn.push('부옵' + (i + 1) + ' 강화'); });
+    if (!P.set) warn.push('세트');
+    if (P.subs.length < 2){ $('ocrMsg').textContent = '장비 카드를 찾지 못했습니다. 카드 부분만 네모로 감싸고 다시 읽어 주세요.'; $('ocrRead').disabled = false; return; }
+    ocrDone++;
+    $('ocrBox').hidden = true;
+    gEdit(null, Object.assign({ slot: P.slot, set: P.set || '복수자', memo: P.name || '', subs }, main ? { main } : { main: wOK ? 'crit' : 'atkp' }));
+    $('gMsg').innerHTML = '<strong>캡처에서 읽었습니다</strong> — 게임 화면과 맞는지 보고 <strong>추가</strong>를 누르세요. 출처(레이드·돌발레이드·이벤트)는 직접 고르세요.' +
+      (warn.length ? ' <span class="flat">확인 필요: ' + warn.join(', ') + '</span>' : '');
+  } catch (err){
+    $('ocrMsg').textContent = (err && err.message) || '읽기에 실패했습니다.'; $('ocrRead').disabled = false;
+  }
+});
+/* 편집기를 닫으면(추가·취소) 다음 캡처로 */
+new MutationObserver(() => { if ($('gEditor').hidden && (ocrQ.length || !$('ocrBox').hidden) && ocrImg && $('ocrBox').hidden) ocrNext(); })
+  .observe($('gEditor'), { attributes: true, attributeFilter: ['hidden'] });
 function demoBtn(){ const n = gear.filter(g => g.demo).length; $('gDemo').textContent = n ? '예시 장비 지우기 (' + n + ')' : '예시 장비 넣기'; }
 $('gDemo').addEventListener('click', () => {
   const had = gear.some(g => g.demo);
