@@ -59,6 +59,7 @@ details.gloss dd{margin:0;color:var(--ink-2,inherit)}
 .det-btn{all:unset;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 0}
 .det-btn::before{content:'▸';font-size:10px;color:var(--ink-3);transition:transform .15s}
 .det-btn[aria-expanded="true"]::before{transform:rotate(90deg)}
+.vchk{display:inline-block;margin-left:3px;font-size:10px;font-weight:700;color:var(--win);vertical-align:2px}
 .ovr{display:inline-block;margin:2px 0 0 6px;padding:2px 9px;font-size:11px;border-radius:6px;vertical-align:1px;color:var(--ink-2);background:var(--card);border:1px solid var(--line)}
 .ovr.on{color:var(--flat);border-color:var(--flat)}
 .det-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
@@ -1526,7 +1527,7 @@ const CHARS = {
   // [속성, 기본 치확, 기본 치피, 기본 약확, 패시브 치확, 약공 배율, 패시브 약확]
   // 패시브 약확: 란드·소교 2초 +39, 루리 뒷거래 +39(강화), 선란 6초 +100. 약공 배율: 소교 우후죽순 1.3×(270+215)/270, 루리 두 스킬 평균(추정)
   관우:    ['phy', 5, 150, 20, 0, 1.3, 0],     // 2026-10-18 게임 화면 확인. 위스킬 청룡월파참은 6초 '치확 100% 추가'(그 스킬만 확정 치명)
-  나타:    ['mag', 23, 150, 0, 33, null, null],
+  나타:    ['mag', 23, 150, 0, 33, 1.3, 0],      // 2026-10-18 게임 화면 확인. 패시브 '연꽃의 보호' 자신 치확 +33(상시) · 마법형 아군 3인 공격기 피해 +33%(상수라 제외)
   데이지:   ['mag', 23, 150, 0, null, null, null],
   돼오:    ['phy', 23, 150, 0, null, null, null],
   라이언:   ['phy', 23, 150, 0, null, 3.36, null],
@@ -1565,11 +1566,15 @@ const CFIELD = ['atk', 'bc', 'bd', 'bq', 'pf', 'wm', 'pq'];
 
 /* 팀 효과 — [스탯, 값, 대상]. 값이 '×'로 시작하면 피해 배율(곱), 아니면 확률(더하기).
    누가 받는지가 편성마다 다른 효과(상위 N인)는 콘텐츠 데이터의 버프 약확에서 지정한다. */
+/* 게임 화면(스탯 + 스킬 설명)으로 직접 대조한 캐릭터 — 이름 옆 작은 ✓ */
+const VERIFIED = { '관우':'2026-10-18', '나타':'2026-10-18' };
+const vMark = n => VERIFIED[n] ? '<span class="vchk" title="게임 화면으로 확인 · ' + VERIFIED[n] + '">✓</span>' : '';
 const TEAM = {
   레이첼: [['약확', '+27', '아군 전체 (자신 포함)']],
   비스킷: [['약확', '+54', '공격력 상위 2인']],
   미호:   [['약공 피해', '×1.23', '아군 전체']],
   클로에: [['치확', '+27', '아군 전체 (위스킬)']],
+  나타:   [['3인 공격기 피해', '+33%', '마법형 아군 (상수라 계산 제외)']],
   관우:   [['치피', '+40', '아군 후열 (패시브, 관우 공격 2회마다 3턴)'], ['물리 피해량', '+20%', '아군 후열 (곱해지는 상수라 계산 제외)']]
 };
 
@@ -2176,7 +2181,7 @@ function goalRun(){
       const b = u.pick, lo = u.lo, hi = u.hi;
       const mainTxt = MLABEL[b.main[0]] + '·' + MLABEL[b.main[1]];
       const qs = qSpare(c, u, b), uwTxt = qs ? '—' : b.uw;
-      rows += '<tr><td>' + u.name + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) +
+      rows += '<tr><td>' + u.name + vMark(u.name) + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) +
         '<span class="mob"><span>주옵 ' + mainTxt + '</span> <span>장신구 ' + CARVENAME[b.cv] + '</span> <span>줄 ' + b.uc + '/' + b.ud + '/' + uwTxt + '</span></span></td>' +
         '<td class="muted">' + mainTxt + '</td>' +
         '<td class="muted">' + CARVENAME[b.cv] + '</td>' +
@@ -2196,7 +2201,7 @@ function goalRun(){
       const mainSel = '<td data-l="무기 주옵"><select data-c="' + c.id + '" data-n="' + u.name + '" data-i="3" style="min-width:86px">' +
         MAINCOMBOS.map(m => '<option value="' + m + '"' + ((my[3] ?? b.main) === m ? ' selected' : '') + '>' + MLABEL[m[0]] + '·' + MLABEL[m[1]] + '</option>').join('') + '</select></td>';
       const dk = c.id + '|' + u.name;
-      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + ringFixTag(c.id, u.name) + (trans[u.name] !== undefined ? '<span class="set-tag" title="내 캐릭터 초월에서 지정">' + TLABEL[trans[u.name]] + '</span>' : '') +
+      mrows += '<tr><td class="nm"><button type="button" class="det-btn" data-det="' + dk + '" aria-expanded="' + detOpen.has(dk) + '">' + u.name + '</button>' + vMark(u.name) + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">' + Math.round(u.s*100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + ringFixTag(c.id, u.name) + (trans[u.name] !== undefined ? '<span class="set-tag" title="내 캐릭터 초월에서 지정">' + TLABEL[trans[u.name]] + '</span>' : '') +
         '<button type="button" class="ovr' + (own ? ' on' : '') + '" data-ovr="' + dk + '" title="' + (own ? '이 콘텐츠에만 쓰는 값입니다. 누르면 지우고 공통값으로 돌아갑니다.' : '모든 콘텐츠가 같이 쓰는 값입니다. 이 콘텐츠만 장비가 다르면 눌러서 따로 저장하세요.') + '">' + (own ? '이 콘텐츠만 따로 · 공통으로 되돌리기' : '모든 콘텐츠 공통 · 여기만 따로 쓰기') + '</button>' +
         '<span class="ideal">최고 ' + b.vc + '/' + b.vd + '/' + qTxt(c, u, b) + '</span></td>' +
         mainSel + inp(0, b.vc) + inp(1, b.vd) + inp(2, qSpare(c, u, b) ? b.vq - LINE.w * UNIT_MIN : b.vq) +
@@ -2766,7 +2771,7 @@ function cRowsInit(){
     const lv = trans[name];
     const tag = lv === undefined ? '' : '<span class="tag">' + TLABEL[lv] + (TRANS[name] ? '' : ' · 차이 미입력') + '</span>';
     const team = (TEAM[name] || []).map(([st, v, tg]) => st + ' ' + v + ' · ' + tg).join('<br>');
-    tr.innerHTML = '<td>' + name + tag + '</td>' + CFIELD.slice(0, 4).map(f => cell(r[f], f)).join('') + cell(SPD_BASE[name], 'spd') + CFIELD.slice(4).map(f => cell(r[f], f)).join('') +
+    tr.innerHTML = '<td>' + name + vMark(name) + tag + '</td>' + CFIELD.slice(0, 4).map(f => cell(r[f], f)).join('') + cell(SPD_BASE[name], 'spd') + CFIELD.slice(4).map(f => cell(r[f], f)).join('') +
       '<td style="text-align:left;white-space:nowrap;font-size:13px;padding-left:14px;width:1%">' + team + '</td>';
     tb.appendChild(tr);
   });
@@ -3671,7 +3676,7 @@ function setRows(c, safe){
       return '<tr><td>' + u.name + '</td><td colspan="6" class="muted">' + setText(c.id, u.name) + '생존·토템 세팅</td></tr>';
     const b = u.pick;
     const main = MLABEL[b.main[0]] + '·' + MLABEL[b.main[1]];
-    const head = '<tr><td>' + u.name + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + ringFixTag(c.id, u.name) + (trans[u.name] !== undefined ? '<span class="set-tag" title="내 캐릭터 초월에서 지정">' + TLABEL[trans[u.name]] + '</span>' : '') +
+    const head = '<tr><td>' + u.name + vMark(u.name) + '<span class="sub">' + Math.round(u.s * 100) + '%</span>' + setTag(c.id, u.name) + kwonOptTag(c.id, u.name) + ringFixTag(c.id, u.name) + (trans[u.name] !== undefined ? '<span class="set-tag" title="내 캐릭터 초월에서 지정">' + TLABEL[trans[u.name]] + '</span>' : '') +
       '<span class="mob"><span>주옵 ' + main + '</span> <span>장신구 ' + CARVENAME[b.cv] + '</span></span></td>' +
       '<td class="muted">' + main + '</td><td class="muted">' + CARVENAME[b.cv] + '</td>' +
       '<td class="v">' + b.vc + (safe && b.p < 99 ? '<span class="sub" title="약확 100을 채우면 장비 예산(32단위)으로는 치확 99까지 못 감 — 닿을 수 있는 최대치">최대</span>' : '') + '</td>';
