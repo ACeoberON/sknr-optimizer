@@ -1525,7 +1525,7 @@ const CHARS = {
   // 출처: 나무위키 캐릭터 문서 Lv.30 스탯 표, 4초월 이상 값(전원 6초 이상 가정). 직접 확인한 값(라이언·레이첼·미호·비스킷·아일린·쥬리·헤브니아)과 전부 일치.
   // [속성, 기본 치확, 기본 치피, 기본 약확, 패시브 치확, 약공 배율, 패시브 약확]
   // 패시브 약확: 란드·소교 2초 +39, 루리 뒷거래 +39(강화), 선란 6초 +100. 약공 배율: 소교 우후죽순 1.3×(270+215)/270, 루리 두 스킬 평균(추정)
-  관우:    ['phy', 5, 150, 20, null, null, null],
+  관우:    ['phy', 5, 150, 20, 0, 1.3, 0],     // 2026-10-18 게임 화면 확인. 위스킬 청룡월파참은 6초 '치확 100% 추가'(그 스킬만 확정 치명)
   나타:    ['mag', 23, 150, 0, 33, null, null],
   데이지:   ['mag', 23, 150, 0, null, null, null],
   돼오:    ['phy', 23, 150, 0, null, null, null],
@@ -1569,7 +1569,8 @@ const TEAM = {
   레이첼: [['약확', '+27', '아군 전체 (자신 포함)']],
   비스킷: [['약확', '+54', '공격력 상위 2인']],
   미호:   [['약공 피해', '×1.23', '아군 전체']],
-  클로에: [['치확', '+27', '아군 전체 (위스킬)']]
+  클로에: [['치확', '+27', '아군 전체 (위스킬)']],
+  관우:   [['치피', '+40', '아군 후열 (패시브, 관우 공격 2회마다 3턴)'], ['물리 피해량', '+20%', '아군 후열 (곱해지는 상수라 계산 제외)']]
 };
 
 /* 초월 단계별 차이 — 표 값은 6초 기준. [이 단계에 도달하면 붙는, 필드, 증가량]
@@ -1793,6 +1794,12 @@ const CARVENAME = new Proxy({}, { get: (_, k) => ringName(k) });
 const ringShort = k => { k = normRing(k); return k === 'tb' ? '토벌만' : k.startsWith('tb+') ? RING_N[k.slice(3)] : ringName(k); };
 /* 권능 고정 (공략 '반지 고정') */
 const KWON = { fri:['지크'], sat:['레이첼','풍연'] };
+/* 전투 치피 버프(마을에 안 보임) — 콘텐츠별로 받는 캐릭터와 양.
+   관우 패시브 '만인지적': 아군 후열 치명타 피해 +40%(관우가 공격 2회마다 3턴, 사실상 상시로 가정). 진형은 공략 원문 기준. */
+const CD_BUFF = {
+  k1: { '세인': 40, '란드': 40 },        // 카일 1R 후열 = 세인·란드
+  m2: { '라이언': 40 }                    // 카르마 2R 후열 = 라이언
+};
 /* 권능 선택: 필수는 아니지만 낄 수 있음 (초월이 낮아 죽는 경우) */
 const KWON_OPT = { tue: { '나타': '초월이 낮으면 권능(생존)을 낄 수 있음 — 고초월이면 필요 없음' } };
 const kwonOptTag = (cid, name) => { const t = (KWON_OPT[cid] || {})[name]; return t ? '<span class="set-tag" title="' + t + '">권능 가능</span>' : ''; };
@@ -1864,8 +1871,8 @@ function solveOne(c, k, opt, noW){
         const mx = opt.maxEnh ?? 20;                 // 한 스탯에 몰 수 있는 강화 한계
         if (uc - UNIT_MIN > mx || ud - UNIT_MIN > mx || uw - UNIT_MIN > mx) continue;
         const r = opt.missZero
-          ? calcMiss(Math.min(p,100), vd, Math.min(q,100), k, hitsFor(c.H, cv))
-          : calc(Math.min(p,100), vd, Math.min(q,100), k, c.wm, hitsFor(c.H, cv));
+          ? calcMiss(Math.min(p,100), vd + (c.db || 0), Math.min(q,100), k, hitsFor(c.H, cv))
+          : calc(Math.min(p,100), vd + (c.db || 0), Math.min(q,100), k, c.wm, hitsFor(c.H, cv));
         out.push({ j:r.j * mult, vc, vd, vq, p, q, uc, ud, uw, cv, main:m1+m2 });
       }
     }
@@ -1913,7 +1920,7 @@ function solveContent(c, carry, maxEnh, safe){
     if (role === 'buff' || (up + dn) === 0){ U.push({ name, skip:true }); return; }
     const share = gs[i] / 100;
     const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb || 0), wm: ch.wm * (c.wmTeam || 1),
-                 qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn), kwon: (KWON[c.id] || []).includes(name), rfix: ((RING_FIX[c.id] || {})[name] || [])[0] };
+                 qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn), db: ((CD_BUFF[c.id] || {})[name] || 0), kwon: (KWON[c.id] || []).includes(name), rfix: ((RING_FIX[c.id] || {})[name] || [])[0] };
     let cand = solveOne(cc, k, opt);
     /* 안전 모드의 약확은 둘 중 하나로만 낸다 — 99 이상으로 채우거나, 약확 줄을 빼고 '선택'.
        서브 딜러 중 약확이 쓸모 있는 캐릭터(배율 1.5 이상)는 두 안을 만들어 평균이 높은 쪽을 고른다. */
@@ -1928,8 +1935,8 @@ function solveContent(c, carry, maxEnh, safe){
     live.forEach(u => {
       const a = u.pick;
       const Hc = hitsFor(u.cc.H, a.cv);
-      const r = opt.missZero ? calcMiss(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, Hc)
-                             : calc(Math.min(a.p,100), a.vd, Math.min(a.q,100), k, u.cc.wm, Hc);
+      const r = opt.missZero ? calcMiss(Math.min(a.p,100), a.vd + (u.cc.db || 0), Math.min(a.q,100), k, Hc)
+                             : calc(Math.min(a.p,100), a.vd + (u.cc.db || 0), Math.min(a.q,100), k, u.cc.wm, Hc);
       const mult = CARVES[a.cv][2];
       m += u.s * mult * r.mu / u.ref;
       v += Math.pow(u.s * mult * r.sd / u.ref, 2);
@@ -2004,7 +2011,7 @@ function teamCtx(c, U, k){
   const ms = (u, vc, vd, vq, cv) => {
     const [cp, cq, mult] = CARVES[cv], Hc = hitsFor(u.cc.H, cv);
     const p = Math.min(vc + u.cc.pf + cp, 100), q = Math.min(vq + u.cc.qb + cq, 100);
-    const r = c.missZero ? calcMiss(p, vd, q, k, Hc) : calc(p, vd, q, k, u.cc.wm, Hc);
+    const r = c.missZero ? calcMiss(p, vd + (u.cc.db || 0), q, k, Hc) : calc(p, vd + (u.cc.db || 0), q, k, u.cc.wm, Hc);
     return [mult * r.mu / u.ref, mult * r.sd / u.ref, r.mu ? r.sd / r.mu : 0];
   };
   const base = new Map(live.map(u => [u, ms(u, u.pick.vc, u.pick.vd, u.pick.vq, u.pick.cv)]));
