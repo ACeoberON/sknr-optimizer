@@ -17,6 +17,8 @@
 .gcard .gc-memo{margin-top:4px;font-size:11.5px;color:var(--ink-3)}
 .gcard .gc-act{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}
 .gcard .gc-act button{padding:3px 9px;font-size:12px}
+.gcard .gc-orig{margin-top:6px;font-size:12px;color:var(--ink-3)}
+.gcard .gc-orig img{display:block;max-width:100%;border-radius:6px}
 .gcard.mini{padding:7px 9px;font-size:12px;background:var(--card)}
 .gcard.mini .gc-main{margin:4px 0 2px}
 .gedit{margin-top:10px;border:1px dashed var(--line);border-radius:9px;padding:12px}
@@ -3004,7 +3006,7 @@ function gCard(g, mini, actions){
     '<div class="gc-main"><span>' + (MAINN[g.main] || g.main) + '</span><b>' + (MAINVAL[g.main] || '') + '</b></div>' +
     '<ol>' + subs.join('') + '</ol>' +
     (g.memo ? '<div class="gc-memo">' + esc(g.memo) + '</div>' : '') +
-    (actions ? '<div class="gc-act"><button type="button" data-gedit="' + g.id + '">수정</button><button type="button" data-gdup="' + g.id + '">복제</button><button type="button" class="ghost" data-gdel="' + g.id + '" aria-label="삭제">×</button></div>' : '') +
+    (actions ? '<div class="gc-act">' + (g.img ? '<button type="button" data-gimg="' + g.id + '" title="읽기에 쓴 캡처와 비교">원본</button>' : '') + '<button type="button" data-gedit="' + g.id + '">수정</button><button type="button" data-gdup="' + g.id + '">복제</button><button type="button" class="ghost" data-gdel="' + g.id + '" aria-label="삭제">×</button></div>' : '') +
     '</div>';
 }
 
@@ -3030,11 +3032,12 @@ function gRowsInit(){
   $('gList').querySelectorAll('[data-gedit]').forEach(b => b.addEventListener('click', () => gEdit(+b.dataset.gedit)));
   $('gList').querySelectorAll('[data-gdup]').forEach(b => b.addEventListener('click', () => {
     const g = JSON.parse(JSON.stringify(gById(+b.dataset.gdup)));
-    g.id = Math.max(0, ...gear.map(x => x.id)) + 1; gear.push(g); gPersist(); gRowsInit(); gEdit(g.id);
+    g.id = Math.max(0, ...gear.map(x => x.id)) + 1; delete g.img; gear.push(g); gPersist(); gRowsInit(); gEdit(g.id);   // 복제본엔 원본 캡처 없음
   }));
   $('gList').querySelectorAll('[data-gdel]').forEach(b => b.addEventListener('click', () => {
     const id = +b.dataset.gdel, used = presets.filter(p => p.pieces.includes(id)).length;
     if (!confirm('이 장비를 지울까요?' + (used ? ' 프리셋 ' + used + '개에서도 빠집니다.' : ''))) return;
+    if ((gById(id) || {}).img) imgDel(id);
     gear = gear.filter(g => g.id !== id);
     presets.forEach(p => { p.pieces = p.pieces.map(x => x === id ? null : x); }); pPersist();
     gPersist(); gRowsInit(); pRender();
@@ -3100,8 +3103,10 @@ function gEdit(id, init){
     };
     ed.querySelectorAll('[data-gm]').forEach(b => b.addEventListener('click', () => step(+b.dataset.gm, -1)));
     ed.querySelectorAll('[data-gp]').forEach(b => b.addEventListener('click', () => step(+b.dataset.gp, +1)));
-    ed.querySelector('[data-gcancel]').addEventListener('click', () => { ed.hidden = true; ed.innerHTML = ''; });
+    ed.querySelector('[data-gcancel]').addEventListener('click', () => { gPendingImg = null; ed.hidden = true; ed.innerHTML = ''; });
     ed.querySelector('[data-gsave]').addEventListener('click', () => {
+      if (isNew && gPendingImg){ g.img = 1; imgPut(g.id, gPendingImg); }      // 캡처로 읽은 장비 — 원본(카드 부분) 같이 저장
+      gPendingImg = null;
       if (isNew) gear.push(g); else gear[gear.findIndex(x => x.id === g.id)] = g;
       gPersist(); ed.hidden = true; ed.innerHTML = ''; gRowsInit(); pRender();
       $('gMsg').textContent = (isNew ? '추가' : '저장') + '했습니다.'; setTimeout(() => { $('gMsg').textContent = ''; }, 2500);
@@ -3211,6 +3216,7 @@ function ocrNext(){
   $('ocrReset').addEventListener('click', () => { ocrView = { x: 0, y: 0, w: ocrImg.width, h: ocrImg.height }; ocrFit(); });
 })();
 $('gOcr').addEventListener('click', () => $('gOcrFile').click());
+let gPendingImg = null;                     // 지금 읽은 캡처(카드 부분) — 추가를 누르면 그 장비에 붙는다
 $('gOcrFile').addEventListener('change', e => { ocrQ = [...e.target.files]; ocrDone = 0; e.target.value = ''; if (ocrQ.length){ ocrLoad(); ocrNext(); } });
 $('ocrSkip').addEventListener('click', ocrNext);
 $('ocrStop').addEventListener('click', () => { ocrQ = []; ocrNext(); });
@@ -3219,6 +3225,10 @@ $('ocrRead').addEventListener('click', async () => {
   $('ocrRead').disabled = true; $('ocrMsg').textContent = '읽는 중… (처음 한 번은 준비에 몇 초 걸립니다)';
   const k = ocrView.w / $('ocrCv').width, r = ocrRect;
   const sx = ocrView.x + r.x * k, sy = ocrView.y + r.y * k, sw = r.w * k, sh = r.h * k;
+  { const pc = document.createElement('canvas'), ps = Math.min(1, 480 / sw);           // 비교용 원본: 감싼 부분 컬러, 폭 480 이하 JPEG
+    pc.width = Math.round(sw * ps); pc.height = Math.round(sh * ps);
+    pc.getContext('2d').drawImage(ocrImg, sx, sy, sw, sh, 0, 0, pc.width, pc.height);
+    try { gPendingImg = pc.toDataURL('image/jpeg', 0.7); } catch (e) { gPendingImg = null; } }
   const up = Math.min(2, 2000 / sw), c = document.createElement('canvas');           // 2배 확대 + 흑백 + 대비 늘리기
   c.width = Math.round(sw * up); c.height = Math.round(sh * up);
   const ctx = c.getContext('2d'); ctx.drawImage(ocrImg, sx, sy, sw, sh, 0, 0, c.width, c.height);
@@ -3991,6 +4001,7 @@ $('shareKeep').addEventListener('click', () => {
    버전 번호로 충돌을 잡는다: 다른 기기가 먼저 올렸으면 덮어쓰지 않고 어느 쪽을 남길지 묻는다. */
 const SYNC_URL = (() => { try { return localStorage.getItem('sknr-sync-url') || ''; } catch (e) { return ''; } })() || 'https://sknr-sync.nightmaretv-game.workers.dev';
 const SYKEY = 'sknr-sync';
+let syFromLink = false;           // 연결 링크로 열었으면 백업 탭을 보여준다
 let sy = null;                                     // { code, ver, dirty, at }
 try { sy = JSON.parse(localStorage.getItem(SYKEY) || 'null'); } catch (e) { sy = null; }
 const syRawSet = Storage.prototype.setItem;
@@ -4057,7 +4068,7 @@ $('syncNew').addEventListener('click', async () => {
   const r = await syApi('POST', '/v1/new');
   if (r.status !== 200){ syMsg(r.status === 429 ? '잠시 후 다시 시도하세요.' : r.status >= 500 ? '서버 설정 오류입니다(' + (r.j.message || r.status) + ') — 관리자에게 알려주세요.' : '서버에 연결할 수 없습니다. 이 화면(아티팩트 미리보기 등)에서 막혔을 수 있으니 GitHub Pages 주소에서 해 보세요.', 'lose'); return; }
   sy = { code: r.j.code, ver: 0, dirty: true, at: 0 }; sySave(); syShowCode = true;
-  await syPush(); syRender(); syShareRender(null);
+  await syPush(); syRender(); syShareRender(null); imgUploadAll();
   syMsg('동기화를 켰습니다. 위 코드를 다른 기기에서 “코드로 연결”에 넣으세요.', 'win');
 });
 $('syncLink').addEventListener('click', () => syConnect($('syncCodeIn').value));
@@ -4077,6 +4088,33 @@ async function syConnect(raw){
   }
   $('syncCodeIn').value = ''; syShareRender(r.j.share); syRender();
 }
+/* 장비 캡처 원본 — 이 기기(IndexedDB)에 저장하고, 동기화가 켜져 있으면 서버에도 올린다. 열 때만 받아온다 */
+let idbP = null;
+const idb = () => idbP || (idbP = new Promise((ok, no) => { try { const r = indexedDB.open('sknr-img', 1); r.onupgradeneeded = () => r.result.createObjectStore('img'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); } catch (e) { no(e); } }));
+const idbDo = async (mode, f) => { const db = await idb(); return new Promise((ok, no) => { const tx = db.transaction('img', mode), r = f(tx.objectStore('img')); tx.oncomplete = () => ok(r && r.result); tx.onerror = () => no(tx.error); }); };
+async function imgPut(gid, url){
+  try { await idbDo('readwrite', st => st.put(url, gid)); } catch (e) {}
+  if (sy && sy.code) await syApi('PUT', '/v1/img/' + gid, { img: url });
+}
+async function imgGet(gid){
+  let u = null; try { u = await idbDo('readonly', st => st.get(gid)); } catch (e) {}
+  if (u) return u;
+  if (sy && sy.code){ const r = await syApi('GET', '/v1/img/' + gid); if (r.status === 200 && r.j.img){ try { await idbDo('readwrite', st => st.put(r.j.img, gid)); } catch (e) {} return r.j.img; } }
+  return null;
+}
+async function imgDel(gid){ try { await idbDo('readwrite', st => st.delete(gid)); } catch (e) {} if (sy && sy.code) syApi('DELETE', '/v1/img/' + gid); }
+async function imgUploadAll(){                // 동기화를 새로 켰을 때 이 기기에만 있던 원본을 올린다
+  for (const g of gear.filter(x => x.img)){ let u = null; try { u = await idbDo('readonly', st => st.get(g.id)); } catch (e) {} if (u) await syApi('PUT', '/v1/img/' + g.id, { img: u }); }
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-gimg]'); if (!b) return;
+  const card = b.closest('.gcard'); let box = card.querySelector('.gc-orig');
+  if (box){ box.remove(); b.textContent = '원본'; return; }
+  box = document.createElement('div'); box.className = 'gc-orig'; box.textContent = '불러오는 중…'; card.append(box); b.textContent = '원본 닫기';
+  const u = await imgGet(+b.dataset.gimg);
+  if (u && /^data:image\/(jpeg|webp|png);base64,/.test(u)){ const im = new Image(); im.src = u; im.alt = '장비 캡처 원본'; box.textContent = ''; box.append(im); }
+  else box.textContent = '이 기기와 서버에 저장된 캡처가 없습니다' + (sy && sy.code ? '' : ' (동기화를 켜면 다른 기기에서 찍은 캡처도 볼 수 있습니다)') + '.';
+});
 /* 다른 기기 연결 — 코드를 담은 링크(#sync=…)와 QR. QR 라이브러리는 누를 때만 불러온다 */
 const syLinkUrl = () => SHARE_BASE + '#sync=' + sy.code.replace(/-/g, '');
 let qrLib = null;
@@ -4158,8 +4196,7 @@ else {
   const hm = location.hash.match(/[#&]sync=([A-Za-z0-9-]+)/);
   if (hm){
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}   // 주소창에 코드가 남지 않게
-    $('t-cfg').click(); setTimeout(() => $('syncCard').scrollIntoView({ block: 'start' }), 50);
-    syConnect(hm[1]);
+    syFromLink = true; syConnect(hm[1]);
   } else if (sy && sy.code) syPull();
 }
 document.addEventListener('visibilitychange', () => { if (!sy || !sy.code) return; if (document.visibilityState === 'visible') syPull(); else if (sy.dirty){ clearTimeout(syTimer); syPush(); } });
@@ -4195,6 +4232,7 @@ document.addEventListener('visibilitychange', () => { if (!sy || !sy.code) retur
 })();
 
 /* ══════════ 탭 ══════════ */
+let tabRestoring = false;
 const TABS = [['t-set','p-set'],['t-goal','p-goal'],['t-gear','p-gear'],['t-guide','p-guide'],['t-cfg','p-cfg']];
 TABS.forEach(([t]) => $(t).addEventListener('click', () => {
   TABS.forEach(([tb, pb]) => {
@@ -4203,7 +4241,8 @@ TABS.forEach(([t]) => $(t).addEventListener('click', () => {
     $(pb).hidden = !on;
   });
   $('gpick').hidden = t === 't-cfg';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  try { sessionStorage.setItem('sknr-tab', t); } catch (e) {}       // 새로고침해도 보던 탭 유지 (창을 새로 열면 세팅부터)
+  if (!tabRestoring) window.scrollTo({ top: 0, behavior: 'smooth' });
   alignNotes();
 }));
 
@@ -4252,8 +4291,13 @@ goalRun(); cRowsInit(); gRowsInit(); pRender(); demoBtn();
     sel.hidden = true; sel.after(wrap); wrap.append(a, b); sync();
   }
   twoLevel('cSel', fromSetOpt);
-  $('cSel').addEventListener('change', () => setContent($('cSel').value));
-  setContent(TODAY);
+  $('cSel').addEventListener('change', () => { setContent($('cSel').value); try { sessionStorage.setItem('sknr-content', $('cSel').value); } catch (e) {} });
+  let keepC = null, keepT = null, keepY = 0;
+  try { keepC = sessionStorage.getItem('sknr-content'); keepT = sessionStorage.getItem('sknr-tab'); keepY = +sessionStorage.getItem('sknr-y') || 0; } catch (e) {}
+  setContent(keepC && SET_OPTS.some(x => x.id === keepC) ? keepC : TODAY);
+  if (syFromLink){ $('t-cfg').click(); setTimeout(() => $('syncCard').scrollIntoView({ block: 'start' }), 50); }
+  else if (keepT && TABS.some(([t]) => t === keepT)){ tabRestoring = true; $(keepT).click(); tabRestoring = false; if (keepY) setTimeout(() => window.scrollTo(0, keepY), 0); }
+  addEventListener('pagehide', () => { try { sessionStorage.setItem('sknr-y', String(Math.round(scrollY))); } catch (e) {} });
   shareOpen();
 })();
 </script>
