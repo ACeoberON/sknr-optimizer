@@ -1787,6 +1787,7 @@ const SET_OPTS = [
 ];
 /* 공략 기준일 — 공략을 갱신하면 여기(전체) 또는 SET_OPTS 항목의 upd(그 콘텐츠만)를 고친다. 세팅 탭에 표시된다 */
 const GUIDE_DATE = '2026-09-30';
+const GUIDE_CHECKED = '2026-10-23';   // 래밍 공략 갱신 여부를 마지막으로 확인한 날 (바뀐 것 없음)
 const updOf = opt => opt.upd || GUIDE_DATE;
 const ROUND_LABEL = { r1a:'1라운드 · 100만 문턱', r1b:'1라운드 · 100만 문턱', r2a:'2라운드 · 4턴부터', r2b:'2라운드 · 8턴부터', t1:'1라운드 · 문턱', t2:'2라운드 · 12턴부터', k1:'1라운드 · 문턱', k2:'2라운드 · 8턴부터', y1:'1라운드 · 문턱', y2:'2라운드 · 12턴부터', m1:'1라운드 · 문턱', m2:'2라운드 · 12턴부터' };
 
@@ -3857,12 +3858,12 @@ function setRun(){
     : '숫자는 장비를 낀 마을 화면 기준(전투에 들어가면 패시브·버프가 더 붙음) · 이름 옆 % = 팀 딜에서 차지하는 비중 · OK 범위 = 치확이 이 안이면 점수 차 1% 미만 · 약확 — = 약확 줄 대신 모공 · 방어구 주옵은 둘 다 공%';
 
   const c0 = parts[0];
-  const ud = updOf(opt), age = Math.floor((Date.now() - new Date(ud + 'T00:00:00+09:00')) / 864e5);
-  $('sCheck').innerHTML = '<span class="' + (age > 14 ? 'flat' : 'muted') + '" title="래밍 공략을 이 날짜에 옮겨 적었습니다. 공략은 1~2주마다 바뀝니다.">공략 ' + (+ud.slice(5, 7)) + '/' + (+ud.slice(8)) + ' 기준' + (age > 14 ? ' · ' + age + '일 지남' : '') + '</span> · ' + (verified(opt)
+  const ud = updOf(opt), ck = ud > GUIDE_CHECKED ? ud : GUIDE_CHECKED, age = Math.floor((Date.now() - new Date(ck + 'T00:00:00+09:00')) / 864e5);
+  $('sCheck').innerHTML = '<span class="' + (age > 14 ? 'flat' : 'muted') + '" title="래밍 공략을 이 날짜에 옮겨 적었습니다. 공략은 1~2주마다 바뀝니다.">공략 ' + (+ud.slice(5, 7)) + '/' + (+ud.slice(8)) + ' 기준' + (ck !== ud ? ' · ' + (+ck.slice(5, 7)) + '/' + (+ck.slice(8)) + ' 최신 확인' : '') + (age > 14 ? ' · 확인 후 ' + age + '일 지남' : '') + '</span> · ' + (verified(opt)
     ? '<span class="win" title="캐릭터별 딜 비중을 실제 전투로 측정함 — ' + parts.map(c => SHARE_SRC[c.id]).join(' / ') + '">✓ 실전 검증</span>'
     : '<span class="muted" title="캐릭터별 딜 비중이 아직 추정치라 숫자가 조금 바뀔 수 있습니다">딜 비중 추정치 기준</span>');
   const kind = c0.sc === 'siege' ? '공성전 · ' + (c0.tg === 3 ? '3인기' : '1인기')
-             : multi ? '강림 · 1R은 100만 넘기기, 2R은 9판 중 상위 3판 합산' : '강림 · 1인기';
+             : multi ? (STABLE(parts[parts.length - 1].id) ? '강림 · 1R은 문턱 넘기기, 2R은 매 판 꾸준한 딜(평균 극대화)' : '강림 · 1R은 100만 넘기기, 2R은 9판 중 상위 3판 합산') : '강림 · 1인기';
   $('sMeta').innerHTML = kind +
     (c0.missZero ? ' · <strong class="lose">약확 100 필수</strong>' : '') +
     (c0.cb ? ' · 아군 전체 치확 +' + c0.cb + ' 포함' : '') +
