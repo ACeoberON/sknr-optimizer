@@ -3978,7 +3978,7 @@ $('shareKeep').addEventListener('click', () => {
 /* ══════════ 기기 간 동기화 (선택) — Cloudflare Workers + D1. 켜지 않으면 서버와 통신하지 않는다 ══════════
    코드 = 개인 열쇠(서버엔 해시만). 저장 키 5개(장비·초월·내 스펙·시험값·프리셋)가 바뀌면 4초 뒤 한 번에 올린다.
    버전 번호로 충돌을 잡는다: 다른 기기가 먼저 올렸으면 덮어쓰지 않고 어느 쪽을 남길지 묻는다. */
-const SYNC_URL = (() => { try { return localStorage.getItem('sknr-sync-url') || ''; } catch (e) { return ''; } })() || 'https://sknr-sync.REPLACE.workers.dev';
+const SYNC_URL = (() => { try { return localStorage.getItem('sknr-sync-url') || ''; } catch (e) { return ''; } })() || 'https://sknr-sync.nightmaretv-game.workers.dev';
 const SYKEY = 'sknr-sync';
 let sy = null;                                     // { code, ver, dirty, at }
 try { sy = JSON.parse(localStorage.getItem(SYKEY) || 'null'); } catch (e) { sy = null; }
@@ -4044,7 +4044,7 @@ async function syPull(){
 }
 $('syncNew').addEventListener('click', async () => {
   const r = await syApi('POST', '/v1/new');
-  if (r.status !== 200){ syMsg(r.status === 429 ? '잠시 후 다시 시도하세요.' : '서버에 연결할 수 없습니다. 이 화면(아티팩트 미리보기 등)에서 막혔을 수 있으니 GitHub Pages 주소에서 해 보세요.', 'lose'); return; }
+  if (r.status !== 200){ syMsg(r.status === 429 ? '잠시 후 다시 시도하세요.' : r.status >= 500 ? '서버 설정 오류입니다(' + (r.j.message || r.status) + ') — 관리자에게 알려주세요.' : '서버에 연결할 수 없습니다. 이 화면(아티팩트 미리보기 등)에서 막혔을 수 있으니 GitHub Pages 주소에서 해 보세요.', 'lose'); return; }
   sy = { code: r.j.code, ver: 0, dirty: true, at: 0 }; sySave(); syShowCode = true;
   await syPush(); syRender(); syShareRender(null);
   syMsg('동기화를 켰습니다. 위 코드를 다른 기기에서 “코드로 연결”에 넣으세요.', 'win');
