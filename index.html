@@ -309,6 +309,7 @@ h1 .t{white-space:nowrap}
   <button role="tab" id="t-cfg" aria-selected="false" aria-controls="p-cfg">백업</button>
 </div>
 <div class="gpick" id="gpick"><select id="cSel" aria-label="콘텐츠"></select></div>
+<div class="intro" id="tabHelp" hidden><div id="tabHelpBody"></div><button type="button" class="ghost x" id="tabHelpX" aria-label="도움말 닫기" title="닫기">✕</button></div>
 
 <!-- ───────────── 목표 ───────────── -->
 <div class="panel" id="p-set" role="tabpanel" aria-labelledby="t-set">
@@ -4206,10 +4207,12 @@ document.addEventListener('visibilitychange', () => { if (!sy || !sy.code) retur
   const box = $('intro');
   try { if (localStorage.getItem('sknr-intro-off') === '1') box.hidden = true; } catch (e) {}
   $('introX').addEventListener('click', () => { box.hidden = true; try { localStorage.setItem('sknr-intro-off', '1'); } catch (e) {} });
-  $('helpBtn').addEventListener('click', () => {
-    box.hidden = false; $('t-set').click();
-    setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  $('helpBtn').addEventListener('click', () => {           // 지금 보는 탭의 사용법을 열고 닫는다 (탭은 그대로)
+    const h = $('tabHelp'); h.hidden = !h.hidden; if (h.hidden) return;
+    box.hidden = true; helpFill();
+    setTimeout(() => h.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
   });
+  $('tabHelpX').addEventListener('click', () => { $('tabHelp').hidden = true; });
 })();
 
 /* ══════════ 테마 — 라이트(기본) ↔ 다크. 바꾸면 보는 사람 브라우저에 기억 ══════════ */
@@ -4233,6 +4236,50 @@ document.addEventListener('visibilitychange', () => { if (!sy || !sy.code) retur
 
 /* ══════════ 탭 ══════════ */
 let tabRestoring = false;
+/* 탭별 사용법 — ? 버튼 */
+const HELP = {
+  't-set': ['세팅 — 콘텐츠별 목표 스탯', [
+    '맨 위에서 콘텐츠를 고릅니다 (공성전은 오늘 요일이 기본).',
+    '<strong>안전 / 고점</strong>을 고릅니다. 안전 = 치확을 거의 100으로 매판 고르게, 고점 = 최고 기록을 노리는 배분. 강림 원정대(태오·카일·연희·카르마)는 어느 쪽이든 안전으로 나옵니다.',
+    '표의 <strong>치확 · 치피 · 약확</strong>대로 <strong>장비를 낀 마을 화면</strong> 스탯을 맞춥니다. 치확은 OK 범위 안이면 충분하고, 약확 “—”는 약확 줄 없이 모공을 넣으라는 뜻입니다.',
+    '장신구(세공)·주옵 칸도 같이 맞춥니다. “출혈 고정” 같은 표시는 공략이 정한 것이라 그대로 따르세요.'],
+    ['이름 옆 % = 팀 딜에서 그 캐릭터 비중 · ✓ = 게임 화면으로 확인한 캐릭터 · “실전 검증” = 딜 비중을 실제 전투로 측정',
+     '“고점 상세”를 펼치면 줄 수·강화 횟수까지 나옵니다.',
+     '6초월 미만 캐릭터가 있으면 <strong>목표</strong> 탭 맨 위 “내 캐릭터 초월”에서 지정하세요.']],
+  't-goal': ['목표 — 내 스펙 평가', [
+    '맨 위 “내 캐릭터 초월”에서 6초월 미만 캐릭터만 지정합니다 (한 번만).',
+    '<strong>내 스펙 평가</strong> 표에 캐릭터별 지금 마을 스탯(치확·치피·약확, 주옵, 장신구)을 넣습니다. 한 번 넣으면 모든 콘텐츠에 같이 쓰이고, 콘텐츠마다 다르면 그 콘텐츠에서만 고칠 수 있습니다.',
+    '최고 세팅 대비 몇 %인지, <strong>줄 옮기기 안내</strong>에서 어떤 줄을 어디로 옮기면 얼마나 오르는지 봅니다.',
+    '“내 스펙 공유 링크 만들기”로 길드원에게 내 세팅을 보낼 수 있습니다.'],
+    ['장비 탭에서 배정한 결과를 “목표 탭에 반영”하면 표가 자동으로 채워집니다.',
+     '용어 설명·약확 규칙·“왜 치확 100이 답이 아닌가”는 아래쪽 접힌 칸에 있습니다.']],
+  't-gear': ['장비 — 보유 장비로 자동 배정', [
+    '<strong>보유 장비</strong>에 딜러용 장비를 넣습니다. <strong>캡처로 추가</strong>: 장비 카드 캡처를 고르고 → 카드 주변을 감싸 “감싼 부분 확대” → 카드만 다시 감싸 “읽기” → 값을 확인하고 “추가”. 여러 장을 한 번에 고르면 차례로 읽습니다.',
+    '넣는 순서: 종결(치확·치피·약확·공%) → 치확·치피·약확 3줄 → 2줄+공% 순. 다 넣을 필요는 없고 배정 결과가 더 안 바뀌면 멈추세요.',
+    '위에서 콘텐츠를 고르고 <strong>배정 계산</strong>을 누르면 딜러마다 무기 2 · 방어구 2 · 장신구를 골라 줍니다.',
+    '결과가 괜찮으면 <strong>전원 프리셋으로 저장</strong> 또는 <strong>목표 탭에 반영</strong>.'],
+    ['캡처로 넣은 장비는 카드의 <strong>원본</strong> 버튼으로 읽은 캡처와 비교할 수 있습니다.',
+     '버퍼·생존 캐릭터는 딜에 영향이 없어 배정에서 빠집니다.',
+     '처음이면 “예시 장비 넣기”로 체험해 보세요.']],
+  't-guide': ['공략 — 래밍 공략 원문', [
+    '맨 위에서 콘텐츠를 고르면 그 콘텐츠의 편성·진형·속공·장비 지침·스킬 순서가 나옵니다.',
+    '판정기의 목표 숫자는 이 공략 편성을 전제로 계산합니다. 편성이 다르면 결과도 다를 수 있습니다.'],
+    ['공략 날짜와 마지막으로 최신 여부를 확인한 날은 세팅 탭 위쪽에 나옵니다.',
+     '맨 아래 “참고 — 캐릭터 기본값 · 세트 효과”에서 판정기가 쓰는 캐릭터 값과 팀 효과를 볼 수 있습니다.']],
+  't-cfg': ['백업 — 저장과 기기 간 이동', [
+    '입력한 스펙·장비·프리셋은 기본적으로 <strong>이 브라우저에만</strong> 저장됩니다.',
+    '<strong>기기 간 자동 동기화</strong>(선택): “동기화 시작”을 누르면 개인 코드가 생깁니다. 다른 기기는 <strong>다른 기기 연결 (링크·QR)</strong>로 QR을 찍거나 링크를 열면 끝 — 이후 자동으로 맞춰집니다.',
+    '<strong>길드 공개</strong>(선택): 길드 이름·닉네임·가입 암호를 넣고 켜면 길드장이 내 장비·스펙을 볼 수 있습니다(보기만). 끄면 아무도 못 봅니다.',
+    '가끔 <strong>내보내기</strong>로 백업 글자를 저장해 두세요. 코드를 잃어버리면 서버 데이터는 찾을 수 없습니다.'],
+    ['코드·연결 링크·QR은 열쇠입니다 — 캡처나 채팅에 올리지 마세요.',
+     '두 기기에서 동시에 고치면 덮어쓰지 않고 어느 쪽을 남길지 묻습니다.',
+     '길드장은 “길드 현황”에 길드장 키를 넣어 공개한 길드원 목록을 봅니다.']]
+};
+function helpFill(){
+  const t = (TABS.find(([tb]) => $(tb).getAttribute('aria-selected') === 'true') || TABS[0])[0], h = HELP[t];
+  $('tabHelpBody').innerHTML = '<strong>' + h[0] + '</strong><ol>' + h[1].map(x => '<li>' + x + '</li>').join('') + '</ol>' +
+    (h[2] ? '<details class="more"><summary>더 보기</summary><ul>' + h[2].map(x => '<li>' + x + '</li>').join('') + '</ul></details>' : '');
+}
 const TABS = [['t-set','p-set'],['t-goal','p-goal'],['t-gear','p-gear'],['t-guide','p-guide'],['t-cfg','p-cfg']];
 TABS.forEach(([t]) => $(t).addEventListener('click', () => {
   TABS.forEach(([tb, pb]) => {
@@ -4241,6 +4288,7 @@ TABS.forEach(([t]) => $(t).addEventListener('click', () => {
     $(pb).hidden = !on;
   });
   $('gpick').hidden = t === 't-cfg';
+  if (!$('tabHelp').hidden) helpFill();                            // 도움말을 연 채로 탭을 바꾸면 그 탭 내용으로
   try { sessionStorage.setItem('sknr-tab', t); } catch (e) {}       // 새로고침해도 보던 탭 유지 (창을 새로 열면 세팅부터)
   if (!tabRestoring) window.scrollTo({ top: 0, behavior: 'smooth' });
   alignNotes();
