@@ -6,6 +6,8 @@
 const MAX_BYTES = 512 * 1024;       // 한 사람 데이터 상한
 const MIN_GAP_MS = 2000;            // 같은 사람 저장 최소 간격
 const NEW_PER_HOUR = 10;            // IP당 시간당 새 코드 발급
+const BAD_PER_10MIN = 20;           // IP당 10분 동안 틀린 코드 시도 상한
+let badReady = false;               // 틀린 시도 기록 표 — 처음 쓸 때 만든다(콘솔 작업 불필요)
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,OPTIONS',
@@ -34,10 +36,26 @@ const cleanName = s => String(s || '').trim().slice(0, 20);
 async function me(req, env){
   const h = req.headers.get('Authorization') || '';
   const code = cleanCode(h.replace(/^Bearer\s+/i, ''));
-  if (!okCode(code)) return null;
-  const id = await sha('u:' + code);
-  const row = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
-  return row ? { id, row } : null;
+  const ip = req.headers.get('CF-Connecting-IP') || 'x', now = Date.now();
+  if (!badReady){
+    await env.DB.batch([
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS badlog (ip TEXT NOT NULL, ts INTEGER NOT NULL)'),
+      env.DB.prepare('CREATE INDEX IF NOT EXISTS badlog_ip ON badlog(ip, ts)')
+    ]);
+    badReady = true;
+  }
+  const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM badlog WHERE ip = ? AND ts > ?').bind(ip, now - 6e5).first();
+  if ((n && n.n) >= BAD_PER_10MIN) throw Object.assign(new Error('잘못된 코드를 너무 많이 넣었습니다. 10분 뒤 다시 시도하세요.'), { status: 429 });
+  const id = okCode(code) ? await sha('u:' + code) : null;
+  const row = id ? await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first() : null;
+  if (!row){
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM badlog WHERE ts < ?').bind(now - 864e5),
+      env.DB.prepare('INSERT INTO badlog (ip, ts) VALUES (?, ?)').bind(ip, now)
+    ]);
+    return null;
+  }
+  return { id, row };
 }
 
 async function readBody(req){
@@ -130,7 +148,7 @@ export default {
 
       return err(404, 'not_found', '없는 주소');
     } catch (e){
-      return err(e.status || 500, e.message || 'error', e.status ? e.message : '서버 오류');
+      return err(e.status || 500, e.status === 429 ? 'rate_limited' : (e.message || 'error'), e.status ? e.message : '서버 오류');
     }
   }
 };

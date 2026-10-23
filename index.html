@@ -556,9 +556,20 @@ h1 .t{white-space:nowrap}
       <span>내 코드 <code id="syncCodeShow">••••</code></span>
       <button type="button" id="syncReveal">보기</button>
       <button type="button" id="syncCopy">복사</button>
+      <button type="button" id="syncLinkBtn">다른 기기 연결 (링크·QR)</button>
       <button type="button" id="syncNow">지금 동기화</button>
       <button type="button" id="syncOffBtn">이 기기 연결 끊기</button>
       <button type="button" id="syncDel">서버에서 내 데이터 삭제</button>
+    </div>
+    <div id="syncLinkBox" hidden style="margin-top:10px">
+      <p class="note">휴대폰 카메라로 QR을 찍거나, 아래 링크를 카톡 ‘나에게 보내기’ 등으로 보내 그 기기에서 여세요. 열면 바로 연결됩니다. <strong>이 링크·QR도 코드와 같습니다 — 남에게 보내지 마세요.</strong></p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <div id="syncQR" style="background:#fff;padding:8px;border-radius:8px;line-height:0"></div>
+        <div style="flex:1;min-width:220px">
+          <input readonly id="syncLinkOut" style="width:100%;font-size:12px" onclick="this.select()">
+          <div class="row-actions"><button type="button" id="syncLinkCopy">링크 복사</button><button type="button" id="syncLinkClose">닫기</button></div>
+        </div>
+      </div>
     </div>
     <div class="row-actions" id="syncConflict" hidden>
       <span class="flat">다른 기기에서 먼저 저장한 내용이 있습니다.</span>
@@ -4049,13 +4060,15 @@ $('syncNew').addEventListener('click', async () => {
   await syPush(); syRender(); syShareRender(null);
   syMsg('동기화를 켰습니다. 위 코드를 다른 기기에서 “코드로 연결”에 넣으세요.', 'win');
 });
-$('syncLink').addEventListener('click', async () => {
-  const code = $('syncCodeIn').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+$('syncLink').addEventListener('click', () => syConnect($('syncCodeIn').value));
+async function syConnect(raw){
+  const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 24){ syMsg('코드는 24자입니다(줄표 제외).', 'lose'); return; }
+  if (sy && sy.code && sy.code.replace(/-/g, '') === code){ syMsg('이미 이 코드로 연결돼 있습니다.', 'win'); return; }
   const fmt = code.match(/.{4}/g).join('-'), prev = sy;
   sy = { code: fmt, ver: 0, dirty: false, at: 0 };
   const r = await syApi('GET', '/v1/me');
-  if (r.status !== 200){ sy = prev; syMsg(r.status === 401 ? '없는 코드입니다.' : '서버에 연결할 수 없습니다.', 'lose'); return; }
+  if (r.status !== 200){ sy = prev; syMsg(r.status === 401 ? '없는 코드입니다.' : r.status === 429 ? (r.j.message || '잠시 후 다시 시도하세요.') : '서버에 연결할 수 없습니다.', 'lose'); return; }
   if (r.j.ver === 0){ sy.dirty = true; sySave(); await syPush(); syMsg('연결했습니다. 서버가 비어 있어 이 기기 내용을 올렸습니다.', 'win'); }
   else {
     if (!confirm('이 기기의 장비·스펙·프리셋을 서버에 저장된 내용(' + hhmm(r.j.updated) + ')으로 바꿉니다. 진행할까요?')){ sy = prev; return; }
@@ -4063,19 +4076,33 @@ $('syncLink').addEventListener('click', async () => {
     syMsg('연결했습니다. 서버 내용을 받아왔습니다.', 'win');
   }
   $('syncCodeIn').value = ''; syShareRender(r.j.share); syRender();
+}
+/* 다른 기기 연결 — 코드를 담은 링크(#sync=…)와 QR. QR 라이브러리는 누를 때만 불러온다 */
+const syLinkUrl = () => SHARE_BASE + '#sync=' + sy.code.replace(/-/g, '');
+let qrLib = null;
+const qrLoad = () => qrLib || (qrLib = new Promise((ok, no) => { const sc = document.createElement('script');
+  sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = () => ok(window.QRCode); sc.onerror = () => { qrLib = null; no(); }; document.head.append(sc); }));
+$('syncLinkBtn').addEventListener('click', async () => {
+  if (!sy || !sy.code) return;
+  const box = $('syncLinkBox'); box.hidden = !box.hidden; if (box.hidden) return;
+  const url = syLinkUrl(); $('syncLinkOut').value = url; $('syncQR').innerHTML = '';
+  try { const Q = await qrLoad(); new Q($('syncQR'), { text: url, width: 168, height: 168, correctLevel: Q.CorrectLevel.M }); }
+  catch (e) { $('syncQR').innerHTML = '<span class="note" style="line-height:1.4">QR을 불러오지 못했습니다 — 링크를 쓰세요.</span>'; }
 });
+$('syncLinkCopy').addEventListener('click', () => { try { navigator.clipboard.writeText($('syncLinkOut').value).then(() => syMsg('링크를 복사했습니다. 남에게 보내지 마세요.'), () => $('syncLinkOut').select()); } catch (e) { $('syncLinkOut').select(); } });
+$('syncLinkClose').addEventListener('click', () => { $('syncLinkBox').hidden = true; $('syncQR').innerHTML = ''; });
 $('syncReveal').addEventListener('click', () => { syShowCode = !syShowCode; syRender(); });
 $('syncCopy').addEventListener('click', () => { try { navigator.clipboard.writeText(sy.code).then(() => syMsg('코드를 복사했습니다. 남에게 보내지 마세요.'), () => { syShowCode = true; syRender(); }); } catch (e) { syShowCode = true; syRender(); } });
 $('syncNow').addEventListener('click', async () => { await syPull(); if (sy && !sy.dirty) syMsg('동기화했습니다.', 'win'); });
 $('syncOffBtn').addEventListener('click', () => {
   if (!confirm('이 기기만 동기화를 끕니다. 이 기기의 내용과 서버의 내용은 그대로 남습니다. 진행할까요?')) return;
-  sy = null; sySave(); syShowCode = false; $('syncConflict').hidden = true; syRender();
+  sy = null; sySave(); syShowCode = false; $('syncConflict').hidden = true; $('syncLinkBox').hidden = true; syRender();
 });
 $('syncDel').addEventListener('click', async () => {
   if (!confirm('서버에서 내 데이터를 완전히 지웁니다(길드 공개도 함께 꺼짐). 이 기기의 내용은 남습니다. 이 코드로 연결한 다른 기기도 더는 동기화되지 않습니다. 진행할까요?')) return;
   const r = await syApi('DELETE', '/v1/me');
   if (r.status !== 200 && r.status !== 401){ syMsg('서버에 연결할 수 없습니다.', 'lose'); return; }
-  sy = null; sySave(); syRender(); syMsg('서버에서 지웠습니다. 이제 이 기기에만 저장합니다.');
+  sy = null; sySave(); $('syncLinkBox').hidden = true; syRender(); syMsg('서버에서 지웠습니다. 이제 이 기기에만 저장합니다.');
 });
 $('syncTakeSrv').addEventListener('click', () => {
   if (!syLastSrv) return;
@@ -4126,7 +4153,15 @@ $('gmLoad').addEventListener('click', async () => {
   }));
 });
 if (SYNC_URL.includes('REPLACE')) $('syncCard').hidden = true;   // 서버 배포 전에는 숨김
-else { syRender(); if (sy && sy.code) syPull(); }
+else {
+  syRender();
+  const hm = location.hash.match(/[#&]sync=([A-Za-z0-9-]+)/);
+  if (hm){
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}   // 주소창에 코드가 남지 않게
+    $('t-cfg').click(); setTimeout(() => $('syncCard').scrollIntoView({ block: 'start' }), 50);
+    syConnect(hm[1]);
+  } else if (sy && sy.code) syPull();
+}
 document.addEventListener('visibilitychange', () => { if (!sy || !sy.code) return; if (document.visibilityState === 'visible') syPull(); else if (sy.dirty){ clearTimeout(syTimer); syPush(); } });
 
 /* ══════════ 처음 안내 — 닫으면 이 브라우저에서는 다시 안 뜬다 ══════════ */

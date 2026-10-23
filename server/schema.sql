@@ -20,3 +20,7 @@ CREATE TABLE IF NOT EXISTS guilds (
 -- 새 코드 발급 기록 (IP당 발급 횟수 제한용, 하루 지나면 지움)
 CREATE TABLE IF NOT EXISTS newlog (ip TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS newlog_ip ON newlog(ip, ts);
+
+-- 틀린 코드 시도 기록 (IP당 10분 20회 제한). 서버가 처음 쓸 때 알아서 만듦
+CREATE TABLE IF NOT EXISTS badlog (ip TEXT NOT NULL, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS badlog_ip ON badlog(ip, ts);
