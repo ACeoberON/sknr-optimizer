@@ -24,3 +24,6 @@ CREATE INDEX IF NOT EXISTS newlog_ip ON newlog(ip, ts);
 -- 틀린 코드 시도 기록 (IP당 10분 20회 제한). 서버가 처음 쓸 때 알아서 만듦
 CREATE TABLE IF NOT EXISTS badlog (ip TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS badlog_ip ON badlog(ip, ts);
+
+-- 장비 캡처 원본 (비교용, 장비 번호별 1장). 서버가 처음 쓸 때 알아서 만듦
+CREATE TABLE IF NOT EXISTS imgs (uid TEXT NOT NULL, gid INTEGER NOT NULL, img TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (uid, gid));

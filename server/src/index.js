@@ -7,6 +7,9 @@ const MAX_BYTES = 512 * 1024;       // 한 사람 데이터 상한
 const MIN_GAP_MS = 2000;            // 같은 사람 저장 최소 간격
 const NEW_PER_HOUR = 10;            // IP당 시간당 새 코드 발급
 const BAD_PER_10MIN = 20;           // IP당 10분 동안 틀린 코드 시도 상한
+const IMG_MAX = 300 * 1024;         // 캡처 1장 상한 (압축한 카드 부분)
+const IMG_PER_USER = 400;           // 한 사람 캡처 장수 상한
+let imgReady = false;
 let badReady = false;               // 틀린 시도 기록 표 — 처음 쓸 때 만든다(콘솔 작업 불필요)
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -104,6 +107,34 @@ export default {
         }
         if (req.method === 'DELETE'){
           await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id).run();
+          try { await env.DB.prepare('DELETE FROM imgs WHERE uid = ?').bind(u.id).run(); } catch (e) {}   // 표가 아직 없으면 무시
+          return json({ ok: true });
+        }
+      }
+
+      /* 장비 캡처 원본 — 본인만 (장비 번호별 1장) */
+      const im = p.match(/^\/v1\/img\/(\d{1,9})$/);
+      if (im){
+        const u = await me(req, env);
+        if (!u) return err(401, 'bad_code', '동기화 코드가 맞지 않습니다.');
+        if (!imgReady){ await env.DB.prepare('CREATE TABLE IF NOT EXISTS imgs (uid TEXT NOT NULL, gid INTEGER NOT NULL, img TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (uid, gid))').run(); imgReady = true; }
+        const gid = +im[1];
+        if (req.method === 'GET'){
+          const r = await env.DB.prepare('SELECT img, updated FROM imgs WHERE uid = ? AND gid = ?').bind(u.id, gid).first();
+          return r ? json(r) : err(404, 'no_img', '저장된 캡처가 없습니다.');
+        }
+        if (req.method === 'PUT'){
+          const t = await req.text();
+          if (t.length > IMG_MAX + 200) return err(413, 'too_large', '캡처가 너무 큽니다.');
+          let b; try { b = JSON.parse(t); } catch { return err(400, 'bad_json', '형식 오류'); }
+          if (typeof b.img !== 'string' || !/^data:image\/(jpeg|webp|png);base64,[A-Za-z0-9+/=]+$/.test(b.img)) return err(400, 'bad_request', '이미지 형식 오류');
+          const n = await env.DB.prepare('SELECT COUNT(*) AS n, SUM(gid = ?) AS me FROM imgs WHERE uid = ?').bind(gid, u.id).first();
+          if (!(n && n.me) && (n && n.n) >= IMG_PER_USER) return err(413, 'too_many', '캡처는 ' + IMG_PER_USER + '장까지 저장됩니다.');
+          await env.DB.prepare('INSERT INTO imgs (uid, gid, img, updated) VALUES (?, ?, ?, ?) ON CONFLICT(uid, gid) DO UPDATE SET img = excluded.img, updated = excluded.updated').bind(u.id, gid, b.img, Date.now()).run();
+          return json({ ok: true });
+        }
+        if (req.method === 'DELETE'){
+          await env.DB.prepare('DELETE FROM imgs WHERE uid = ? AND gid = ?').bind(u.id, gid).run();
           return json({ ok: true });
         }
       }
