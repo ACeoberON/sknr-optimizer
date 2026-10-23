@@ -1965,7 +1965,7 @@ function solveOne(c, k, opt, noW){
   const carves = opt.carves || ringOpts(c);
   // 약공 배율이 역전선(1.5) 아래고 약확 강제 콘텐츠가 아니면 약확은 선택:
   // 약확 줄 자리를 모공으로 쓰는 게 낫고 강화도 붙일 필요가 없으므로 약확 0단위로 푼다.
-  const wOpt = !noW && opt.safe && !opt.forceQ && (c.wm < 1.5 || !c.main);   // 안전: 배율 낮은 캐릭터·서브 딜러는 약확 줄 없음
+  const wOpt = !noW && opt.safe && !opt.forceQ && !c.main;   // 안전: 서브 딜러는 약확 줄 없음 (주딜러는 배율과 무관하게 약확 100)
   for (const cv of carves){
     const [cp, cq, mult] = CARVES[cv];
     for (const m1 of MKEY) for (const m2 of MKEY){
@@ -2002,7 +2002,7 @@ function solveOne(c, k, opt, noW){
     // 약확은 강제하지 않는다 — 약공 추가 피해가 큰 캐릭터(라이언·미호)는 평균 극대화만으로 100 근처가 되고,
     // 배율 1.3~1.6인 캐릭터는 약확보다 치피가 평균을 더 올린다. 미스=딜0·문턱 콘텐츠는 forceQ로 이미 100.
     // 주딜러(지분 20% 이상)이면서 약확이 가치 있는 캐릭터(배율 1.5 이상)는 약확도 99 이상으로 묶는다.
-    const qToo = opt.qForce || (c.main && c.wm >= 1.5);
+    const qToo = opt.qForce || c.main;   // 안전 = 주딜러는 치확·약확 둘 다 100 — 기댓값보다 흔들림 제거 우선 (사용자 지침 2026-10-23)
     const gap = a => Math.max(0, 99 - a.p) + (qToo ? Math.max(0, 99 - a.q) : 0);
     const best = Math.min(...out.map(gap));
     const kept = out.filter(a => gap(a) === best);
