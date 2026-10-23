@@ -1,0 +1,8 @@
+name = "sknr-sync"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sknr-sync"
+database_id = "REPLACE_WITH_DATABASE_ID"   # wrangler d1 create sknr-sync 가 알려주는 값

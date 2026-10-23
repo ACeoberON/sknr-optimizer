@@ -540,6 +540,52 @@ h1 .t{white-space:nowrap}
     <span class="note" id="stateMsg"></span>
   </div>
 </section>
+<section class="card" id="syncCard">
+  <h2>기기 간 자동 동기화 <span class="muted" style="font-size:13px;font-weight:400">(선택)</span></h2>
+  <p class="note">기본은 위처럼 <strong>이 브라우저에만</strong> 저장합니다. 동기화를 켜면 <strong>개인 코드</strong>로 서버에 저장되어, PC·휴대폰·카톡 브라우저 어디서 열어도 코드만 넣으면 같은 값이 보이고 이후 자동으로 맞춰집니다.
+    코드가 곧 열쇠입니다 — 캡처나 채팅에 올리지 마세요. 코드를 잃어버리면 찾을 수 없으니 위 내보내기도 가끔 해 두세요.</p>
+  <p class="note" id="syncState">동기화 꺼짐 — 이 기기에만 저장 중</p>
+  <div id="syncOffBox" class="row-actions">
+    <button type="button" id="syncNew">동기화 시작 (새 코드 받기)</button>
+    <input id="syncCodeIn" placeholder="이미 받은 코드 (예: ABCD-EFGH-…)" autocomplete="off" spellcheck="false" style="flex:1;min-width:220px">
+    <button type="button" id="syncLink">코드로 연결</button>
+  </div>
+  <div id="syncOnBox" hidden>
+    <div class="row-actions">
+      <span>내 코드 <code id="syncCodeShow">••••</code></span>
+      <button type="button" id="syncReveal">보기</button>
+      <button type="button" id="syncCopy">복사</button>
+      <button type="button" id="syncNow">지금 동기화</button>
+      <button type="button" id="syncOffBtn">이 기기 연결 끊기</button>
+      <button type="button" id="syncDel">서버에서 내 데이터 삭제</button>
+    </div>
+    <div class="row-actions" id="syncConflict" hidden>
+      <span class="flat">다른 기기에서 먼저 저장한 내용이 있습니다.</span>
+      <button type="button" id="syncTakeSrv">서버 것으로 받기</button>
+      <button type="button" id="syncTakeMine">이 기기 것으로 올리기</button>
+    </div>
+    <h3 style="margin:16px 0 6px;font-size:14px">길드 공개</h3>
+    <p class="note">켜면 <strong>길드장이 내 장비·스펙을 볼 수 있습니다</strong>(보기만, 수정 불가). 원하지 않으면 켜지 마세요 — 꺼 두면 아무도 볼 수 없습니다.</p>
+    <p class="note" id="shareState">길드 공개 꺼짐</p>
+    <div class="row-actions">
+      <input id="gsGuild" placeholder="길드 이름" style="width:120px">
+      <input id="gsNick" placeholder="게임 닉네임" style="width:120px">
+      <input id="gsPass" type="password" placeholder="길드 가입 암호" style="width:130px" autocomplete="off">
+      <button type="button" id="gsOn">길드 공개 켜기</button>
+      <button type="button" id="gsOff">공개 끄기</button>
+    </div>
+  </div>
+  <details style="margin-top:14px"><summary>길드 현황 (길드장 전용)</summary>
+    <div class="row-actions">
+      <input id="gmGuild" placeholder="길드 이름" style="width:120px">
+      <input id="gmKey" type="password" placeholder="길드장 키" style="width:180px" autocomplete="off">
+      <button type="button" id="gmLoad">불러오기</button>
+      <span class="note" id="gmMsg"></span>
+    </div>
+    <div id="gmList"></div>
+  </details>
+  <span class="note" id="syncMsg"></span>
+</section>
 </div>
 </div>
 
@@ -2752,6 +2798,10 @@ $('stateIn').addEventListener('click', () => {
   catch { sMsg('형식이 올바르지 않습니다.'); return; }
   if (!o || typeof o !== 'object'){ sMsg('형식이 올바르지 않습니다.'); return; }
   if (!confirm('현재 기기의 설정을 덮어씁니다. 진행할까요?')) return;
+  applyState(o);
+  sMsg('가져왔습니다' + (o.at ? ' (' + o.at + ' 저장본)' : '') + '.');
+});
+function applyState(o){
   if (Array.isArray(o.gear)) gear = migrateGear(o.gear);
   if (o.trans && typeof o.trans === 'object') { trans = o.trans; tPersist(); }
   if (o.mine && typeof o.mine === 'object') { mine = o.mine; mineMigrate(); mPersist(); }
@@ -2761,8 +2811,8 @@ $('stateIn').addEventListener('click', () => {
     localStorage.setItem(GKEY, JSON.stringify(gear));
   } catch {}
   gRowsInit(); gRender(); goalRun(); cRowsInit(); pRender();
-  sMsg('가져왔습니다' + (o.at ? ' (' + o.at + ' 저장본)' : '') + '.');
-});
+}
+const stateBundle = () => ({ v: 2, gear, trans, mine, trial, presets });
 
 /* ══════════ 장비 탭 ══════════ */
 const GKEY = 'sknr-judge-gear';
@@ -3904,9 +3954,13 @@ $('shareBtn').addEventListener('click', () => {
 });
 function shareOpen(){
   const h = location.hash.match(/[#&]s=([\w-]+)/); if (!h) return;
-  try { const o = b64d(h[1]); if (!o || !o.m || !SET_OPTS.some(x => x.id === o.o)) return; shared = o; } catch (e) { return; }
+  try { const o = b64d(h[1]); if (!o || !o.m || !SET_OPTS.some(x => x.id === o.o)) return; shareShow(o); } catch (e) { return; }
+}
+function shareShow(o, who){
+  shared = o;
   $('shareWho').textContent = (SET_OPTS.find(x => x.id === shared.o) || {}).n + ' · ' + Object.entries(shared.m).map(([n, v]) => n + ' ' + v[0] + '/' + v[1] + '/' + v[2] + (shared.t && shared.t[n] !== undefined ? '(' + TLABEL[shared.t[n]] + ')' : '')).join(', ') +
     ' — 다른 콘텐츠를 고르면 공유 보기가 끝납니다.';
+  if (who) $('shareWho').textContent = who + ' · ' + $('shareWho').textContent;
   $('shareBar').hidden = false;
   setContent(shared.o); $('t-goal').click();
 }
@@ -3920,6 +3974,160 @@ $('shareKeep').addEventListener('click', () => {
   mPersist(); shareEnd();
   const m = $('gSnapMsg'); m.textContent = '공유받은 값을 내 기록(공통값)으로 저장했습니다.'; m.className = 'note win'; clearTimeout(m._t); m._t = setTimeout(() => { m.textContent = ''; }, 6000);
 });
+
+/* ══════════ 기기 간 동기화 (선택) — Cloudflare Workers + D1. 켜지 않으면 서버와 통신하지 않는다 ══════════
+   코드 = 개인 열쇠(서버엔 해시만). 저장 키 5개(장비·초월·내 스펙·시험값·프리셋)가 바뀌면 4초 뒤 한 번에 올린다.
+   버전 번호로 충돌을 잡는다: 다른 기기가 먼저 올렸으면 덮어쓰지 않고 어느 쪽을 남길지 묻는다. */
+const SYNC_URL = (() => { try { return localStorage.getItem('sknr-sync-url') || ''; } catch (e) { return ''; } })() || 'https://sknr-sync.REPLACE.workers.dev';
+const SYKEY = 'sknr-sync';
+let sy = null;                                     // { code, ver, dirty, at }
+try { sy = JSON.parse(localStorage.getItem(SYKEY) || 'null'); } catch (e) { sy = null; }
+const syRawSet = Storage.prototype.setItem;
+const sySave = () => { try { sy ? syRawSet.call(localStorage, SYKEY, JSON.stringify(sy)) : localStorage.removeItem(SYKEY); } catch (e) {} };
+let syApplying = false, syTimer = 0, syBusy = false, syShowCode = false, syLastSrv = null;
+const SY_WATCH = [GKEY, TKEY, MKEY_MINE, TRKEY, PKEY];
+Storage.prototype.setItem = function (k, v){
+  syRawSet.call(this, k, v);
+  if (this === localStorage && sy && !syApplying && SY_WATCH.includes(k)){ sy.dirty = true; sySave(); syQueue(); }
+};
+const syMsg = (t, cls) => { const m = $('syncMsg'); m.textContent = t; m.className = 'note ' + (cls || ''); clearTimeout(m._t); if (t) m._t = setTimeout(() => { m.textContent = ''; }, 6000); };
+const hhmm = ms => { const d = new Date(ms); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+async function syApi(method, path, body, headers){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const r = await fetch(SYNC_URL + path, { method, signal: ctl.signal, keepalive: method === 'PUT' && !!body && JSON.stringify(body).length < 60000,
+      headers: Object.assign({ 'Content-Type': 'application/json' }, sy && sy.code ? { Authorization: 'Bearer ' + sy.code } : {}, headers || {}),
+      body: body ? JSON.stringify(body) : undefined });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    return { status: r.status, j };
+  } catch (e) { return { status: 0, j: {} }; }
+  finally { clearTimeout(t); }
+}
+function syRender(state){
+  const on = !!(sy && sy.code);
+  $('syncOffBox').hidden = on; $('syncOnBox').hidden = !on;
+  $('syncCodeShow').textContent = on ? (syShowCode ? sy.code : sy.code.slice(0, 4) + '-••••-••••-••••-••••-••••') : '';
+  $('syncReveal').textContent = syShowCode ? '가리기' : '보기';
+  $('syncState').innerHTML = !on ? '동기화 꺼짐 — 이 기기에만 저장 중'
+    : state === 'off' ? '<span class="flat">서버에 연결할 수 없습니다</span> — 이 기기에 저장해 두고, 연결되면 올립니다'
+    : sy.dirty ? '동기화 켜짐 · <span class="flat">올릴 변경 있음</span>'
+    : '<span class="win">동기화 켜짐</span>' + (sy.at ? ' · 마지막 동기화 ' + hhmm(sy.at) : '');
+}
+function syShareRender(share){
+  $('shareState').innerHTML = share ? '<span class="win">길드 공개 켜짐</span> — ' + esc(share.guild) + ' · ' + esc(share.nick) + ' (길드장이 볼 수 있음)' : '길드 공개 꺼짐 — 아무도 볼 수 없음';
+  if (share){ $('gsGuild').value = share.guild; $('gsNick').value = share.nick; }
+}
+function syApply(data){ syApplying = true; try { applyState(data); } finally { syApplying = false; } }
+function syQueue(){ clearTimeout(syTimer); syTimer = setTimeout(syPush, 4000); syRender(); }
+async function syPush(){
+  if (!sy || !sy.code || syBusy || !sy.dirty) return;
+  syBusy = true;
+  const r = await syApi('PUT', '/v1/me', { ver: sy.ver, data: stateBundle() });
+  syBusy = false;
+  if (r.status === 200){ sy.ver = r.j.ver; sy.dirty = false; sy.at = r.j.updated; sySave(); syRender(); return; }
+  if (r.status === 409 && r.j.data){ syLastSrv = r.j; $('syncConflict').hidden = false; syRender(); return; }
+  if (r.status === 429){ syQueue(); return; }
+  if (r.status === 401){ syMsg('서버에 이 코드가 없습니다(삭제됐거나 잘못된 코드). 연결을 끊고 다시 시작하세요.', 'lose'); return; }
+  syRender('off');
+}
+async function syPull(){
+  if (!sy || !sy.code || syBusy) return;
+  const r = await syApi('GET', '/v1/me');
+  if (r.status === 401){ syMsg('서버에 이 코드가 없습니다(삭제됐거나 잘못된 코드). 연결을 끊고 다시 시작하세요.', 'lose'); syRender(); return; }
+  if (r.status !== 200){ syRender('off'); return; }
+  syShareRender(r.j.share);
+  if (r.j.ver > sy.ver){
+    if (sy.dirty){ syLastSrv = r.j; $('syncConflict').hidden = false; }
+    else { syApply(r.j.data); sy.ver = r.j.ver; sy.at = r.j.updated; sySave(); }
+  } else if (sy.dirty) await syPush();
+  syRender();
+}
+$('syncNew').addEventListener('click', async () => {
+  const r = await syApi('POST', '/v1/new');
+  if (r.status !== 200){ syMsg(r.status === 429 ? '잠시 후 다시 시도하세요.' : '서버에 연결할 수 없습니다. 이 화면(아티팩트 미리보기 등)에서 막혔을 수 있으니 GitHub Pages 주소에서 해 보세요.', 'lose'); return; }
+  sy = { code: r.j.code, ver: 0, dirty: true, at: 0 }; sySave(); syShowCode = true;
+  await syPush(); syRender(); syShareRender(null);
+  syMsg('동기화를 켰습니다. 위 코드를 다른 기기에서 “코드로 연결”에 넣으세요.', 'win');
+});
+$('syncLink').addEventListener('click', async () => {
+  const code = $('syncCodeIn').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 24){ syMsg('코드는 24자입니다(줄표 제외).', 'lose'); return; }
+  const fmt = code.match(/.{4}/g).join('-'), prev = sy;
+  sy = { code: fmt, ver: 0, dirty: false, at: 0 };
+  const r = await syApi('GET', '/v1/me');
+  if (r.status !== 200){ sy = prev; syMsg(r.status === 401 ? '없는 코드입니다.' : '서버에 연결할 수 없습니다.', 'lose'); return; }
+  if (r.j.ver === 0){ sy.dirty = true; sySave(); await syPush(); syMsg('연결했습니다. 서버가 비어 있어 이 기기 내용을 올렸습니다.', 'win'); }
+  else {
+    if (!confirm('이 기기의 장비·스펙·프리셋을 서버에 저장된 내용(' + hhmm(r.j.updated) + ')으로 바꿉니다. 진행할까요?')){ sy = prev; return; }
+    syApply(r.j.data); sy.ver = r.j.ver; sy.at = r.j.updated; sySave();
+    syMsg('연결했습니다. 서버 내용을 받아왔습니다.', 'win');
+  }
+  $('syncCodeIn').value = ''; syShareRender(r.j.share); syRender();
+});
+$('syncReveal').addEventListener('click', () => { syShowCode = !syShowCode; syRender(); });
+$('syncCopy').addEventListener('click', () => { try { navigator.clipboard.writeText(sy.code).then(() => syMsg('코드를 복사했습니다. 남에게 보내지 마세요.'), () => { syShowCode = true; syRender(); }); } catch (e) { syShowCode = true; syRender(); } });
+$('syncNow').addEventListener('click', async () => { await syPull(); if (sy && !sy.dirty) syMsg('동기화했습니다.', 'win'); });
+$('syncOffBtn').addEventListener('click', () => {
+  if (!confirm('이 기기만 동기화를 끕니다. 이 기기의 내용과 서버의 내용은 그대로 남습니다. 진행할까요?')) return;
+  sy = null; sySave(); syShowCode = false; $('syncConflict').hidden = true; syRender();
+});
+$('syncDel').addEventListener('click', async () => {
+  if (!confirm('서버에서 내 데이터를 완전히 지웁니다(길드 공개도 함께 꺼짐). 이 기기의 내용은 남습니다. 이 코드로 연결한 다른 기기도 더는 동기화되지 않습니다. 진행할까요?')) return;
+  const r = await syApi('DELETE', '/v1/me');
+  if (r.status !== 200 && r.status !== 401){ syMsg('서버에 연결할 수 없습니다.', 'lose'); return; }
+  sy = null; sySave(); syRender(); syMsg('서버에서 지웠습니다. 이제 이 기기에만 저장합니다.');
+});
+$('syncTakeSrv').addEventListener('click', () => {
+  if (!syLastSrv) return;
+  syApply(syLastSrv.data); sy.ver = syLastSrv.ver; sy.dirty = false; sy.at = syLastSrv.updated; sySave();
+  $('syncConflict').hidden = true; syRender(); syMsg('서버 내용으로 바꿨습니다.', 'win');
+});
+$('syncTakeMine').addEventListener('click', async () => {
+  if (!syLastSrv) return;
+  sy.ver = syLastSrv.ver; sy.dirty = true; sySave(); $('syncConflict').hidden = true;
+  await syPush(); syMsg('이 기기 내용으로 서버를 덮었습니다.', 'win');
+});
+$('gsOn').addEventListener('click', async () => {
+  const guild = $('gsGuild').value.trim(), nick = $('gsNick').value.trim(), pass = $('gsPass').value;
+  if (!guild || !nick || !pass){ syMsg('길드 이름, 닉네임, 가입 암호를 모두 넣으세요.', 'lose'); return; }
+  if (!confirm('길드장이 내 장비·스펙을 볼 수 있게 됩니다(보기만). 켤까요?')) return;
+  const r = await syApi('PUT', '/v1/share', { guild, nick, pass });
+  if (r.status !== 200){ syMsg(r.j.message || '서버에 연결할 수 없습니다.', 'lose'); return; }
+  $('gsPass').value = ''; syShareRender(r.j.share); syMsg('길드 공개를 켰습니다.', 'win');
+});
+$('gsOff').addEventListener('click', async () => {
+  const r = await syApi('DELETE', '/v1/share');
+  if (r.status !== 200){ syMsg('서버에 연결할 수 없습니다.', 'lose'); return; }
+  syShareRender(null); syMsg('길드 공개를 껐습니다. 이제 아무도 볼 수 없습니다.');
+});
+/* 길드 현황 — 길드장 키는 저장하지 않는다(창을 닫으면 다시 입력) */
+let gmData = null;
+$('gmLoad').addEventListener('click', async () => {
+  const guild = $('gmGuild').value.trim(), key = $('gmKey').value;
+  if (!guild || !key){ $('gmMsg').textContent = '길드 이름과 길드장 키를 넣으세요.'; return; }
+  const r = await syApi('GET', '/v1/guild/' + encodeURIComponent(guild) + '/members', null, { 'X-Admin-Key': key, Authorization: '' });
+  if (r.status !== 200){ $('gmMsg').textContent = r.j.message || '서버에 연결할 수 없습니다.'; $('gmList').innerHTML = ''; return; }
+  gmData = r.j.members; $('gmMsg').textContent = '공개한 길드원 ' + gmData.length + '명';
+  $('gmList').innerHTML = gmData.length ? gmData.map((m, i) => {
+    const d = m.data || {}, g = Array.isArray(d.gear) ? d.gear : [], sp = (d.mine && d.mine[ALL]) || {};
+    const chars = Object.entries(sp).filter(([, v]) => v && v[0] != null);
+    return '<details class="grow" style="margin-top:8px"><summary><strong>' + esc(m.nick) + '</strong> <span class="muted">· 장비 ' + g.length + '개 · 스펙 ' + chars.length + '명 · ' + hhmm(m.updated) + '</span></summary>' +
+      '<div class="row-actions"><button type="button" data-gmv="' + i + '">지금 고른 콘텐츠로 스펙 보기</button></div>' +
+      (chars.length ? '<p class="note">' + chars.map(([n, v]) => esc(n) + ' ' + v[0] + '/' + v[1] + '/' + v[2]).join(' · ') + '</p>' : '') +
+      (g.length ? '<div class="glist">' + g.map(x => '<details class="grow"><summary>' + gLine(x) + '</summary>' + gCard(x, false, false) + '</details>').join('') + '</div>' : '<p class="note">등록한 장비 없음</p>') +
+      '</details>';
+  }).join('') : '<p class="note">아직 길드 공개를 켠 길드원이 없습니다.</p>';
+  $('gmList').querySelectorAll('[data-gmv]').forEach(b => b.addEventListener('click', () => {
+    const m = gmData[+b.dataset.gmv], d = m.data || {}, sp = (d.mine && d.mine[ALL]) || {}, opt = SET_OPTS.find(x => x.id === $('cSel').value), o = {};
+    opt.parts.forEach(cid => (CONTENTS.find(c => c.id === cid) || { lu: [] }).lu.forEach(([n]) => { const v = sp[n]; if (v && v[0] != null && v[1] != null && v[2] != null) o[n] = v.slice(0, 5); }));
+    if (!Object.keys(o).length){ $('gmMsg').textContent = m.nick + ' — 이 콘텐츠 편성 캐릭터의 스펙이 없습니다.'; return; }
+    const t = {}; Object.keys(o).forEach(n => { if (d.trans && d.trans[n] !== undefined) t[n] = d.trans[n]; });
+    shareShow({ v: 1, o: opt.id, m: o, t }, m.nick + '(길드원)');
+  }));
+});
+if (SYNC_URL.includes('REPLACE')) $('syncCard').hidden = true;   // 서버 배포 전에는 숨김
+else { syRender(); if (sy && sy.code) syPull(); }
+document.addEventListener('visibilitychange', () => { if (!sy || !sy.code) return; if (document.visibilityState === 'visible') syPull(); else if (sy.dirty){ clearTimeout(syTimer); syPush(); } });
 
 /* ══════════ 처음 안내 — 닫으면 이 브라우저에서는 다시 안 뜬다 ══════════ */
 (() => {
