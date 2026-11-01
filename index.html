@@ -481,6 +481,10 @@ h1 .t{white-space:nowrap}
   <h2>콘텐츠별 배정</h2>
   <div class="grid2">
     <div id="aRoundBox" hidden><label for="aContent">라운드</label><select id="aContent"></select></div>
+    <div id="aPrioBox" hidden><label for="aPrio">장비 우선순위</label><select id="aPrio">
+      <option value="p2">기본 — 2R(점수) 먼저</option>
+      <option value="mix">1R 통과가 아슬아슬 — 2R 주딜 → 1R 주딜 → 부딜</option>
+      <option value="p1">그래도 1R 통과가 안 됨 — 1R 먼저</option></select></div>
     <div style="display:flex;align-items:flex-end"><button type="button" id="aRun" style="width:100%">배정 계산</button></div>
   </div>
   <p class="note" id="aMeta" style="margin-top:10px">위에서 고른 콘텐츠에 맞춰, 보유 장비로 딜러마다 무기 2 + 방어구 2와 장신구를 고릅니다. 버퍼·생존 캐릭터는 딜에 영향이 없어 제외합니다.</p>
@@ -2837,6 +2841,7 @@ function setContent(id){
   as.innerHTML = opt.parts.map(p => '<option value="' + p + '">' + esc(ROUND_LABEL[p] || cName(p)) + '</option>').join('');
   if (keep) as.value = keep;
   $('aRoundBox').hidden = opt.parts.length < 2;
+  $('aPrioBox').hidden = !(opt.parts.some(RAID1) && opt.parts.length > 1);
   setRun(); goalRun(); gRender();
   if (typeof cRowsInit === 'function') cRowsInit();               // 초월 목록 순서(지금 편성 먼저)
 }
@@ -3601,7 +3606,7 @@ function evalAssign(A, state){
   return A.T.J(over) / A.T.J0 - pen;
 }
 
-function optimizeAssign(c, excl){
+function optimizeAssign(c, excl, only, fixed){   // only: 이번에 고를 캐릭터 이름 Set(없으면 전원) · fixed: 이미 정한 캐릭터별 장비 {이름: [4칸]}
   const A = buildAssign(c), k = A.k;
   const gear = (excl && excl.size) ? window.gear.filter(g => !excl.has(g.id)) : window.gear;   // 앞 라운드가 쓴 장비는 빼고
 
@@ -3622,12 +3627,14 @@ function optimizeAssign(c, excl){
   const slots = [];
   A.chars.forEach((ch, i) => { slots.push({ i, t: ch.need }, { i, t: ch.need }, { i, t:'ar' }, { i, t:'ar' }); });
 
-  const state = { pieces: A.chars.map(() => [null, null, null, null]), carve: A.chars.map(ch => ringOpts(ch.u.cc)[0]) };
+  const state = { pieces: A.chars.map(ch => fixed && fixed[ch.name] ? fixed[ch.name].slice() : [null, null, null, null]), carve: A.chars.map(ch => ringOpts(ch.u.cc)[0]) };
+  const act = i => !only || only.has(A.chars[i].name);
   const slotOf = (i, t, n) => (t === 'ar' ? 2 : 0) + n;
   const used = new Set();
+  state.pieces.flat().forEach(g => { if (g){ const gi = gear.indexOf(g); if (gi >= 0) used.add(gi); } });
 
   // 1) 탐욕 배정: 주딜러(지분 20%↑) → 부딜러, 같은 묶음 안에서는 지분 큰 순으로 그 자리에 가장 좋은 장비를
-  const order = A.chars.map((ch, i) => [ch.share >= 0.2 ? 1 : 0, ch.share, i]).sort((a, b) => b[0] - a[0] || b[1] - a[1]).map(x => x[2]);
+  const order = A.chars.map((ch, i) => [ch.share >= 0.2 ? 1 : 0, ch.share, i]).sort((a, b) => b[0] - a[0] || b[1] - a[1]).map(x => x[2]).filter(act);
   order.forEach(i => {
     const ch = A.chars[i];
     [[ch.need, 0], [ch.need, 1], ['ar', 0], ['ar', 1]].forEach(([t, n]) => {
@@ -3660,6 +3667,7 @@ function optimizeAssign(c, excl){
   for (let pass = 0; pass < 12; pass++){
     let moved = false;
     A.chars.forEach((ch, i) => {
+      if (!act(i)) return;
       [[ch.need, 0], [ch.need, 1], ['ar', 0], ['ar', 1]].forEach(([t, n]) => {
         const si = slotOf(i, t, n), cur = state.pieces[i][si];
         const base = evalAssign(A, state);
@@ -3674,7 +3682,7 @@ function optimizeAssign(c, excl){
         });
         // 다른 캐릭터의 같은 종류 자리와 맞교환
         A.chars.forEach((ch2, i2) => {
-          if (i2 === i) return;
+          if (i2 === i || !act(i2)) return;
           [0, 1].forEach(n2 => {
             const t2 = t === 'ar' ? 'ar' : ch2.need;
             if (t2 !== t) return;
@@ -3709,21 +3717,43 @@ function optimizeAssign(c, excl){
   return { A, state, k, short };
 }
 
+/* 여러 라운드 배정 — 두 팀이 동시에 편성되므로 같은 장비를 같이 못 쓴다. 우선순위 단계마다 해당 캐릭터만 남은 장비에서 고른다.
+   p2 (기본)     : 2R 주딜 → 2R 부딜 → 1R 주딜 → 1R 부딜   (점수 최우선)
+   mix           : 2R 주딜 → 1R 주딜 → 2R 부딜 → 1R 부딜   (1R 문턱이 아슬아슬할 때)
+   p1            : 1R 주딜 → 1R 부딜 → 2R 주딜 → 2R 부딜   (그래도 1R 통과가 안 될 때) */
+const PRIO_PLAN = {
+  p2:  [['2', 'main'], ['2', 'sub'], ['1', 'main'], ['1', 'sub']],
+  mix: [['2', 'main'], ['1', 'main'], ['2', 'sub'], ['1', 'sub']],
+  p1:  [['1', 'main'], ['1', 'sub'], ['2', 'main'], ['2', 'sub']]
+};
+function assignRounds(parts, cid, mode){
+  if (parts.length < 2) return Object.assign(optimizeAssign(CONTENTS.find(x => x.id === cid)), { before: [], exclN: 0 });
+  const plan = PRIO_PLAN[mode] || PRIO_PLAN.p2;
+  const fixed = {}, usedBy = {}, names = {};
+  parts.forEach(id => { fixed[id] = {}; usedBy[id] = new Set(); names[id] = buildAssign(CONTENTS.find(x => x.id === id)).chars; });
+  const res = {};
+  plan.forEach(([rd, role]) => {
+    parts.filter(id => (RAID1(id) ? '1' : '2') === rd).forEach(id => {
+      const only = new Set(names[id].filter(ch => (ch.share >= 0.2) === (role === 'main')).map(ch => ch.name));
+      if (!only.size) return;
+      const excl = new Set(); parts.forEach(o => { if (o !== id) usedBy[o].forEach(x => excl.add(x)); });
+      const r = optimizeAssign(CONTENTS.find(x => x.id === id), excl, only, fixed[id]);
+      if (!r.state) return;
+      r.A.chars.forEach((ch, i) => { if (only.has(ch.name)) fixed[id][ch.name] = r.state.pieces[i]; });
+      usedBy[id] = new Set(); Object.values(fixed[id]).flat().forEach(g => g && usedBy[id].add(g.id));
+      res[id] = r;
+    });
+  });
+  const excl = new Set(); parts.forEach(o => { if (o !== cid) usedBy[o].forEach(x => excl.add(x)); });
+  const r = optimizeAssign(CONTENTS.find(x => x.id === cid), excl, new Set(), fixed[cid]);   // 정해진 장비 그대로, 세공만 다시 고름
+  return Object.assign(r, { before: parts.filter(o => o !== cid).map(o => ROUND_LABEL[o] || o), exclN: excl.size, prio: mode });
+}
 function aRun(){
   const c = CONTENTS.find(x => x.id === $('aContent').value);
   if (!c){ $('aMeta').textContent = '이 콘텐츠는 공략 데이터가 아직 없습니다.'; return; }
   /* 여러 라운드 콘텐츠: 2라운드(점수) → 1라운드(문턱) 순으로 장비를 먼저 가져간다. 두 팀이 동시에 편성되므로 같은 장비를 같이 못 씀 */
   const opt = SET_OPTS.find(x => x.parts && x.parts.includes(c.id) && x.id === $('cSel').value) || SET_OPTS.find(x => x.parts && x.parts.includes(c.id));
-  const seq = opt ? [...opt.parts.filter(id => !RAID1(id)), ...opt.parts.filter(id => RAID1(id))] : [c.id];
-  const excl = new Set(), before = [];
-  for (const id of seq){
-    if (id === c.id) break;
-    const rr = optimizeAssign(CONTENTS.find(x => x.id === id), excl);
-    if (rr.state) rr.state.pieces.flat().forEach(g => g && excl.add(g.id));
-    before.push(ROUND_LABEL[id] || id);
-  }
-  const r = optimizeAssign(c, excl);
-  r.before = before; r.exclN = excl.size;
+  const r = assignRounds(opt && opt.parts.length > 1 ? opt.parts : [c.id], c.id, $('aPrio').value);
   $('aResultCard').hidden = false;
   const box = $('aRows'); box.innerHTML = '';
   if (r.err){ $('aNote').textContent = r.err; return; }
@@ -3765,7 +3795,7 @@ function aRun(){
   $('aWarn').innerHTML = (r.short.length
       ? '<strong class="lose">장비가 모자랍니다 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “빈 칸”으로 두고 계산해서 점수가 낮게 나옵니다. '
       : '') +
-    (r.before.length ? '<span class="muted">' + r.before.join(', ') + '에 먼저 배정한 장비 ' + r.exclN + '개는 빼고 골랐습니다(두 팀이 동시에 편성되므로). </span>' : '') +
+    (r.before.length ? '<span class="muted">' + r.before.join(', ') + '에 배정한 장비 ' + r.exclN + '개와 겹치지 않게 골랐습니다(두 팀이 동시에 편성되므로) · 순서: ' + ({ p2:'2R 주딜 → 2R 부딜 → 1R 주딜 → 1R 부딜', mix:'2R 주딜 → 1R 주딜 → 2R 부딜 → 1R 부딜', p1:'1R 먼저 → 2R' })[r.prio] + '. </span>' : '') +
     '<strong>팀 최고 대비 ' + (team * 100).toFixed(1) + '%</strong> — 지금 가진 장비 안에서 고른 결과라 세팅 탭의 목표 숫자와 다를 수 있습니다.';
   $('aNote').innerHTML = '목표 탭과 같은 기준(마을 스탯, 팀 점수). 카드는 게임 장비 카드와 같은 순서라 그대로 찾아 끼우면 됩니다. “프리셋 없음”은 이 캐릭터의 저장된 프리셋이 없다는 뜻이며, “프리셋으로 저장”을 누르면 다음부터 비교합니다.' +
     (spdRuleFor(c.id) ? ' <strong>속공 조건</strong>(' + Object.keys(spdRuleFor(c.id)).join('·') + ')을 딜보다 먼저 맞춥니다 — 속공은 종결 장비의 4번째 부옵(모공% 자리)에 있으면 치확·치피·약확 손해가 없습니다.' : '') +
@@ -3774,6 +3804,7 @@ function aRun(){
 }
 let aLast = null;
 $('aRun').addEventListener('click', aRun);
+$('aPrio').addEventListener('change', () => { if (aLast) aRun(); });
 /* 배정 결과 ↔ 저장된 프리셋 비교. 무기 2개·방어구 2개는 순서 무관(같은 부위끼리 집합 비교) */
 const sameSet = (a, b) => { const x = a.filter(v => v != null).sort(), y = b.filter(v => v != null).sort(); return x.length === y.length && x.every((v, i) => v === y[i]); };
 function presetAdvice(cid, name, ids, ring){
