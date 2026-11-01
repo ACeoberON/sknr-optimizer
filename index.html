@@ -3615,6 +3615,24 @@ const atkOf = pieces => pieces.reduce((a, g) => { if (!g) return a;
   return a; }, { p: 0, f: 0, lp: 0, lf: 0 });
 const STICK = 0.0005;                       // 직전에 보여준 장비 1개 유지당 +0.05%p — 이보다 작은 이득으로는 장비를 바꾸지 않음(방금 조정한 캐릭터는 예외)
 let ADJ = null;                             // 방금 공격력을 조정한 캐릭터 {cid, name}
+const ATKP_V = 0.0002;                      // 공% 부옵 1줄 = 팀 0.02%p (깡공은 0.4배) — 동점 정리용. 치확·치피·약확 1줄과는 바꾸지 않음
+const ATK_SIDE = 0.0003;                    // 공략 공격력 조건의 기본 방향 맞추기(높을 쪽 +, 낮을 쪽 −), 1줄당 팀 점수 0.08%p
+/* 공략 원문의 공격력 조건 → 캐릭터별 방향(+1 높아야 함 / −1 낮아야 함) */
+const atkSideCache = {};
+function atkSide(c, name){
+  if (!atkSideCache[c.id]){
+    const m = {}, set = (ns, v) => ns.split(/[·,]/).map(x => x.trim()).filter(Boolean).forEach(n => { m[n] = v; });
+    const sec = typeof SECTIONS !== 'undefined' && SECTIONS.find(s2 => s2.title.startsWith(c.g));
+    (sec ? sec.body.split('\n') : []).forEach(L => {
+      let r = L.match(/^-\s*라우팅[^:：]*[:：]\s*([^\s(]+?)\s*공격력\s*(>=|≥|<=|≤|<|>)\s*([^+(,\s]+)/);
+      if (r){ const hi = /[>≥]/.test(r[2]); set(r[1], hi ? 1 : -1); set(r[3], hi ? -1 : 1); return; }
+      r = L.match(/\*\*초 ?고점 디테일\*\*:?\s*(\S+?)보다\s*(\S+?)가\s*공/);
+      if (r){ set(r[1], -1); set(r[2], 1); }
+    });
+    atkSideCache[c.id] = m;
+  }
+  return atkSideCache[c.id][name] || 0;
+}
 const ATK_MISS = 0.05;                      // 목표 줄 수를 1줄 못 맞출 때마다 팀 점수 −5%p 상당 (사실상 조건 우선)
 const ATK_OVER = 0.002;                     // 목표보다 더 움직이면 1줄당 −0.2%p — 한 번에 한 줄씩(장비 단위라 정확히 1줄이 안 될 때만 넘침)
 const ATK_FLAT = 0.0004;                    // 깡공 줄 우선(동점 정리용) — 올릴 땐 깡공부터 붙이고, 내릴 땐 깡공부터 뺌
@@ -3627,6 +3645,10 @@ function evalAssign(A, state){
     over.set(ch.u, A.T.ms(ch.u, s.vc, s.vd, s.vq, state.carve[i]));
     const pv = (aPrev[A.c.id] || {})[ch.name];                     // 직전 결과 유지 가점 — 이득이 거의 없는 자리바꿈(동점 흔들림)으로 다른 캐릭터 장비가 바뀌지 않게
     if (pv && !(ADJ && ADJ.cid === A.c.id && ADJ.name === ch.name)) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
+    { const a0 = atkOf(state.pieces[i]);
+      pen -= ATKP_V * (a0.lp + 0.4 * a0.lf);                           // 동점 정리: 치확·치피·약확이 같으면 공% 붙은 장비(판정기는 공격력 딜을 계산하지 않음)
+      const side = atkSide(A.c, ch.name);                               // 공략 공격력 조건: 높아야 할 쪽은 공격력 줄 가점, 낮아야 할 쪽은 감점
+      if (side && !atkGoal(A.c.id, ch.name)) pen -= side * ATK_SIDE * (a0.lf + a0.lp); }
     const ag = atkGoal(A.c.id, ch.name);
     if (ag){ const a = atkOf(state.pieces[i]), L = a.lf + a.lp;                  // 공격력 줄 목표: 올리기는 ≥, 내리기는 ≤
       const miss = ag.d > 0 ? ag.t - L : L - ag.t;                                  // 양수 = 모자람, 음수 = 넘침
@@ -3962,16 +3984,23 @@ function aRun(){
         firstAll.map(({ x, f }) => f.h.replace('<b>', '<span class="set-tag">' + rTag(x) + '</span> <b>')).join('') +
         '<h3 style="margin:18px 0 4px">② 나머지</h3>' + RS.map(x => roundHead(x) + x.rest.join('') + benchHtml(x.c, x.A)).join('')
       : RS.map(x => (all ? roundHead(x) : '') + x.html + benchHtml(x.c, x.A)).join('')).replace(/<!--ALT:(\d+):(\d+)-->/g, (_, k, i) => altHtml[k + ':' + i] || '');
-  /* 함께 바뀐 캐릭터 요약 — 한 캐릭터를 조정하면 장비를 나눠 쓰는 다른 캐릭터도 바뀌므로, 공격력 줄·딜이 어떻게 움직였는지 한눈에 */
+  /* 함께 바뀐 캐릭터 — 바뀐 카드마다 무엇이 움직였는지 바로 붙이고, 방금 조정한 캐릭터 카드에는 전체 요약을 붙임(장비 맞추는 자리에서 바로 보이게) */
   if (aChg.length){
     const atkTxt = (a0, a1) => { const d = (a1.lf + a1.lp) - (a0.lf + a0.lp), df = a1.f - a0.f, dp = a1.p - a0.p;
       return '공격력 줄 ' + (a0.lf + a0.lp) + '→' + (a1.lf + a1.lp) + (d ? ' <strong class="' + (d > 0 ? 'win' : 'lose') + '">(' + (d > 0 ? '↑' : '↓') + ')</strong>' : '') +
         ((df || dp) ? ' [' + [df ? '깡공 ' + (df > 0 ? '+' : '') + df : '', dp ? '공% ' + (dp > 0 ? '+' : '') + dp : ''].filter(Boolean).join(' · ') + ']' : ''); };
-    const rows = aChg.map(x => '<li><strong>' + (RAID1(x.c.id) ? '1R ' : (x.c.sc === 'raid' ? '2R ' : '')) + esc(x.name) + '</strong> — 장비 ' + x.n + '개 교체 · ' + atkTxt(x.a0, x.a1) +
-      ' · 딜 ' + (x.r0 * 100).toFixed(1) + '→' + (x.r1 * 100).toFixed(1) + '%' +
-      (cardWarns(x.c, x.name).some(t => /공격력/.test(t)) && (x.a1.lf + x.a1.lp) !== (x.a0.lf + x.a0.lp) ? ' <strong class="flat">⚠ 공격력 조건 캐릭터 — 다시 비교하십시오</strong>' : '') + '</li>');
-    box.insertAdjacentHTML('afterbegin', '<div class="note" style="margin:0 0 10px;padding:8px 10px;border:1px solid var(--line, #ccc);border-radius:8px"><strong>' +
-      (aAction ? esc(aAction) + ' → ' : '직전 계산 대비 ') + '장비가 바뀐 캐릭터 ' + aChg.length + '명</strong><ul style="margin:6px 0 0;padding-left:18px">' + rows.join('') + '</ul></div>');
+    const tagOf = x => RAID1(x.c.id) ? '1R ' : (x.c.sc === 'raid' ? '2R ' : '');
+    const warnOf = x => cardWarns(x.c, x.name).some(t => /공격력/.test(t)) && (x.a1.lf + x.a1.lp) !== (x.a0.lf + x.a0.lp);
+    const line = x => '장비 ' + x.n + '개 교체 · ' + atkTxt(x.a0, x.a1) + ' · 딜 ' + (x.r0 * 100).toFixed(1) + '→' + (x.r1 * 100).toFixed(1) + '%' +
+      (warnOf(x) ? ' <strong class="flat">⚠ 공격력 조건 — 다시 비교</strong>' : '');
+    const cardOf = (cid, name) => [...box.querySelectorAll('.pcard')].find(p => p.querySelector('[data-atkn="' + String(name).replace(/["\\]/g, '\\$&') + '"]') && (aLasts[+p.querySelector('[data-ark]').dataset.ark] || {}).c?.id === cid);
+    if (ADJ){ const p = cardOf(ADJ.cid, ADJ.name);
+      if (p){ const others = aChg.filter(x => !(x.c.id === ADJ.cid && x.name === ADJ.name));
+        const f = p.querySelector('.p-foot');
+        (f || p).insertAdjacentHTML('afterend', '<div class="note" style="margin:6px 0 0;padding:6px 10px;border:1px solid var(--flat, #b8a040);border-radius:8px"><strong>' + esc(aAction) + ' → ' +
+          (others.length ? '같이 바뀐 캐릭터 ' + others.length + '명</strong><ul style="margin:4px 0 0;padding-left:18px">' + others.map(x => '<li><strong>' + tagOf(x) + esc(x.name) + '</strong> — ' + line(x) + '</li>').join('') + '</ul>' : '다른 캐릭터는 그대로입니다</strong>') + '</div>'); } }
+    aChg.forEach(x => { const p = cardOf(x.c.id, x.name); if (!p) return;
+      const f = p.querySelector('.p-foot'); (f || p).insertAdjacentHTML('afterend', '<p class="note" style="margin:6px 0 0;padding:4px 8px;background:rgba(184,160,64,.12);border-radius:6px">🔄 ' + (aAction ? '방금 조정으로 ' : '직전 계산 대비 ') + line(x) + '</p>'); });
   }
   aAction = '';
   box.querySelectorAll('[data-atkd]').forEach(b => b.addEventListener('click', () => {
