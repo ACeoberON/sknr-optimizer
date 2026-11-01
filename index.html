@@ -501,6 +501,17 @@ h1 .t{white-space:nowrap}
 <section class="card">
   <h2>보유 장비</h2>
   <p class="note">게임 장비 카드를 그대로 옮겨 적습니다 — 부옵은 <strong>화면 순서대로</strong>, 강화는 빨간 숫자(− / +). 지금은 딜러용 <strong>복수자</strong> 장비만 넣으십시오. 처음이면 <strong>예시 장비 넣기</strong>로 체험해 보세요.</p>
+  <details class="more" style="margin-top:6px"><summary>어떤 장비부터 넣나 — 등록 순위</summary>
+    <p class="note" style="margin:6px 0 4px">세트는 <strong>복수자</strong>, 주옵은 무기 <strong>치확·치피·약확</strong> / 방어구 <strong>공%</strong>인 장비만. “쓸모 줄” = 치확·치피·약확, “강화” = 그 쓸모 줄에 들어간 강화 횟수. 각 장비 칸 오른쪽 위에 순위가 표시됩니다.</p>
+    <table class="ctbl" style="font-size:13px"><thead><tr><th>순위</th><th>부옵 4줄</th><th>넣을지</th></tr></thead><tbody>
+      <tr><td>0순위</td><td>치확 · 치피 · 약확 · <strong>공%</strong> (종결)</td><td>전부</td></tr>
+      <tr><td>1순위</td><td>치확 · 치피 · 약확 + 공%가 아닌 1줄(깡공·방어 등)</td><td>전부</td></tr>
+      <tr><td>2순위</td><td>쓸모 줄 2개 + 공% + 잡옵 1줄</td><td>강화 3회 이상만</td></tr>
+      <tr><td>3순위</td><td>쓸모 줄 2개 + 잡옵 2줄</td><td>강화 4회 이상만</td></tr>
+      <tr><td>보류</td><td>쓸모 줄 1개 이하 · 위 강화 기준 미달 · 주옵/세트가 다름</td><td>넣지 않아도 됨</td></tr>
+    </tbody></table>
+    <p class="note" style="margin-top:4px">같은 순위 안에서는 강화가 많은 것부터, 같으면 무기부터. 배정 계산 결과가 더 바뀌지 않으면 그만 넣어도 됩니다.</p>
+  </details>
   <div class="row-actions" style="margin-top:10px">
     <span class="gfilt" id="gFilt"></span>
     <button type="button" id="gAdd">장비 추가</button>
@@ -3046,11 +3057,22 @@ const gTitle = g => g ? (g.name || '레이드') + ' ' + (g.slot === 'ar' ? '방�
 let gFilter = 'all', gGrade = null;
 let gView = 'tile', gSel = null;   // tile = 게임 가방처럼 작은 칸 + 옆에 선택한 장비 카드                       // 장비 목록 보기: brief = 한 줄 요약(눌러서 펼침) · full = 카드
 try { gView = localStorage.getItem('sknr-gview') || 'tile'; } catch (e) {}
+/* 등록 순위 — 0 종결 · 1 쓸모 3줄+잡옵 · 2 쓸모 2줄+공%(강화 3↑) · 3 쓸모 2줄+잡옵 2줄(강화 4↑) · null 보류 */
+function tierOf(g){
+  const mainOk = g.slot === 'ar' ? g.main === 'atkp' : g.main in USE;
+  if (!mainOk || (g.set && g.set !== '복수자')) return null;
+  const subs = g.subs || [], use = subs.filter(([t]) => t in USE), e = use.reduce((a, [, x]) => a + (+x || 0), 0);
+  const atkp = subs.some(([t]) => t === 'atkp');
+  if (use.length >= 3) return atkp ? 0 : 1;
+  if (use.length === 2) return atkp ? (e >= 3 ? 2 : null) : (e >= 4 ? 3 : null);
+  return null;
+}
+const tierTxt = g => { const t = tierOf(g); return t == null ? '보류' : t + '순위'; };
 const G_COLOR = { end:'#2f6b3a', semi:'#5d8a4a', ok:'#d9b64a', no:'var(--line)' };
 const SUB1 = { crit:'확', cd:'피', weak:'약', atkp:'공%' };
 const gTile = g => { const r = gradeOf(g);
   return '<button type="button" class="gt" data-gt="' + g.id + '" aria-pressed="' + (g.id === gSel) + '" style="--g:' + G_COLOR[r.key] + '" title="' + esc(gTitle(g)) + ' · ' + esc((GRADES.find(x => x[0] === r.key) || [, ''])[1]) + '">' +
-    '<span class="h"><span>' + (g.slot === 'ar' ? '방어구' : '무기') + '</span><span>#' + g.id + (g.img ? ' ▣' : '') + '</span></span>' +
+    '<span class="h"><span>' + (g.slot === 'ar' ? '방어구' : '무기') + ' #' + g.id + (g.img ? ' ▣' : '') + '</span><span>' + tierTxt(g) + '</span></span>' +
     '<b>주 ' + esc(({ dmgred:'받피감' })[g.main] || SUBS[g.main] || MAINN[g.main] || g.main) + '</b><span class="s">' +
     (g.subs || []).map(([t, e]) => '<span class="' + (t in USE ? 'u' : '') + '">' + (SUB1[t] || SUBS[t] || t) + (e > 0 ? e : '') + '</span>').join('') + '</span></button>'; };
 const gLine = g => '<span class="gl-t">' + esc(gTitle(g)) + '</span> ' + gradeBadge(g) + (g.demo ? ' <span class="demo-tag">예시</span>' : '') +
@@ -4325,7 +4347,7 @@ const HELP = {
      '용어 설명·약확 규칙·“왜 치확 100이 답이 아닌가”는 아래쪽 접힌 칸에 있습니다.']],
   't-gear': ['장비 — 보유 장비로 자동 배정', [
     '<strong>보유 장비</strong>에 딜러용 장비를 넣습니다. <strong>캡처로 추가</strong>: 장비 카드 캡처를 고르고 → 카드 주변을 감싸 “감싼 부분 확대” → 카드만 다시 감싸 “읽기” → 값을 확인하고 “추가”. 여러 장을 한 번에 고르면 차례로 읽습니다.',
-    '넣는 순서: 종결(치확·치피·약확·공%) → 치확·치피·약확 3줄 → 2줄+공% 순. 다 넣을 필요는 없고 배정 결과가 더 안 바뀌면 멈추세요.',
+    '넣는 순서: <strong>0순위</strong> 치확·치피·약확·공% → <strong>1순위</strong> 치확·치피·약확 + 다른 1줄 → <strong>2순위</strong> 2줄+공%(강화 3↑) → <strong>3순위</strong> 2줄+잡옵 2줄(강화 4↑). 자세한 표는 “어떤 장비부터 넣나”. 배정 결과가 더 안 바뀌면 멈추세요.',
     '위에서 콘텐츠를 고르고 <strong>배정 계산</strong>을 누르면 딜러마다 무기 2 · 방어구 2 · 장신구를 골라 줍니다.',
     '결과가 괜찮으면 <strong>전원 프리셋으로 저장</strong> 또는 <strong>목표 탭에 반영</strong>.'],
     ['캡처로 넣은 장비는 카드의 <strong>원본</strong> 버튼으로 읽은 캡처와 비교할 수 있습니다.',
