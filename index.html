@@ -3851,7 +3851,7 @@ function aRound(c, rk){
   if (r.err) return { err: r.err };
   const { A, state } = r;
   const over = new Map();
-  const html = A.chars.map((ch, i) => {
+  const cards = A.chars.map((ch, i) => {
     const s = statsOf(ch, state.pieces[i]);
     const ev = A.T.evalOne(ch.u, s.vc, s.vd, s.vq, state.carve[i]);
     over.set(ch.u, ev.x);
@@ -3867,7 +3867,10 @@ function aRound(c, rk){
       if (un.uw > 0.5 && f(s.vc, s.vd, s.vq + LINE.w) - f0 < 1e-9 && f(s.vc, s.vd, s.vq - LINE.w) - f0 > -1e-9) dead.push(['약확', un.uw]);
     }
     const uEff = un ? un.u - dead.reduce((a, [, v]) => a + v, 0) : 0;
-    return '<div class="pcard"><div class="p-h"><div><b>' + esc(ch.name) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
+    const prevIds = ((aPrev[c.id] || {})[ch.name]), nowIds = state.pieces[i].map(g => g ? g.id : null);
+    const chg = prevIds && !(sameSet(prevIds.slice(0, 2), nowIds.slice(0, 2)) && sameSet(prevIds.slice(2), nowIds.slice(2)));
+    (aPrevNext[c.id] || (aPrevNext[c.id] = {}))[ch.name] = nowIds;
+    return '<div class="pcard"' + (chg ? ' style="outline:2px solid var(--flat, #b8a040)"' : '') + '><div class="p-h"><div><b>' + esc(ch.name) + '</b>' + (chg ? ' <span class="set-tag" style="background:var(--flat, #b8a040);color:#fff">장비 바뀜</span>' : '') + (atkFirstName(c, ch.name) ? ' <span class="set-tag">먼저</span>' : '') + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
         '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
       '<details class="pp"' + (innerWidth > 600 ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
       '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div></details>' +
@@ -3887,7 +3890,14 @@ function aRound(c, rk){
         return '<p class="note ' + ad.cls + '" style="margin:8px 0 0">' + ad.html +
           (ad.target ? ' <button type="button" data-ark="' + rk + '" data-afix="' + i + '" data-pid="' + ad.target.id + '" style="padding:2px 8px;font-size:12px">이 배정으로 프리셋 수정</button>' : '') + '</p>'; })() +
       '</div>';
-  }).join('');
+  });
+  /* 공격력 조건이 걸린 캐릭터(카드 ⚠ 또는 공격력 낮춤 켬)를 맨 앞에 — 장비를 끼운 뒤 서로 공격력을 비교해야 하므로 먼저 맞춤 */
+  const atkFirst = i => cardWarns(c, A.chars[i].name).some(t => /공격력/.test(t)) || aOptHas('lowAtk', c.id, A.chars[i].name);
+  const ord = A.chars.map((_, i) => i).sort((x, y) => atkFirst(y) - atkFirst(x) || x - y);
+  const nFirst = ord.filter(atkFirst).length;
+  const html = (nFirst ? '<p class="note" style="margin:4px 0 6px"><strong>① 공격력 조건이 있는 ' + ord.slice(0, nFirst).map(i => esc(A.chars[i].name)).join('·') + '부터 맞추십시오</strong> — 장비를 끼운 뒤 캐릭터 화면 공격력을 서로 비교하고, 조건이 안 맞으면 “공격력 낮추기”를 눌러 다시 계산한 다음 나머지를 맞춥니다.</p>' : '') +
+    ord.map((i, n) => (n === nFirst && nFirst ? '<p class="note" style="margin:10px 0 6px"><strong>② 나머지</strong></p>' : '') + cards[i]).join('');
+
   const team = A.T.J(over) / A.T.J0;
   const imp = r.short.length ? [] : improveList(A, state);
   return { c, r, A, state, html, team, imp };
@@ -3899,7 +3909,9 @@ function aRun(){
   if (!ids.every(id => CONTENTS.some(x => x.id === id))){ $('aMeta').textContent = '이 콘텐츠는 공략 데이터가 아직 없습니다.'; return; }
   $('aResultCard').hidden = false;
   const box = $('aRows'); box.innerHTML = '';
+  aPrevNext = {};
   const RS = ids.map((id, k) => aRound(CONTENTS.find(x => x.id === id), k));
+  Object.assign(aPrev, aPrevNext);
   const bad = RS.find(x => x.err); if (bad){ $('aNote').textContent = bad.err; return; }
   aLasts = RS.map(x => ({ c: x.c, A: x.A, state: x.state })); aLast = aLasts[0];
   /* 속공 조건이 있는 캐릭터 → '속공 없이' 버전도 계산(같은 라운드 다른 캐릭터·다른 라운드 장비는 그대로 두고 이 캐릭터만 다시 고름) */
@@ -3951,6 +3963,8 @@ function aRun(){
     (usedSiege ? ' 공성 세공은 실측값(스킬 피해 ×1.046)으로 계산했습니다.' : '');
 }
 let aLast = null, aLasts = [];
+let aPrev = {}, aPrevNext = {};                 // 직전 계산의 캐릭터별 장비 — 옵션을 바꿔 다시 계산했을 때 '장비 바뀜' 표시용
+const atkFirstName = (c, name) => cardWarns(c, name).some(t => /공격력/.test(t)) || aOptHas('lowAtk', c.id, name);
 /* 장비를 끼면서 바로 봐야 하는 주의사항 — 해당 캐릭터 카드 안에 표시 */
 const LOW_ATK = () => '공격력이 소교보다 낮아야 합니다 — 소교 호접지몽 치피 버프가 공격력 상위 2명에게 가므로 소교보다 높으면 파스칼이 버프를 못 받습니다. 장비를 낀 뒤 캐릭터 화면에서 공격력을 비교하고, 높으면 공% 방어구를 공% 없는 것으로 바꾸십시오. (평타뿐이지만 1R 100만 문턱에 보탬이 되어 배정)';
 /* 공략 원문에서 그 캐릭터 이름이 나오는 라우팅·초고점 줄을 카드로 끌어옴(공략이 바뀌면 자동으로 따라감). 손으로 쓴 CARD_WARN이 있으면 그걸 우선 */
