@@ -222,6 +222,17 @@ h1 .t{white-space:nowrap}
 .gpick{margin:-8px 0 14px}
 .gpick .pick2{max-width:560px}
 .glist{display:flex;flex-direction:column;gap:5px}
+.gt-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,300px);gap:12px;align-items:start}
+@media (max-width:700px){.gt-wrap{grid-template-columns:1fr}}
+.gt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:6px}
+.gt{display:block;width:100%;min-height:0;margin:0;padding:5px 6px 5px 7px;border:1px solid var(--line);border-left:4px solid var(--g,var(--line));border-radius:8px;background:var(--paper);color:var(--ink);text-align:left;font-size:11px;line-height:1.35;font-weight:400;cursor:pointer}
+.gt[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+.gt .h{display:flex;justify-content:space-between;color:var(--ink-3);font-size:10.5px}
+.gt b{display:block;font-size:12px;margin:1px 0}
+.gt .s{display:grid;grid-template-columns:1fr 1fr;gap:0 4px;font-family:var(--mono);color:var(--ink-2)}
+.gt .s .u{color:var(--ink);font-weight:600}
+.gt-detail{position:sticky;top:10px}
+.gt-detail .note{margin:0}
 .grow{border:1px solid var(--line);border-radius:8px;background:var(--paper)}
 .grow>summary{list-style:none;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:7px 10px;color:var(--ink);font-weight:400;cursor:pointer}
 .grow>summary::-webkit-details-marker{display:none}
@@ -3033,8 +3044,15 @@ const gById = id => gear.find(g => g.id === id);
 const gSlotName = s => (SLOTS.find(x => x[0] === s) || [, s])[1];
 const gTitle = g => g ? (g.name || '레이드') + ' ' + (g.slot === 'ar' ? '방어구' : '무기') + ' #' + g.id : '없음';
 let gFilter = 'all', gGrade = null;
-let gView = 'brief';                       // 장비 목록 보기: brief = 한 줄 요약(눌러서 펼침) · full = 카드
-try { gView = localStorage.getItem('sknr-gview') || 'brief'; } catch (e) {}
+let gView = 'tile', gSel = null;   // tile = 게임 가방처럼 작은 칸 + 옆에 선택한 장비 카드                       // 장비 목록 보기: brief = 한 줄 요약(눌러서 펼침) · full = 카드
+try { gView = localStorage.getItem('sknr-gview') || 'tile'; } catch (e) {}
+const G_COLOR = { end:'#2f6b3a', semi:'#5d8a4a', ok:'#d9b64a', no:'var(--line)' };
+const SUB1 = { crit:'확', cd:'피', weak:'약', atkp:'공%' };
+const gTile = g => { const r = gradeOf(g);
+  return '<button type="button" class="gt" data-gt="' + g.id + '" aria-pressed="' + (g.id === gSel) + '" style="--g:' + G_COLOR[r.key] + '" title="' + esc(gTitle(g)) + ' · ' + esc((GRADES.find(x => x[0] === r.key) || [, ''])[1]) + '">' +
+    '<span class="h"><span>' + (g.slot === 'ar' ? '방어구' : '무기') + '</span><span>#' + g.id + (g.img ? ' ▣' : '') + '</span></span>' +
+    '<b>주 ' + esc(({ dmgred:'받피감' })[g.main] || SUBS[g.main] || MAINN[g.main] || g.main) + '</b><span class="s">' +
+    (g.subs || []).map(([t, e]) => '<span class="' + (t in USE ? 'u' : '') + '">' + (SUB1[t] || SUBS[t] || t) + (e > 0 ? e : '') + '</span>').join('') + '</span></button>'; };
 const gLine = g => '<span class="gl-t">' + esc(gTitle(g)) + '</span> ' + gradeBadge(g) + (g.demo ? ' <span class="demo-tag">예시</span>' : '') +
   ' <span class="gl-m">' + gSlotName(g.slot).replace('무기 · ', '') + ' · ' + (MAINN[g.main] || g.main) + '</span>' +
   ' <span class="gl-s">' + (g.subs || []).map(([t, e]) => (SUBS[t] || t) + (e > 0 ? '+' + e : '')).join(' ') + '</span>';
@@ -3066,13 +3084,18 @@ function gRowsInit(){
     ' <span style="display:inline-block;width:8px"></span>' +
     GRADES.map(([k, n]) => '<button type="button" data-gg="' + k + '" aria-pressed="' + (gGrade === k) + '">' + n + ' ' + gcnt(k) + '</button>').join(' ') +
     ' <span style="display:inline-block;width:8px"></span>' +
-    [['brief','한 줄'],['full','카드']].map(([v, l]) => '<button type="button" data-gv="' + v + '" aria-pressed="' + (gView === v) + '">' + l + '</button>').join(' ');
+    [['tile','격자'],['brief','한 줄'],['full','카드']].map(([v, l]) => '<button type="button" data-gv="' + v + '" aria-pressed="' + (gView === v) + '">' + l + '</button>').join(' ');
   $('gFilt').querySelectorAll('[data-gf]').forEach(b => b.addEventListener('click', () => { gFilter = b.dataset.gf; gRowsInit(); }));
   $('gFilt').querySelectorAll('[data-gg]').forEach(b => b.addEventListener('click', () => { gGrade = gGrade === b.dataset.gg ? null : b.dataset.gg; gRowsInit(); }));
   $('gFilt').querySelectorAll('[data-gv]').forEach(b => b.addEventListener('click', () => { gView = b.dataset.gv; try { localStorage.setItem('sknr-gview', gView); } catch (e) {} gRowsInit(); }));
   const list = gear.filter(g => slotOk(g, gFilter) && (!gGrade || gradeOf(g).key === gGrade))
     .sort((a, b) => gradeOf(b).score - gradeOf(a).score || a.id - b.id);
-  $('gList').className = gView === 'full' ? 'ggrid' : 'glist';
+  $('gList').className = gView === 'full' ? 'ggrid' : gView === 'tile' ? '' : 'glist';
+  if (gView === 'tile' && list.length){
+    if (!list.some(g => g.id === gSel)) gSel = list[0].id;
+    $('gList').innerHTML = '<div class="gt-wrap"><div class="gt-grid">' + list.map(gTile).join('') + '</div><div class="gt-detail">' + gCard(gById(gSel), false, true) + '</div></div>';
+    $('gList').querySelectorAll('[data-gt]').forEach(b => b.addEventListener('click', () => { gSel = +b.dataset.gt; gRowsInit(); if (innerWidth <= 700) $('gList').querySelector('.gt-detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }));
+  } else
   $('gList').innerHTML = list.length ? list.map(g => gView === 'full' ? gCard(g, false, true)
       : '<details class="grow"><summary>' + gLine(g) + '</summary>' + gCard(g, false, true) + '</details>').join('')
     : '<p class="note">등록된 장비가 없습니다. “장비 추가”를 누르십시오.</p>';
