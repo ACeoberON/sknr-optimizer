@@ -3812,17 +3812,27 @@ function aRound(c, rk){
     const ml = state.pieces[i].slice(0, 2).map(g => g ? mainLetter(g.main) : null);
     const mc = ml[0] && ml[1] ? MAINCOMBOS.find(m => m === ml.join('') || m === ml.slice().reverse().join('')) : null;
     const un = mc ? unitsOf(ch.u.cc, mc, s.vc, s.vd, s.vq) : null;
+    /* 이 캐릭터에게 안 먹히는 줄 — 한 줄 더 올려도 딜이 그대로면 그 스탯 줄은 낭비(파스칼 치확: 패시브로 이미 100) */
+    const dead = [];
+    if (un && !un.neg){
+      const f = (a, b, q) => A.T.evalOne(ch.u, a, b, q, state.carve[i]).x[0];
+      const f0 = f(s.vc, s.vd, s.vq);
+      if (un.uc > 0.5 && f(s.vc + LINE.c, s.vd, s.vq) - f0 < 1e-9 && f(s.vc - LINE.c, s.vd, s.vq) - f0 > -1e-9) dead.push(['치확', un.uc]);
+      if (un.uw > 0.5 && f(s.vc, s.vd, s.vq + LINE.w) - f0 < 1e-9 && f(s.vc, s.vd, s.vq - LINE.w) - f0 > -1e-9) dead.push(['약확', un.uw]);
+    }
+    const uEff = un ? un.u - dead.reduce((a, [, v]) => a + v, 0) : 0;
     return '<div class="pcard"><div class="p-h"><div><b>' + esc(ch.name) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
         '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
       '<details class="pp"' + (innerWidth > 600 ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
       '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div></details>' +
       '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong> · 최고 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
-        ' <span class="muted">(' + (un && !un.neg ? '유효 ' + un.u.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span>' +
+        ' <span class="muted">(' + (un && !un.neg ? '유효 ' + uEff.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span>' +
         (() => { const sc = spdCheck(c.id, ch.name, state.pieces[i]), v = spdSum(state.pieces[i]);
           if (sc) return '<br><span class="' + (sc.ok ? 'win' : 'lose') + '">' + (sc.ok ? '✓' : '✗') + ' 속공 +' + v + (sc.base ? ' (' + sc.base + '→' + (sc.base + v) + ')' : '') +
             (sc.ok ? '' : ' — 필요 +' + sc.min + (sc.max !== sc.min ? '~' + sc.max : '') + (sc.min > v ? ', 속공 부옵 장비가 부족합니다' : '')) + '</span> <span class="muted" style="font-size:12px">' + sc.why + '</span>';
           return v ? '<br><span class="flat">속공 +' + v + ' — 이 콘텐츠는 ' + esc(ch.name) + '에게 속공이 필요 없어 행동 순서가 꼬일 수 있습니다. 속공 없는 장비가 생기면 바꾸십시오.</span>' : ''; })() + '</span>' +
         '<span><button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
+      (dead.length ? '<p class="note" style="margin:8px 0 0"><strong class="flat">ⓘ ' + dead.map(([t, v]) => t + ' ' + Math.round(v) + '줄').join(' · ') + '은 ' + esc(ch.name) + '에게 쓸모없습니다</strong>' + (dead.some(([t]) => t === '치확') ? ' — 이 콘텐츠에서는 패시브·버프·장신구로 치확이 이미 100%라, 치확 줄이 없는 장비(치피·약확·공%)도 이 캐릭터에겐 종결과 같습니다.' : ' — 전투 중 버프·장신구까지 합치면 약확이 이미 100%입니다.') + ' 지금은 속공 조건·남은 장비 때문에 들어갔습니다.</p>' : '') +
       (((CARD_WARN[c.id] || {})[ch.name]) ? '<p class="note" style="margin:8px 0 0;padding:6px 8px;border-left:3px solid var(--lose, #c0392b);background:rgba(192,57,43,.07)"><strong class="lose">⚠ ' + CARD_WARN[c.id][ch.name] + '</strong></p>' : '') +
       (() => { const ad = presetAdvice(c.id, ch.name, state.pieces[i].map(g => g ? g.id : null), state.carve[i]);
         return '<p class="note ' + ad.cls + '" style="margin:8px 0 0">' + ad.html +
