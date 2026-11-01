@@ -3910,8 +3910,12 @@ function aRound(c, rk){
     if (chg) aChg.push({ c, name: ch.name, n: nowIds.filter(x => !prevIds.includes(x)).length, a0: pv.a, a1: atkNow, r0: pv.r, r1: ev.r, prevIds, nowIds });
     return '<div class="pcard"' + (chg ? ' style="outline:2px solid var(--flat, #b8a040)"' : '') + '><div class="p-h"><div><b>' + esc(ch.name) + '</b>' + (chg ? ' <span class="set-tag" style="background:var(--flat, #b8a040);color:#fff">장비 바뀜</span>' : '') + (atkFirstName(c, ch.name) ? ' <span class="set-tag">먼저</span>' : '') + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
         '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
-      '<details class="pp"' + (innerWidth > 600 ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
-      '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(state.pieces[i][j], true) + '</div>').join('') + '</div></details>' +
+      '<details class="pp"' + (innerWidth > 600 || chg ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
+      '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => {
+        const g = state.pieces[i][j], grp = j < 2 ? [0, 1] : [2, 3];
+        const isNew = chg && g && !grp.some(q => prevIds[q] === g.id);     // 직전 계산에 이 부위에 없던 장비 = 새로 끼울 칸
+        return '<div' + (isNew ? ' style="outline:3px solid var(--flat, #b8a040);outline-offset:2px;border-radius:10px;background:rgba(184,160,64,.10)"' : '') + '><div class="note" style="margin:0 0 2px">' + l +
+          (isNew ? ' <strong class="flat">🔄 새로 끼기</strong>' : '') + '</div>' + gCard(g, true) + '</div>'; }).join('') + '</div></details>' +
       '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong> · 최고 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
         ' <span class="muted">(' + (un && !un.neg ? '유효 ' + uEff.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span>' +
         (() => { const sc = spdCheck(c.id, ch.name, state.pieces[i]), v = spdSum(state.pieces[i]);
