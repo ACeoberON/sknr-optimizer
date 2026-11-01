@@ -493,6 +493,7 @@ h1 .t{white-space:nowrap}
 <section class="card" id="aResultCard" hidden>
   <h2>배정 결과 · 착용 안내</h2>
   <p class="note" id="aWarn" style="margin:0 0 10px"></p>
+  <details class="more" id="aImpBox" style="margin:0 0 12px" open><summary><strong>장비 개선 추천</strong> <span class="muted" id="aImpSum"></span></summary><div id="aImp" style="margin-top:6px"></div></details>
   <div id="aRows" class="plist"></div>
   <div class="row-actions">
     <button type="button" id="aApply">목표 탭에 반영</button>
@@ -3748,6 +3749,52 @@ function assignRounds(parts, cid, mode){
   const r = optimizeAssign(CONTENTS.find(x => x.id === cid), excl, new Set(), fixed[cid]);   // 정해진 장비 그대로, 세공만 다시 고름
   return Object.assign(r, { before: parts.filter(o => o !== cid).map(o => ROUND_LABEL[o] || o), exclN: excl.size, prio: mode });
 }
+/* 장비 개선 추천 — 지금 배정에서 칸 하나를 '이상적인 새 장비' 또는 '재구성한 같은 장비'로 바꿨을 때 팀 점수가 얼마나 오르나.
+   이상적인 장비 = 복수자, 무기는 주옵 치확/치피/약확 중 하나·방어구는 공%, 부옵 치확·치피·약확·공% + 강화 5회를 치확·치피·약확에 최적 배분 */
+const ENH5 = []; for (let a = 0; a <= 5; a++) for (let b = 0; b <= 5 - a; b++) ENH5.push([a, b, 5 - a - b]);
+function bestPieceFor(A, state, i, si, slot, base){
+  const mains = slot === 'ar' ? ['atkp'] : ['crit', 'cd', 'weak'];
+  let best = null;
+  const keep = state.pieces[i][si];
+  mains.forEach(m => ENH5.forEach(([a, b, c]) => {
+    const g = { id: -1, slot, set:'복수자', main: m, subs: [['crit', a], ['cd', b], ['weak', c], ['atkp', 0]] };
+    state.pieces[i][si] = g;
+    const j = evalAssign(A, state);
+    if (!best || j > best.j) best = { j, g };
+  }));
+  state.pieces[i][si] = keep;
+  return best;
+}
+function rebuildFor(A, state, i, si){                 // 같은 장비, 강화 5회를 쓸모 줄로 다시 나눔(재구성)
+  const g0 = state.pieces[i][si]; if (!g0 || !wasteOf(g0)) return null;
+  const tot = (g0.subs || []).reduce((a, [, e]) => a + (+e || 0), 0), useI = g0.subs.map(([t], k) => t in USE ? k : -1).filter(k => k >= 0);
+  if (!useI.length) return null;
+  let best = null;
+  const combos = useI.length === 3 ? ENH5.map(x => x.map(v => v * tot / 5)) : useI.length === 2 ? [...Array(tot + 1)].map((_, a) => [a, tot - a]) : [[tot]];
+  combos.forEach(cb => {
+    const g = Object.assign({}, g0, { subs: g0.subs.map(([t, e], k) => [t, useI.includes(k) ? Math.round(cb[useI.indexOf(k)]) : 0]) });
+    state.pieces[i][si] = g; const j = evalAssign(A, state);
+    if (!best || j > best.j) best = { j, g };
+  });
+  state.pieces[i][si] = g0;
+  return best;
+}
+const gDesc = g => (g.slot === 'ar' ? '방어구' : '무기') + ' 주옵 ' + (SUBS[g.main] || g.main) + ' · ' + g.subs.filter(([, e]) => e > 0).map(([t, e]) => SUBS[t] + ' 강화 ' + e).join(' · ');
+function improveList(A, state){
+  const base = evalAssign(A, state), out = [];
+  A.chars.forEach((ch, i) => [ch.need, ch.need, 'ar', 'ar'].forEach((slot, si) => {
+    const cur = state.pieces[i][si];
+    const rb = rebuildFor(A, state, i, si);
+    if (rb && rb.j / base - 1 > 0.0005) out.push({ kind:'재구성', who: ch.name, gain: rb.j / base - 1,
+      html: esc(gTitle(cur)) + ' 재구성 — 튄 강화 ' + wasteOf(cur) + '회를 ' + rb.g.subs.filter(([t, e]) => t in USE && e > 0).map(([t, e]) => SUBS[t] + ' ' + e).join(' · ') + '로' });
+    const nb = bestPieceFor(A, state, i, si, slot, base);
+    if (nb && nb.j / base - 1 > 0.003) out.push({ kind:'새 장비', who: ch.name, gain: nb.j / base - 1,
+      html: (cur ? esc(gTitle(cur)) : '빈 칸') + ' 자리에 새 장비 — ' + gDesc(nb.g) });
+  }));
+  // 캐릭터·종류별로 가장 큰 것 하나씩, 이득 큰 순
+  const seen = new Set();
+  return out.sort((a, b) => b.gain - a.gain).filter(x => { const k = x.who + x.kind + x.html.slice(0, 12); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8);
+}
 function aRun(){
   const c = CONTENTS.find(x => x.id === $('aContent').value);
   if (!c){ $('aMeta').textContent = '이 콘텐츠는 공략 데이터가 아직 없습니다.'; return; }
@@ -3791,6 +3838,12 @@ function aRun(){
     $('aMsg').textContent = p.char + ' 프리셋을 수정했습니다.'; setTimeout(() => { $('aMsg').textContent = ''; }, 3000);
   }));
   const team = A.T.J(over) / A.T.J0;
+  const imp = r.short.length ? [] : improveList(A, state);
+  $('aImpSum').textContent = imp.length ? '· ' + imp.length + '건 (이득 큰 순)' : '· 지금 장비로 충분합니다';
+  $('aImp').innerHTML = imp.length ? '<table class="ctbl" style="font-size:13px"><thead><tr><th>캐릭터</th><th>할 일</th><th>팀 점수</th></tr></thead><tbody>' +
+      imp.map(x => '<tr><td>' + esc(x.who) + '</td><td><span class="grade ' + (x.kind === '재구성' ? 'g-ok' : 'g-semi') + '">' + x.kind + '</span> ' + x.html + '</td><td class="num win">+' + (x.gain * 100).toFixed(1) + '%</td></tr>').join('') +
+      '</tbody></table><p class="note" style="margin-top:4px">재구성 = 같은 장비의 강화를 치확·치피·약확으로 다시 나눔(부옵 변경). 새 장비 = 그 자리에 이 구성의 장비를 만들거나 얻으면 오르는 양(이론상 최선, 강화 운 제외). 0.3% 미만은 생략.</p>'
+    : '<p class="note">재구성하거나 새로 만들어서 0.3% 이상 오르는 자리가 없습니다.</p>';
   const usedSiege = A.chars.some((_, i) => /sg/.test(state.carve[i]));
   $('aWarn').innerHTML = (r.short.length
       ? '<strong class="lose">장비가 모자랍니다 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “빈 칸”으로 두고 계산해서 점수가 낮게 나옵니다. '
