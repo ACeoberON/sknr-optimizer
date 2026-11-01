@@ -3861,6 +3861,8 @@ function rebuildFor(A, state, i, si){                 // 같은 장비, 강화 5
   state.pieces[i][si] = g0;
   return best;
 }
+/* 짧은 장비 표기 — 주옵 + 부옵 4줄(카드 순서, 강화 수) : 게임에서 찾기 쉽게 */
+const gDescShort = g => '주 ' + (SUBS[g.main] || g.main) + ' / ' + (g.subs || []).map(([t, e]) => (SUBS[t] || t) + (e ? '+' + e : '')).join(' · ');
 const gDesc = g => (g.slot === 'ar' ? '방어구' : '무기') + ' 주옵 ' + (SUBS[g.main] || g.main) + ' · ' + g.subs.filter(([, e]) => e > 0).map(([t, e]) => SUBS[t] + ' 강화 ' + e).join(' · ');
 function improveList(A, state){
   const base = evalAssign(A, state), out = [];
@@ -3905,7 +3907,7 @@ function aRound(c, rk){
     const chg = prevIds && !(sameSet(prevIds.slice(0, 2), nowIds.slice(0, 2)) && sameSet(prevIds.slice(2), nowIds.slice(2)));
     const atkNow = atkOf(state.pieces[i]);
     (aPrevNext[c.id] || (aPrevNext[c.id] = {}))[ch.name] = { ids: nowIds, a: atkNow, r: ev.r };
-    if (chg) aChg.push({ c, name: ch.name, n: nowIds.filter(x => !prevIds.includes(x)).length, a0: pv.a, a1: atkNow, r0: pv.r, r1: ev.r });
+    if (chg) aChg.push({ c, name: ch.name, n: nowIds.filter(x => !prevIds.includes(x)).length, a0: pv.a, a1: atkNow, r0: pv.r, r1: ev.r, prevIds, nowIds });
     return '<div class="pcard"' + (chg ? ' style="outline:2px solid var(--flat, #b8a040)"' : '') + '><div class="p-h"><div><b>' + esc(ch.name) + '</b>' + (chg ? ' <span class="set-tag" style="background:var(--flat, #b8a040);color:#fff">장비 바뀜</span>' : '') + (atkFirstName(c, ch.name) ? ' <span class="set-tag">먼저</span>' : '') + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
         '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
       '<details class="pp"' + (innerWidth > 600 ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
@@ -3991,6 +3993,18 @@ function aRun(){
         ((df || dp) ? ' [' + [df ? '깡공 ' + (df > 0 ? '+' : '') + df : '', dp ? '공% ' + (dp > 0 ? '+' : '') + dp : ''].filter(Boolean).join(' · ') + ']' : ''); };
     const tagOf = x => RAID1(x.c.id) ? '1R ' : (x.c.sc === 'raid' ? '2R ' : '');
     const warnOf = x => cardWarns(x.c, x.name).some(t => /공격력/.test(t)) && (x.a1.lf + x.a1.lp) !== (x.a0.lf + x.a0.lp);
+    /* 갈아 끼울 장비: 부위(무기·방어구)별로 빠지는 것 → 들어오는 것. 빠진 장비가 다른 캐릭터에게 갔으면 누구에게 갔는지도 */
+    const holder = id => { for (const L of aLasts) { const k = L.state.pieces.findIndex(P => P.some(g => g && g.id === id)); if (k >= 0) return (RAID1(L.c.id) ? '1R ' : (L.c.sc === 'raid' ? '2R ' : '')) + L.A.chars[k].name; } return ''; };
+    const gShort = id => { const g = gById(id); return g ? '#' + id + ' ' + esc(gDescShort(g)) : '빈 칸'; };
+    const swaps = x => [[0, 2, '무기'], [2, 4, '방어구']].flatMap(([a, b, l]) => {
+      const pv = x.prevIds.slice(a, b), nw = x.nowIds.slice(a, b);
+      const out = pv.filter(v => v != null && !nw.includes(v)), inn = nw.filter(v => v != null && !pv.includes(v));
+      return [...Array(Math.max(out.length, inn.length))].map((_, k) => {
+        const o = out[k], h = o != null ? holder(o) : '';
+        return '<li>' + l + ' <strong>' + (o != null ? gShort(o) : '빈 칸') + '</strong> 빼고 → <strong class="win">' + (inn[k] != null ? gShort(inn[k]) : '빈 칸') + '</strong> 끼기' +
+          (h && h !== ((RAID1(x.c.id) ? '1R ' : (x.c.sc === 'raid' ? '2R ' : '')) + x.name) ? ' <span class="muted">(뺀 장비는 ' + esc(h) + '에게)</span>' : '') + '</li>';
+      });
+    }).join('');
     const line = x => '장비 ' + x.n + '개 교체 · ' + atkTxt(x.a0, x.a1) + ' · 딜 ' + (x.r0 * 100).toFixed(1) + '→' + (x.r1 * 100).toFixed(1) + '%' +
       (warnOf(x) ? ' <strong class="flat">⚠ 공격력 조건 — 다시 비교</strong>' : '');
     const cardOf = (cid, name) => [...box.querySelectorAll('.pcard')].find(p => p.querySelector('[data-atkn="' + String(name).replace(/["\\]/g, '\\$&') + '"]') && (aLasts[+p.querySelector('[data-ark]').dataset.ark] || {}).c?.id === cid);
@@ -3998,9 +4012,9 @@ function aRun(){
       if (p){ const others = aChg.filter(x => !(x.c.id === ADJ.cid && x.name === ADJ.name));
         const f = p.querySelector('.p-foot');
         (f || p).insertAdjacentHTML('afterend', '<div class="note" style="margin:6px 0 0;padding:6px 10px;border:1px solid var(--flat, #b8a040);border-radius:8px"><strong>' + esc(aAction) + ' → ' +
-          (others.length ? '같이 바뀐 캐릭터 ' + others.length + '명</strong><ul style="margin:4px 0 0;padding-left:18px">' + others.map(x => '<li><strong>' + tagOf(x) + esc(x.name) + '</strong> — ' + line(x) + '</li>').join('') + '</ul>' : '다른 캐릭터는 그대로입니다</strong>') + '</div>'); } }
+          (others.length ? '같이 바뀐 캐릭터 ' + others.length + '명</strong><ul style="margin:4px 0 0;padding-left:18px">' + others.map(x => '<li><strong>' + tagOf(x) + esc(x.name) + '</strong> — ' + line(x) + '<ul style="margin:2px 0 0;padding-left:16px">' + swaps(x) + '</ul></li>').join('') + '</ul>' : '다른 캐릭터는 그대로입니다</strong>') + '</div>'); } }
     aChg.forEach(x => { const p = cardOf(x.c.id, x.name); if (!p) return;
-      const f = p.querySelector('.p-foot'); (f || p).insertAdjacentHTML('afterend', '<p class="note" style="margin:6px 0 0;padding:4px 8px;background:rgba(184,160,64,.12);border-radius:6px">🔄 ' + (aAction ? '방금 조정으로 ' : '직전 계산 대비 ') + line(x) + '</p>'); });
+      const f = p.querySelector('.p-foot'); (f || p).insertAdjacentHTML('afterend', '<div class="note" style="margin:6px 0 0;padding:4px 8px;background:rgba(184,160,64,.12);border-radius:6px">🔄 ' + (aAction ? '방금 조정으로 ' : '직전 계산 대비 ') + line(x) + '<ul style="margin:4px 0 0;padding-left:18px">' + swaps(x) + '</ul></div>'); });
   }
   aAction = '';
   box.querySelectorAll('[data-atkd]').forEach(b => b.addEventListener('click', () => {
