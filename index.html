@@ -232,6 +232,7 @@ h1 .t{white-space:nowrap}
 .gt .s{display:grid;grid-template-columns:1fr 1fr;gap:0 4px;font-family:var(--mono);color:var(--ink-2)}
 .gt .s .u{color:var(--ink);font-weight:600}
 .gt-detail{position:sticky;top:10px}
+.gt .gt-w{background:#c9772b;color:#fff;border-radius:999px;padding:0 4px;font-size:9.5px}
 .gt-detail .note{margin:0}
 .grow{border:1px solid var(--line);border-radius:8px;background:var(--paper)}
 .grow>summary{list-style:none;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:7px 10px;color:var(--ink);font-weight:400;cursor:pointer}
@@ -505,9 +506,10 @@ h1 .t{white-space:nowrap}
     <p class="note" style="margin:6px 0 4px">세트는 <strong>복수자</strong>, 주옵은 무기 <strong>치확·치피·약확</strong> / 방어구 <strong>공%</strong>인 장비만. “쓸모 줄” = 치확·치피·약확, “강화” = 그 쓸모 줄에 들어간 강화 횟수. 각 장비 칸 오른쪽 위에 순위가 표시됩니다.</p>
     <table class="ctbl" style="font-size:13px"><thead><tr><th>순위</th><th>부옵 4줄</th><th>넣을지</th></tr></thead><tbody>
       <tr><td>0순위</td><td>치확 · 치피 · 약확 · <strong>공%</strong> (종결)</td><td>전부</td></tr>
-      <tr><td>1순위</td><td>치확 · 치피 · 약확 + 공%가 아닌 1줄(깡공·방어 등)</td><td>전부</td></tr>
+      <tr><td>1순위</td><td>치확 · 치피 · 약확 + 공%가 아닌 1줄 (깡공 &gt; 그 외 잡옵)</td><td>전부</td></tr>
       <tr><td>2순위</td><td>쓸모 줄 2개 + 공% + 잡옵 1줄</td><td>강화 3회 이상만</td></tr>
       <tr><td>3순위</td><td>쓸모 줄 2개 + 잡옵 2줄</td><td>강화 4회 이상만</td></tr>
+      <tr><td><span class="gt-w" style="background:#c9772b;color:#fff;border-radius:999px;padding:0 5px;font-size:11px">조정</span></td><td>순위와 별개 — 강화가 공%·깡공·잡옵으로 튄 장비</td><td>재구성으로 강화 재분배 권장</td></tr>
       <tr><td>보류</td><td>쓸모 줄 1개 이하 · 위 강화 기준 미달 · 주옵/세트가 다름</td><td>넣지 않아도 됨</td></tr>
     </tbody></table>
     <p class="note" style="margin-top:4px">같은 순위 안에서는 강화가 많은 것부터, 같으면 무기부터. 배정 계산 결과가 더 바뀌지 않으면 그만 넣어도 됩니다.</p>
@@ -3067,12 +3069,15 @@ function tierOf(g){
   if (use.length === 2) return atkp ? (e >= 3 ? 2 : null) : (e >= 4 ? 3 : null);
   return null;
 }
+/* 튄 강화 — 치확·치피·약확이 아닌 줄(공%·깡공·잡옵)에 들어간 강화 횟수. 1회 이상이면 '조정' 표시(재구성으로 강화 재분배 권장) */
+const wasteOf = g => (g.subs || []).reduce((a, [t, e]) => a + (t in USE ? 0 : (+e || 0)), 0);
+const wasteTip = g => { const w = (g.subs || []).filter(([t, e]) => !(t in USE) && e > 0); return w.length ? '강화 ' + wasteOf(g) + '회가 ' + w.map(([t, e]) => (SUBS[t] || t) + ' ' + e + '회').join(', ') + '로 감 — 재구성으로 치확·치피·약확에 옮기면 좋음' : ''; };
 const tierTxt = g => { const t = tierOf(g); return t == null ? '보류' : t + '순위'; };
 const G_COLOR = { end:'#2f6b3a', semi:'#5d8a4a', ok:'#d9b64a', no:'var(--line)' };
 const SUB1 = { crit:'확', cd:'피', weak:'약', atkp:'공%' };
 const gTile = g => { const r = gradeOf(g);
   return '<button type="button" class="gt" data-gt="' + g.id + '" aria-pressed="' + (g.id === gSel) + '" style="--g:' + G_COLOR[r.key] + '" title="' + esc(gTitle(g)) + ' · ' + esc((GRADES.find(x => x[0] === r.key) || [, ''])[1]) + '">' +
-    '<span class="h"><span>' + (g.slot === 'ar' ? '방어구' : '무기') + ' #' + g.id + (g.img ? ' ▣' : '') + '</span><span>' + tierTxt(g) + '</span></span>' +
+    '<span class="h"><span>' + (g.slot === 'ar' ? '방어구' : '무기') + ' #' + g.id + (g.img ? ' ▣' : '') + '</span><span>' + tierTxt(g) + (wasteOf(g) ? ' <span class="gt-w" title="' + esc(wasteTip(g)) + '">조정</span>' : '') + '</span></span>' +
     '<b>주 ' + esc(({ dmgred:'받피감' })[g.main] || SUBS[g.main] || MAINN[g.main] || g.main) + '</b><span class="s">' +
     (g.subs || []).map(([t, e]) => '<span class="' + (t in USE ? 'u' : '') + '">' + (SUB1[t] || SUBS[t] || t) + (e > 0 ? e : '') + '</span>').join('') + '</span></button>'; };
 const gLine = g => '<span class="gl-t">' + esc(gTitle(g)) + '</span> ' + gradeBadge(g) + (g.demo ? ' <span class="demo-tag">예시</span>' : '') +
@@ -3092,6 +3097,7 @@ function gCard(g, mini, actions){
     '<div class="gc-h"><b>' + esc(gTitle(g)) + ' ' + gradeBadge(g) + '</b><span class="gc-t">' + gSlotName(g.slot).replace('무기 · ', '') + ' · ' + (g.set || '복수자') + ' · ' + (g.born || 4) + '옵</span></div>' +
     '<div class="gc-main"><span>' + (MAINN[g.main] || g.main) + '</span><b>' + (MAINVAL[g.main] || '') + '</b></div>' +
     '<ol>' + subs.join('') + '</ol>' +
+    (wasteOf(g) ? '<div class="gc-memo" style="color:var(--flat,#a86b00)">⚠ 조정 필요 — ' + esc(wasteTip(g)) + '</div>' : '') +
     (g.memo ? '<div class="gc-memo">' + esc(g.memo) + '</div>' : '') +
     (actions ? '<div class="gc-act">' + (g.img ? '<button type="button" data-gimg="' + g.id + '" title="읽기에 쓴 캡처와 비교">원본</button>' : '') + '<button type="button" data-gedit="' + g.id + '">수정</button><button type="button" data-gdup="' + g.id + '">복제</button><button type="button" class="ghost" data-gdel="' + g.id + '" aria-label="삭제">×</button></div>' : '') +
     '</div>';
