@@ -3602,6 +3602,8 @@ const aOptHas = (k, cid, name) => !!(((aOpt[k] || {})[cid] || []).includes(name)
 function aOptToggle(k, cid, name){
   const m = aOpt[k] || (aOpt[k] = {}), a = m[cid] || (m[cid] = []), j = a.indexOf(name);
   if (j >= 0) a.splice(j, 1); else a.push(name);
+  const other = { lowAtk:'highAtk', highAtk:'lowAtk' }[k];               // 낮추기·높이기는 둘 중 하나만
+  if (j < 0 && other){ const b = (aOpt[other] || {})[cid]; if (b && b.includes(name)) b.splice(b.indexOf(name), 1); }
   try { localStorage.setItem('sknr_aopt', JSON.stringify(aOpt)); } catch (e) {}
 }
 /* 공격력 점수 = 공% 합 + 깡공 50당 3 (방어구 주옵 공% 28 포함). 공%·깡공 표시는 따로 */
@@ -3619,6 +3621,7 @@ function evalAssign(A, state){
     const s = statsOf(ch, state.pieces[i]);
     over.set(ch.u, A.T.ms(ch.u, s.vc, s.vd, s.vq, state.carve[i]));
     if (aOptHas('lowAtk', A.c.id, ch.name)) pen += LOWATK_W * atkPts(state.pieces[i]);   // 공격력 낮추기: 공%·깡공 줄마다 감점
+    if (aOptHas('highAtk', A.c.id, ch.name)) pen -= LOWATK_W * atkPts(state.pieces[i]);  // 공격력 높이기: 공%·깡공 줄마다 가점
     if (NOSPD_TMP === ch.name) return;                              // '속공 없이' 버전 계산 중 — 속공 조건 무시
     const sc = spdCheck(A.c.id, ch.name, state.pieces[i]);          // 속공 조건은 딜보다 우선 (어기면 큰 감점)
     if (sc && !sc.ok) pen += 0.5 + Math.abs(sc.v < sc.min ? sc.min - sc.v : sc.v - sc.max) / 4 * 0.5;
@@ -3881,7 +3884,8 @@ function aRound(c, rk){
             (sc.ok ? '' : ' — 필요 +' + sc.min + (sc.max !== sc.min ? '~' + sc.max : '') + (sc.min > v ? ', 속공 부옵 장비가 부족합니다' : '')) + '</span> <span class="muted" style="font-size:12px">' + sc.why + '</span>';
           return v ? '<br><span class="flat">속공 +' + v + ' — 이 콘텐츠는 ' + esc(ch.name) + '에게 속공이 필요 없어 행동 순서가 꼬일 수 있습니다. 속공 없는 장비가 생기면 바꾸십시오.</span>' : ''; })() + '</span>' +
         (() => { const a = atkOf(state.pieces[i]); return '<br><span class="muted" style="font-size:12px">공격력 장비: 공% +' + a.p + (a.f ? ' · 깡공 +' + a.f : '') + '</span>'; })() +
-        '<span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" data-ark="' + rk + '" data-lowatk="' + esc(ch.name) + '" aria-pressed="' + aOptHas('lowAtk', c.id, ch.name) + '" title="공%·깡공 줄이 적은 장비를 고릅니다(공격력을 낮춰야 하는 조건용). 딜은 조금 줄어듭니다.">' + (aOptHas('lowAtk', c.id, ch.name) ? '✓ 공격력 낮춤' : '공격력 낮추기') + '</button>' +
+        '<span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" data-ark="' + rk + '" data-atkopt="lowAtk" data-lowatk="' + esc(ch.name) + '" aria-pressed="' + aOptHas('lowAtk', c.id, ch.name) + '" title="공%·깡공 줄이 적은 장비를 고릅니다(공격력을 낮춰야 하는 조건용). 딜은 조금 줄어듭니다.">' + (aOptHas('lowAtk', c.id, ch.name) ? '✓ 공격력 낮춤' : '공격력 ↓') + '</button>' +
+        '<button type="button" data-ark="' + rk + '" data-atkopt="highAtk" data-lowatk="' + esc(ch.name) + '" aria-pressed="' + aOptHas('highAtk', c.id, ch.name) + '" title="공%·깡공 줄이 많은 장비를 고릅니다(공격력을 높여야 하는 조건용). 딜은 조금 줄어들 수 있습니다.">' + (aOptHas('highAtk', c.id, ch.name) ? '✓ 공격력 높임' : '공격력 ↑') + '</button>' +
         '<button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
         '<!--ALT:' + rk + ':' + i + '-->' +
       (dead.length ? '<p class="note" style="margin:8px 0 0"><strong class="flat">ⓘ ' + dead.map(([t, v]) => t + ' ' + Math.round(v) + '줄').join(' · ') + '은 ' + esc(ch.name) + '에게 쓸모없습니다</strong>' + (dead.some(([t]) => t === '치확') ? ' — 이 콘텐츠에서는 패시브·버프·장신구로 치확이 이미 100%라, 치확 줄이 없는 장비(치피·약확·공%)도 이 캐릭터에겐 종결과 같습니다.' : ' — 전투 중 버프·장신구까지 합치면 약확이 이미 100%입니다.') + ' 지금은 속공 조건·남은 장비 때문에 들어갔습니다.</p>' : '') +
@@ -3892,10 +3896,10 @@ function aRound(c, rk){
       '</div>';
   });
   /* 공격력 조건이 걸린 캐릭터(카드 ⚠ 또는 공격력 낮춤 켬)를 맨 앞에 — 장비를 끼운 뒤 서로 공격력을 비교해야 하므로 먼저 맞춤 */
-  const atkFirst = i => cardWarns(c, A.chars[i].name).some(t => /공격력/.test(t)) || aOptHas('lowAtk', c.id, A.chars[i].name);
+  const atkFirst = i => cardWarns(c, A.chars[i].name).some(t => /공격력/.test(t)) || aOptHas('lowAtk', c.id, A.chars[i].name) || aOptHas('highAtk', c.id, A.chars[i].name);
   const ord = A.chars.map((_, i) => i).sort((x, y) => atkFirst(y) - atkFirst(x) || x - y);
   const nFirst = ord.filter(atkFirst).length;
-  const html = (nFirst ? '<p class="note" style="margin:4px 0 6px"><strong>① 공격력 조건이 있는 ' + ord.slice(0, nFirst).map(i => esc(A.chars[i].name)).join('·') + '부터 맞추십시오</strong> — 장비를 끼운 뒤 캐릭터 화면 공격력을 서로 비교하고, 조건이 안 맞으면 “공격력 낮추기”를 눌러 다시 계산한 다음 나머지를 맞춥니다.</p>' : '') +
+  const html = (nFirst ? '<p class="note" style="margin:4px 0 6px"><strong>① 공격력 조건이 있는 ' + ord.slice(0, nFirst).map(i => esc(A.chars[i].name)).join('·') + '부터 맞추십시오</strong> — 장비를 끼운 뒤 캐릭터 화면 공격력을 서로 비교하고, 조건이 안 맞으면 “공격력 ↑/↓”를 눌러 다시 계산한 다음 나머지를 맞춥니다.</p>' : '') +
     ord.map((i, n) => (n === nFirst && nFirst ? '<p class="note" style="margin:10px 0 6px"><strong>② 나머지</strong></p>' : '') + cards[i]).join('');
 
   const team = A.T.J(over) / A.T.J0;
@@ -3939,11 +3943,11 @@ function aRun(){
   const roundHead = x => '<h3 style="margin:14px 0 6px">' + esc(ROUND_LABEL[x.c.id] || x.c.n) + ' <span class="muted" style="font-size:13px;font-weight:400">팀 최고 대비 ' + (x.team * 100).toFixed(1) + '%</span></h3>';
   box.innerHTML = (firstAll.length
       ? '<h3 style="margin:6px 0 4px">① 공격력 조건 — 먼저 맞추기</h3><p class="note" style="margin:0 0 6px">' + firstAll.map(({ x, f }) => rTag(x) + ' ' + esc(f.name)).join(' · ') +
-        ' — 이 캐릭터들을 먼저 끼우고 캐릭터 화면 공격력을 비교하십시오. 조건이 안 맞으면 “공격력 낮추기”로 다시 계산하는데, 그러면 다른 라운드 장비까지 바뀔 수 있습니다(같은 장비를 나눠 쓰므로). 여기가 확정된 뒤 ②를 끼우십시오.</p>' +
+        ' — 이 캐릭터들을 먼저 끼우고 캐릭터 화면 공격력을 비교하십시오. 조건이 안 맞으면 높여야 할 쪽은 “공격력 ↑”, 낮춰야 할 쪽은 “공격력 ↓”로 다시 계산하는데(둘 다 눌러도 됨), 그러면 다른 라운드 장비까지 바뀔 수 있습니다(같은 장비를 나눠 쓰므로). 여기가 확정된 뒤 ②를 끼우십시오.</p>' +
         firstAll.map(({ x, f }) => f.h.replace('<b>', '<span class="set-tag">' + rTag(x) + '</span> <b>')).join('') +
         '<h3 style="margin:18px 0 4px">② 나머지</h3>' + RS.map(x => roundHead(x) + x.rest.join('') + benchHtml(x.c, x.A)).join('')
       : RS.map(x => (all ? roundHead(x) : '') + x.html + benchHtml(x.c, x.A)).join('')).replace(/<!--ALT:(\d+):(\d+)-->/g, (_, k, i) => altHtml[k + ':' + i] || '');
-  box.querySelectorAll('[data-lowatk]').forEach(b => b.addEventListener('click', () => { const L = aLasts[+b.dataset.ark]; if (!L) return; aOptToggle('lowAtk', L.c.id, b.dataset.lowatk); aRun(); }));
+  box.querySelectorAll('[data-lowatk]').forEach(b => b.addEventListener('click', () => { const L = aLasts[+b.dataset.ark]; if (!L) return; aOptToggle(b.dataset.atkopt || 'lowAtk', L.c.id, b.dataset.lowatk); aRun(); }));
   box.querySelectorAll('[data-asave]').forEach(b => b.addEventListener('click', () => { aSave(+b.dataset.ark, [+b.dataset.asave]); }));
   box.querySelectorAll('[data-afix]').forEach(b => b.addEventListener('click', () => {
     const L = aLasts[+b.dataset.ark], i = +b.dataset.afix, p = presets.find(x => x.id === +b.dataset.pid); if (!p || !L) return;
@@ -3972,7 +3976,7 @@ function aRun(){
 }
 let aLast = null, aLasts = [];
 let aPrev = {}, aPrevNext = {};                 // 직전 계산의 캐릭터별 장비 — 옵션을 바꿔 다시 계산했을 때 '장비 바뀜' 표시용
-const atkFirstName = (c, name) => cardWarns(c, name).some(t => /공격력/.test(t)) || aOptHas('lowAtk', c.id, name);
+const atkFirstName = (c, name) => cardWarns(c, name).some(t => /공격력/.test(t)) || aOptHas('lowAtk', c.id, name) || aOptHas('highAtk', c.id, name);
 /* 장비를 끼면서 바로 봐야 하는 주의사항 — 해당 캐릭터 카드 안에 표시 */
 const LOW_ATK = () => '공격력이 소교보다 낮아야 합니다 — 소교 호접지몽 치피 버프가 공격력 상위 2명에게 가므로 소교보다 높으면 파스칼이 버프를 못 받습니다. 장비를 낀 뒤 캐릭터 화면에서 공격력을 비교하고, 높으면 공% 방어구를 공% 없는 것으로 바꾸십시오. (평타뿐이지만 1R 100만 문턱에 보탬이 되어 배정)';
 /* 공략 원문에서 그 캐릭터 이름이 나오는 라우팅·초고점 줄을 카드로 끌어옴(공략이 바뀌면 자동으로 따라감). 손으로 쓴 CARD_WARN이 있으면 그걸 우선 */
