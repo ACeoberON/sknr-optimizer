@@ -3644,7 +3644,7 @@ function evalAssign(A, state){
     const s = statsOf(ch, state.pieces[i]);
     over.set(ch.u, A.T.ms(ch.u, s.vc, s.vd, s.vq, state.carve[i]));
     const pv = (aPrev[A.c.id] || {})[ch.name];                     // 직전 결과 유지 가점 — 이득이 거의 없는 자리바꿈(동점 흔들림)으로 다른 캐릭터 장비가 바뀌지 않게
-    if (pv && !(ADJ && ADJ.cid === A.c.id && ADJ.name === ch.name)) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
+    if (pv && !(ADJ && (ADJ.reset || (ADJ.cid === A.c.id && ADJ.name === ch.name)))) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
     { const a0 = atkOf(state.pieces[i]);
       pen -= ATKP_V * (a0.lp + 0.4 * a0.lf);                           // 동점 정리: 치확·치피·약확이 같으면 공% 붙은 장비(판정기는 공격력 딜을 계산하지 않음)
       const side = atkSide(A.c, ch.name);                               // 공략 공격력 조건: 높아야 할 쪽은 공격력 줄 가점, 낮아야 할 쪽은 감점
@@ -3927,7 +3927,7 @@ function aRound(c, rk){
             (g ? ' · <strong class="flat">목표 ' + g.t + (g.d > 0 ? ' 이상' : ' 이하') + '</strong>' : '') + '</span>'; })() +
         '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
         '<button type="button" data-ark="' + rk + '" data-atkd="1" data-atkn="' + esc(ch.name) + '" title="부옵 공격력 줄을 1줄 늘립니다 — 깡공부터, 없으면 공%. 딜 손해가 가장 적은 장비로 다시 고릅니다.">공격력 +1줄</button>' +
-        '<button type="button" data-ark="' + rk + '" data-atkd="-1" data-atkn="' + esc(ch.name) + '" title="부옵 공격력 줄을 1줄 줄입니다 — 깡공부터, 없으면 공%.">공격력 −1줄</button>' +
+        '<button type="button" data-ark="' + rk + '" data-atkd="-1" data-atkn="' + esc(ch.name) + '" title="부옵 공격력 줄을 1줄 줄입니다 — 깡공부터, 없으면 공%."' + ((atkOf(state.pieces[i]).lf + atkOf(state.pieces[i]).lp) ? '' : ' disabled') + '>공격력 −1줄</button>' +
         (atkGoal(c.id, ch.name) ? '<button type="button" data-ark="' + rk + '" data-atkd="0" data-atkn="' + esc(ch.name) + '">원래대로</button>' : '') +
         '<button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
         '<!--ALT:' + rk + ':' + i + '-->' +
@@ -4024,10 +4024,19 @@ function aRun(){
   box.querySelectorAll('[data-atkd]').forEach(b => b.addEventListener('click', () => {
     const L = aLasts[+b.dataset.ark]; if (!L) return;
     const i = L.A.chars.findIndex(ch => ch.name === b.dataset.atkn); if (i < 0) return;
-    const a = atkOf(L.state.pieces[i]); atkStep(L.c.id, b.dataset.atkn, +b.dataset.atkd, a.lf + a.lp);
-    ADJ = { cid: L.c.id, name: b.dataset.atkn };
-    aAction = (RAID1(L.c.id) ? '1R ' : (L.c.sc === 'raid' ? '2R ' : '')) + b.dataset.atkn + ' ' + ({ '1':'공격력 +1줄', '-1':'공격력 −1줄', '0':'원래대로' })[b.dataset.atkd];
-    try { aRun(); } finally { ADJ = null; }
+    const a = atkOf(L.state.pieces[i]), dir = +b.dataset.atkd, name = b.dataset.atkn, cid = L.c.id;
+    if (dir < 0 && a.lf + a.lp === 0){ b.textContent = '더 뺄 공격력 줄 없음'; b.disabled = true; return; }
+    atkStep(cid, name, dir, a.lf + a.lp);
+    ADJ = { cid, name, reset: dir === 0 };                              // 원래대로 = 직전 장비 유지 가점 없이 처음부터 다시 계산
+    aAction = (RAID1(cid) ? '1R ' : (L.c.sc === 'raid' ? '2R ' : '')) + name + ' ' + ({ '1':'공격력 +1줄', '-1':'공격력 −1줄', '0':'원래대로' })[b.dataset.atkd];
+    /* 계산이 몇 초 걸리므로 먼저 '계산 중'을 그리고, 끝나면 그 캐릭터 카드를 같은 화면 위치로 */
+    const card = b.closest('.pcard'), top0 = card ? card.getBoundingClientRect().top : 0;
+    box.querySelectorAll('[data-atkd]').forEach(x => { x.disabled = true; }); b.textContent = '계산 중…';
+    setTimeout(() => {
+      try { aRun(); } finally { ADJ = null; }
+      const nb = box.querySelector('[data-atkd="' + b.dataset.atkd + '"][data-atkn="' + name.replace(/["\\]/g, '\\$&') + '"]'), nc = nb && nb.closest('.pcard');
+      try { if (nc) window.scrollBy(0, nc.getBoundingClientRect().top - top0); } catch (e) {}
+    }, 30);
   }));
   box.querySelectorAll('[data-asave]').forEach(b => b.addEventListener('click', () => { aSave(+b.dataset.ark, [+b.dataset.asave]); }));
   box.querySelectorAll('[data-afix]').forEach(b => b.addEventListener('click', () => {
