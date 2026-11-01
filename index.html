@@ -3596,12 +3596,30 @@ function spdCheck(cid, name, pieces){
   const v = spdSum(pieces), ok = v >= r[0] && v <= r[1];
   return { v, ok, min: r[0], max: r[1], why: r[2], base: SPD_BASE[name] };
 }
+/* 배정 옵션(캐릭터별, 이 기기에 저장) — lowAtk: 공%·깡공을 빼서 공격력을 낮춤(공격력 조건 맞추기용) */
+let aOpt = {}; try { aOpt = JSON.parse(localStorage.getItem('sknr_aopt') || '{}') || {}; } catch (e) { aOpt = {}; }
+const aOptHas = (k, cid, name) => !!(((aOpt[k] || {})[cid] || []).includes(name));
+function aOptToggle(k, cid, name){
+  const m = aOpt[k] || (aOpt[k] = {}), a = m[cid] || (m[cid] = []), j = a.indexOf(name);
+  if (j >= 0) a.splice(j, 1); else a.push(name);
+  try { localStorage.setItem('sknr_aopt', JSON.stringify(aOpt)); } catch (e) {}
+}
+/* 공격력 점수 = 공% 합 + 깡공 50당 3 (방어구 주옵 공% 28 포함). 공%·깡공 표시는 따로 */
+const atkOf = pieces => pieces.reduce((a, g) => { if (!g) return a;
+  if (g.main === 'atkp') a.p += 28;
+  (g.subs || []).forEach(([t, e]) => { if (t === 'atkp') a.p += 5 * (1 + (+e || 0)); if (t === 'atk') a.f += 50 * (1 + (+e || 0)); });
+  return a; }, { p: 0, f: 0 });
+const atkPts = pieces => { const a = atkOf(pieces); return a.p + a.f / 50 * 3; };
+const LOWATK_W = 0.003;                     // 공% 1당 팀 점수 −0.3%p 상당 — 딜을 조금 잃더라도 공%·깡공 줄을 빼는 쪽을 고름
+let NOSPD_TMP = null;
 function evalAssign(A, state){
   const over = new Map();
   let pen = 0;
   A.chars.forEach((ch, i) => {
     const s = statsOf(ch, state.pieces[i]);
     over.set(ch.u, A.T.ms(ch.u, s.vc, s.vd, s.vq, state.carve[i]));
+    if (aOptHas('lowAtk', A.c.id, ch.name)) pen += LOWATK_W * atkPts(state.pieces[i]);   // 공격력 낮추기: 공%·깡공 줄마다 감점
+    if (NOSPD_TMP === ch.name) return;                              // '속공 없이' 버전 계산 중 — 속공 조건 무시
     const sc = spdCheck(A.c.id, ch.name, state.pieces[i]);          // 속공 조건은 딜보다 우선 (어기면 큰 감점)
     if (sc && !sc.ok) pen += 0.5 + Math.abs(sc.v < sc.min ? sc.min - sc.v : sc.v - sc.max) / 4 * 0.5;
     if (!sc){ const v = spdSum(state.pieces[i]); if (v) pen += SPD_AVOID * v / 4; }
@@ -3859,7 +3877,10 @@ function aRound(c, rk){
           if (sc) return '<br><span class="' + (sc.ok ? 'win' : 'lose') + '">' + (sc.ok ? '✓' : '✗') + ' 속공 +' + v + (sc.base ? ' (' + sc.base + '→' + (sc.base + v) + ')' : '') +
             (sc.ok ? '' : ' — 필요 +' + sc.min + (sc.max !== sc.min ? '~' + sc.max : '') + (sc.min > v ? ', 속공 부옵 장비가 부족합니다' : '')) + '</span> <span class="muted" style="font-size:12px">' + sc.why + '</span>';
           return v ? '<br><span class="flat">속공 +' + v + ' — 이 콘텐츠는 ' + esc(ch.name) + '에게 속공이 필요 없어 행동 순서가 꼬일 수 있습니다. 속공 없는 장비가 생기면 바꾸십시오.</span>' : ''; })() + '</span>' +
-        '<span><button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
+        (() => { const a = atkOf(state.pieces[i]); return '<br><span class="muted" style="font-size:12px">공격력 장비: 공% +' + a.p + (a.f ? ' · 깡공 +' + a.f : '') + '</span>'; })() +
+        '<span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" data-ark="' + rk + '" data-lowatk="' + esc(ch.name) + '" aria-pressed="' + aOptHas('lowAtk', c.id, ch.name) + '" title="공%·깡공 줄이 적은 장비를 고릅니다(공격력을 낮춰야 하는 조건용). 딜은 조금 줄어듭니다.">' + (aOptHas('lowAtk', c.id, ch.name) ? '✓ 공격력 낮춤' : '공격력 낮추기') + '</button>' +
+        '<button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
+        '<!--ALT:' + rk + ':' + i + '-->' +
       (dead.length ? '<p class="note" style="margin:8px 0 0"><strong class="flat">ⓘ ' + dead.map(([t, v]) => t + ' ' + Math.round(v) + '줄').join(' · ') + '은 ' + esc(ch.name) + '에게 쓸모없습니다</strong>' + (dead.some(([t]) => t === '치확') ? ' — 이 콘텐츠에서는 패시브·버프·장신구로 치확이 이미 100%라, 치확 줄이 없는 장비(치피·약확·공%)도 이 캐릭터에겐 종결과 같습니다.' : ' — 전투 중 버프·장신구까지 합치면 약확이 이미 100%입니다.') + ' 지금은 속공 조건·남은 장비 때문에 들어갔습니다.</p>' : '') +
       cardWarns(c, ch.name).map(t => '<p class="note" style="margin:8px 0 0;padding:6px 8px;border-left:3px solid var(--lose, #c0392b);background:rgba(192,57,43,.07)"><strong class="lose">⚠ ' + t + '</strong></p>').join('') +
       (() => { const ad = presetAdvice(c.id, ch.name, state.pieces[i].map(g => g ? g.id : null), state.carve[i]);
@@ -3881,8 +3902,28 @@ function aRun(){
   const RS = ids.map((id, k) => aRound(CONTENTS.find(x => x.id === id), k));
   const bad = RS.find(x => x.err); if (bad){ $('aNote').textContent = bad.err; return; }
   aLasts = RS.map(x => ({ c: x.c, A: x.A, state: x.state })); aLast = aLasts[0];
+  /* 속공 조건이 있는 캐릭터 → '속공 없이' 버전도 계산(같은 라운드 다른 캐릭터·다른 라운드 장비는 그대로 두고 이 캐릭터만 다시 고름) */
+  const altHtml = {};
+  RS.forEach((x, k) => x.A.chars.forEach((ch, i) => {
+    const sc = spdCheck(x.c.id, ch.name, x.state.pieces[i]); if (!sc || !(sc.min > 0)) return;
+    const excl = new Set(); RS.forEach((y, k2) => { if (k2 !== k) y.state.pieces.flat().forEach(g => g && excl.add(g.id)); });
+    const fixed = {}; x.A.chars.forEach((c2, i2) => { if (i2 !== i) fixed[c2.name] = x.state.pieces[i2].slice(); });
+    NOSPD_TMP = ch.name;
+    let r2; try { r2 = optimizeAssign(x.c, excl, new Set([ch.name]), fixed); } finally { NOSPD_TMP = null; }
+    if (!r2 || !r2.state) return;
+    const j = r2.A.chars.findIndex(c2 => c2.name === ch.name), P = r2.state.pieces[j], st = statsOf(r2.A.chars[j], P);
+    const ov = new Map(); r2.A.chars.forEach((c2, i2) => { const s2 = statsOf(c2, r2.state.pieces[i2]); ov.set(c2.u, r2.A.T.evalOne(c2.u, s2.vc, s2.vd, s2.vq, r2.state.carve[i2]).x); });
+    const team2 = r2.A.T.J(ov) / r2.A.T.J0, ev2 = r2.A.T.evalOne(r2.A.chars[j].u, st.vc, st.vd, st.vq, r2.state.carve[j]);
+    if (team2 - x.team < 0.003 || spdSum(P) >= sc.min) return;      // 속공을 빼도 거의 안 오르면(또는 어차피 속공이 붙으면) 안 보여줌
+    altHtml[k + ':' + i] = '<details class="pp" style="margin-top:8px;border-top:1px dashed var(--line, #ccc);padding-top:6px"><summary><strong>속공 없이 세팅하면</strong> — ' +
+      P.map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + ' · 장신구 ' + ringName(r2.state.carve[j]) + '</summary>' +
+      '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, q) => '<div><div class="note" style="margin:0 0 2px">' + l + '</div>' + gCard(P[q], true) + '</div>').join('') + '</div>' +
+      '<p class="note" style="margin:6px 0 0">마을 <strong>' + st.vc + ' / ' + st.vd + ' / ' + st.vq + '</strong> · 속공 +' + spdSum(P) + ' (' + sc.base + '→' + (sc.base + spdSum(P)) + ') · 최고 대비 ' + (ev2.r * 100).toFixed(1) + '% · 이 라운드 팀 <strong>' + (team2 * 100).toFixed(1) + '%</strong> (속공 맞춘 버전 ' + (x.team * 100).toFixed(1) + '%)' +
+      ' — 공략 속공 순서(' + esc(sc.why) + ')를 포기하는 대신 딜 장비만 봅니다. 다른 캐릭터 장비는 위와 같습니다.</p></details>';
+  }));
   box.innerHTML = RS.map(x => (all ? '<h3 style="margin:14px 0 6px">' + esc(ROUND_LABEL[x.c.id] || x.c.n) + ' <span class="muted" style="font-size:13px;font-weight:400">팀 최고 대비 ' + (x.team * 100).toFixed(1) + '%</span></h3>' : '') +
-    x.html + benchHtml(x.c, x.A)).join('');
+    x.html + benchHtml(x.c, x.A)).join('').replace(/<!--ALT:(\d+):(\d+)-->/g, (_, k, i) => altHtml[k + ':' + i] || '');
+  box.querySelectorAll('[data-lowatk]').forEach(b => b.addEventListener('click', () => { const L = aLasts[+b.dataset.ark]; if (!L) return; aOptToggle('lowAtk', L.c.id, b.dataset.lowatk); aRun(); }));
   box.querySelectorAll('[data-asave]').forEach(b => b.addEventListener('click', () => { aSave(+b.dataset.ark, [+b.dataset.asave]); }));
   box.querySelectorAll('[data-afix]').forEach(b => b.addEventListener('click', () => {
     const L = aLasts[+b.dataset.ark], i = +b.dataset.afix, p = presets.find(x => x.id === +b.dataset.pid); if (!p || !L) return;
