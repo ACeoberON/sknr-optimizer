@@ -3715,9 +3715,37 @@ function optimizeAssign(c, excl, only, fixed){   // only: 이번에 고를 캐�
       });
       if (best !== state.carve[i]){ state.carve[i] = best; moved = true; }
     });
+    if (!moved) moved = pairMove();
     if (!moved) break;
   }
   return { A, state, k, short };
+
+  /* 두 칸 동시 교체 — 한 칸씩만 바꾸면 속공 조건 때문에 갇힌다(속공 큰 무기 하나로 조건을 채우면, 그걸 빼는 순간 조건이 깨져서
+     '속공 작은 무기 + 속공 방어구' 조합으로 못 넘어감). 캐릭터 한 명의 두 칸을 남은 장비로 함께 바꿔 본다 */
+  function pairMove(){
+    let bestJ = evalAssign(A, state), best = null;
+    A.chars.forEach((ch, i) => {
+      if (!act(i)) return;
+      const P = state.pieces[i], types = [ch.need, ch.need, 'ar', 'ar'];
+      const pool = t => gear.filter((g, gi) => g.slot === t && !used.has(gi));
+      for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++){
+        const ca = pool(types[a]).concat(P[a] ? [P[a]] : []), cb = pool(types[b]).concat(P[b] ? [P[b]] : []);
+        const ka = P[a], kb = P[b];
+        ca.forEach(ga => cb.forEach(gb => {
+          if (ga === gb || (ga === ka && gb === kb)) return;
+          P[a] = ga; P[b] = gb;
+          const j = evalAssign(A, state);
+          if (j > bestJ + 1e-12){ bestJ = j; best = [i, a, b, ga, gb]; }
+        }));
+        P[a] = ka; P[b] = kb;
+      }
+    });
+    if (!best) return false;
+    const [i, a, b, ga, gb] = best, P = state.pieces[i];
+    [P[a], P[b]].forEach(g => { if (g) used.delete(gear.indexOf(g)); });
+    P[a] = ga; P[b] = gb; used.add(gear.indexOf(ga)); used.add(gear.indexOf(gb));
+    return true;
+  }
 }
 
 /* 여러 라운드 배정 — 두 팀이 동시에 편성되므로 같은 장비를 같이 못 쓴다. 우선순위 단계마다 해당 캐릭터만 남은 장비에서 고른다.
