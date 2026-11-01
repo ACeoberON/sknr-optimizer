@@ -3861,7 +3861,7 @@ function aRound(c, rk){
           return v ? '<br><span class="flat">속공 +' + v + ' — 이 콘텐츠는 ' + esc(ch.name) + '에게 속공이 필요 없어 행동 순서가 꼬일 수 있습니다. 속공 없는 장비가 생기면 바꾸십시오.</span>' : ''; })() + '</span>' +
         '<span><button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
       (dead.length ? '<p class="note" style="margin:8px 0 0"><strong class="flat">ⓘ ' + dead.map(([t, v]) => t + ' ' + Math.round(v) + '줄').join(' · ') + '은 ' + esc(ch.name) + '에게 쓸모없습니다</strong>' + (dead.some(([t]) => t === '치확') ? ' — 이 콘텐츠에서는 패시브·버프·장신구로 치확이 이미 100%라, 치확 줄이 없는 장비(치피·약확·공%)도 이 캐릭터에겐 종결과 같습니다.' : ' — 전투 중 버프·장신구까지 합치면 약확이 이미 100%입니다.') + ' 지금은 속공 조건·남은 장비 때문에 들어갔습니다.</p>' : '') +
-      (((CARD_WARN[c.id] || {})[ch.name]) ? '<p class="note" style="margin:8px 0 0;padding:6px 8px;border-left:3px solid var(--lose, #c0392b);background:rgba(192,57,43,.07)"><strong class="lose">⚠ ' + CARD_WARN[c.id][ch.name] + '</strong></p>' : '') +
+      cardWarns(c, ch.name).map(t => '<p class="note" style="margin:8px 0 0;padding:6px 8px;border-left:3px solid var(--lose, #c0392b);background:rgba(192,57,43,.07)"><strong class="lose">⚠ ' + t + '</strong></p>').join('') +
       (() => { const ad = presetAdvice(c.id, ch.name, state.pieces[i].map(g => g ? g.id : null), state.carve[i]);
         return '<p class="note ' + ad.cls + '" style="margin:8px 0 0">' + ad.html +
           (ad.target ? ' <button type="button" data-ark="' + rk + '" data-afix="' + i + '" data-pid="' + ad.target.id + '" style="padding:2px 8px;font-size:12px">이 배정으로 프리셋 수정</button>' : '') + '</p>'; })() +
@@ -3912,6 +3912,22 @@ function aRun(){
 let aLast = null, aLasts = [];
 /* 장비를 끼면서 바로 봐야 하는 주의사항 — 해당 캐릭터 카드 안에 표시 */
 const LOW_ATK = () => '공격력이 소교보다 낮아야 합니다 — 소교 호접지몽 치피 버프가 공격력 상위 2명에게 가므로 소교보다 높으면 파스칼이 버프를 못 받습니다. 장비를 낀 뒤 캐릭터 화면에서 공격력을 비교하고, 높으면 공% 방어구를 공% 없는 것으로 바꾸십시오. (평타뿐이지만 1R 100만 문턱에 보탬이 되어 배정)';
+/* 공략 원문에서 그 캐릭터 이름이 나오는 라우팅·초고점 줄을 카드로 끌어옴(공략이 바뀌면 자동으로 따라감). 손으로 쓴 CARD_WARN이 있으면 그걸 우선 */
+function cardWarns(c, name){
+  const own = (CARD_WARN[c.id] || {})[name];
+  if (own) return [own];
+  const sec = SECTIONS.find(s => s.title.startsWith(c.g)); if (!sec) return [];
+  const out = [];
+  sec.body.split('\n').forEach(L => {
+    let m = L.match(/^-\s*라우팅[^:：]*[:：]\s*(.+)/), tag = '공격력 조건';
+    if (!m){ m = L.match(/\*\*초 ?고점 디테일\*\*:?\s*(.+)/); tag = '초고점 조건'; }
+    else if (/고점/.test(L)) tag = '초고점 조건';
+    if (!m || !m[1].includes(name)) return;
+    const t = tag + ' — ' + esc(m[1].replace(/\*\*/g, '').trim()) + ' (장비를 낀 뒤 캐릭터 화면 공격력으로 확인 · 판정기는 공격력을 모름)';
+    if (!out.some(x => x.slice(0, 6) === t.slice(0, 6))) out.push(t);
+  });
+  return out;
+}
 const CARD_WARN = {
   r1a: { '레긴': LOW_ATK('레긴'), '미호': LOW_ATK('미호'), '소교': '레긴·미호보다 공격력이 높아야 합니다(호접지몽 버프를 파스칼과 소교가 받도록).' },
   r1b: { '하연': LOW_ATK('하연'), '미호': LOW_ATK('미호'), '소교': '하연·미호보다 공격력이 높아야 합니다(호접지몽 버프를 파스칼과 소교가 받도록).' }
