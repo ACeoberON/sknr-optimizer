@@ -1862,9 +1862,9 @@ const CONTENTS = [
   { id:'sun',  n:'일요일 · 1인기',       g:'일요일', tg:1, pl:8.5, sc:'siege', qb:54, forceQ:true, missZero:true,
     lu:[['세인',6,0,1,54],['헤브니아',3,2,1,54],['샤오',1,2,1,0],['비스킷',1,2,1,0],['아일린',0,2,1,0]] },
   { id:'r1a', wmTeam:1.23,  n:'강림 1R · 4턴 Ver',    g:'강림 1라운드 (4턴', tg:1, pl:0.5, sc:'raid', qb:0, forceQ:true,
-    lu:[['파스칼',1,0,1,0],['소교',1,0,1,0],['레긴',0,0,0,0],['선란',0,0,0,0],['미호',0,0,0,0]] },
+    lu:[['파스칼',1,0,1,0],['소교',1,0,1,0],['레긴',0,0,1,0],['선란',0,0,0,0],['미호',0,0,1,0]] },   // 문턱 구조라 앞열 평타 딜도 통과에 보탬 → 레긴·미호도 배정(사용자 2026-11-01)
   { id:'r1b', wmTeam:1.23,  n:'강림 1R · 8턴 Ver',    g:'강림 1라운드 (8턴', tg:1, pl:1,   sc:'raid', qb:0, forceQ:true,
-    lu:[['파스칼',1,0,1,0],['소교',1,1,1,0],['하연',0,0,0,0],['선란',0,0,0,0],['미호',0,0,0,0]] },
+    lu:[['파스칼',1,0,1,0],['소교',1,1,1,0],['하연',0,0,1,0],['선란',0,0,0,0],['미호',0,0,1,0]] },
   { id:'r2a',  n:'강림 2R · 4턴에 이어서', g:'강림 2라운드', tg:1, pl:8, sc:'raid', qb:54,
     lu:[['세인',5,0,1,54],['헤브니아',3,1,1,54],['샤오',0,3,1,0],['아일린',0,2,1,0],['비스킷',0,2,0,0]] },
   /* 도박 Ver(래밍 2026-11): 2R 스킬 순서가 다르고 38턴에 아일린이 죽어야 함(약 60%). 아일린 사망 후 남은 4명이 더 자주 행동하는 효과는 모델 밖 */
@@ -2167,7 +2167,7 @@ function solveContent(c, carry, maxEnh, safe){
   c.lu.forEach(([name, up, dn, optFlag, qbuff], i) => {
     const ch = charFull(name);
     const role = roleOf(c, i, gs);
-    if (role === 'buff' || (up + dn) === 0){ U.push({ name, skip:true }); return; }
+    if (role === 'buff' || ((up + dn) === 0 && !(RAID1(c.id) && optFlag))){ U.push({ name, skip:true }); return; }   // 1R 문턱: 평타만 치는 앞열도 통과 딜에 보탬
     const share = gs[i] / 100;
     const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb || 0) + teamFx(c, name).c, wm: wmAdd(ch.wm, c.wmTeam),
                  qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn, WM_OTHER[name] != null ? wmAdd(WM_OTHER[name], c.wmTeam) : null, SKL[name]), db: ((CD_BUFF[c.id] || {})[name] || 0) + teamFx(c, name).d, kwon: (KWON[c.id] || []).includes(name), rfix: ((RING_FIX[c.id] || {})[name] || [])[0] };
@@ -3849,6 +3849,7 @@ function aRun(){
       ? '<strong class="lose">장비가 모자랍니다 — ' + r.short.join(', ') + '.</strong> 빈 자리는 “빈 칸”으로 두고 계산해서 점수가 낮게 나옵니다. '
       : '') +
     (r.before.length ? '<span class="muted">' + r.before.join(', ') + '에 배정한 장비 ' + r.exclN + '개와 겹치지 않게 골랐습니다(두 팀이 동시에 편성되므로) · 순서: ' + ({ p2:'2R 주딜 → 2R 부딜 → 1R 주딜 → 1R 부딜', mix:'2R 주딜 → 1R 주딜 → 2R 부딜 → 1R 부딜', p1:'1R 먼저 → 2R' })[r.prio] + '. </span>' : '') +
+    (({ r1a:'레긴·미호', r1b:'하연·미호' })[c.id] ? '<strong class="flat">' + ({ r1a:'레긴·미호', r1b:'하연·미호' })[c.id] + '는 반드시 소교보다 공격력이 낮아야 합니다</strong>(소교 호접지몽 치피 버프가 공격력 상위 2인에게 감) — 판정기는 공격력을 모르니 장비를 낀 뒤 직접 확인하고, 높으면 공% 방어구를 바꾸세요. 둘은 평타뿐이지만 1R은 100만 문턱이라 평타 딜도 통과에 보탬이 되어 함께 배정합니다. ' : '') +
     '<strong>팀 최고 대비 ' + (team * 100).toFixed(1) + '%</strong> — 지금 가진 장비 안에서 고른 결과라 세팅 탭의 목표 숫자와 다를 수 있습니다.';
   $('aNote').innerHTML = '목표 탭과 같은 기준(마을 스탯, 팀 점수). 카드는 게임 장비 카드와 같은 순서라 그대로 찾아 끼우면 됩니다. “프리셋 없음”은 이 캐릭터의 저장된 프리셋이 없다는 뜻이며, “프리셋으로 저장”을 누르면 다음부터 비교합니다.' +
     (spdRuleFor(c.id) ? ' <strong>속공 조건</strong>(' + Object.keys(spdRuleFor(c.id)).join('·') + ')을 딜보다 먼저 맞춥니다 — 속공은 종결 장비의 4번째 부옵(모공% 자리)에 있으면 치확·치피·약확 손해가 없습니다.' : '') +
