@@ -4105,15 +4105,49 @@ const CARD_WARN = {
 };
 /* 배정 대상이 아닌 편성 인원(버퍼·토템) — 공략대로 세팅만 안내 */
 const BENCH_NOTE = { r2a:{ '비스킷':'출혈 반지 · 막기 최대한' }, r2b:{ '비스킷':'출혈 반지 · 막기 최대한' }, r2c:{ '비스킷':'출혈 반지 · 막기 최대한' }, r1a:{ '선란':'장비·반지·전용장비 전부 해제' }, r1b:{ '선란':'장비·반지·전용장비 전부 해제' } };
+/* 공략 원문에서 그 캐릭터의 '장비 세팅 추천' 행(열/속공 · 세트·주옵 · 지침)과 '속공 이상적인 그림'의 숫자를 꺼냄 */
+function guideRow(c, name){
+  const sec = SECTIONS.find(s2 => s2.title.startsWith(c.g)); if (!sec) return null;
+  const L = sec.body.split('\n'), clean = t => t.replace(/\*\*/g, '').trim();
+  const row = L.map(l => l.split('|').map(x => x.trim())).find(cs => cs.length >= 5 && clean(cs[1]) === name && /열|순위/.test(cs[2]));   // '장비 세팅 추천' 표의 행만(단위 표 제외)
+  const pic = L.find(l => /속공 이상적인 그림/.test(l)), m = pic && pic.match(new RegExp(name + '\\((\\d+)\\)'));
+  const ringL = L.find(l => /^-\s*반지/.test(l) && l.includes(name));
+  return row ? { pos: clean(row[2]), gear: clean(row[3]), tip: clean(row[4]), spd: m ? +m[1] : null, ring: ringL ? clean(ringL.replace(/^-\s*/, '')) : '' } : null;
+}
+/* '방방막받' 같은 약어 → 부위별 주옵. 앞 2글자 = 무기 2개, 뒤 2글자 = 방어구 2개 */
+const MAIN_ABBR = { '방':'방어력%', '막':'막기 확률', '받':'받는 피해 감소', '생':'생명력%', '공':'공격력%', '치확':'치명타 확률', '치피':'치명타 피해', '약':'약점 공격 확률' };
+function decodeMains(t){
+  const m = t.match(/(토템용|[가-힣]+?)\s+((?:방|막|받|생|공)+)$/); if (!m) return null;
+  const k = [...m[2]]; if (k.length !== 4) return null;
+  return { set: m[1], w: k.slice(0, 2).map(x => MAIN_ABBR[x]), a: k.slice(2).map(x => MAIN_ABBR[x]) };
+}
 function benchHtml(c, A){
   const got = new Set(A.chars.map(ch => ch.name));
   const rest = c.lu.map(l => l[0]).filter(n => !got.has(n));
   if (!rest.length) return '';
-  return rest.map(n => { const so = (SPD_ORDER[c.id] || {})[n], x = setOf(c.id, n), note = (BENCH_NOTE[c.id] || {})[n];
-    return '<div class="pcard" style="opacity:.92"><div class="p-h"><div><b>' + esc(n) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">배정 제외 · 버퍼·토템</span>' + setTag(c.id, n) + '</div></div>' +
-      '<p class="note" style="margin:4px 0 0">' + (x ? (x[0] === '토템용' ? '' : '<strong>' + esc(x[0]) + ' 4세트</strong> · 주옵 ' + esc(x[1])) : '') +
-      (so ? (x && x[0] !== '토템용' ? ' · ' : '') + (so[0] === 'back' ? '후열' : '전열') + (so[1] ? ' · 속공 ' + (so[1][0] === so[1][1] ? so[1][0] : so[1][0] + '~' + so[1][1]) + '순위' : '') : '') +
-      (note ? ' · <strong>' + esc(note) + '</strong>' : '') + ' — 자세한 건 공략 탭.</p></div>'; }).join('');
+  return rest.map(n => {
+    const g = guideRow(c, n), so = (SPD_ORDER[c.id] || {})[n], note = (BENCH_NOTE[c.id] || {})[n], rf = (RING_FIX[c.id] || {})[n];
+    const dm = g && decodeMains(g.gear), noGear = g && /장비 X/.test(g.gear);
+    const rows = [];
+    if (noGear) rows.push(['장비', '<strong>아무것도 끼지 않음</strong> (반지·전용장비도 해제)']);
+    else if (dm){
+      rows.push(['세트', dm.set === '토템용' ? '<strong>상관없음</strong> — 탱커용 아무 세트' : '<strong>' + esc(dm.set) + ' 4세트</strong>' + (SETS[dm.set] ? ' <span class="muted">(' + esc(SETS[dm.set][1]) + ')</span>' : '')]);
+      rows.push(['무기 주옵', dm.w.map(esc).join(' · ')]);
+      rows.push(['방어구 주옵', dm.a.map(esc).join(' · ')]);
+      const all = dm.w.concat(dm.a);
+      rows.push(['부옵', all.every(x => x === '공격력%') ? '공격력% 위주 (공격력 조건용)' :
+        all.every(x => x === '생명력%') ? '생명력% 위주 (단단하게)' :
+        all.includes('막기 확률') || /막기|막확/.test(g.tip) ? '막기 확률 우선 → 방어력%·생명력% (단단하게)' : '방어력%·생명력%·막기 (단단하게)']);
+    } else if (g) rows.push(['세트·주옵', esc(g.gear)]);
+    const spdTxt = g && g.spd ? '<strong>' + g.spd + '</strong>' + (g.pos ? ' (' + esc(g.pos.replace(/^(전열|후열)\s*·\s*/, '')) + ')' : '') : (so && so[1] ? (so[1][0] === so[1][1] ? so[1][0] : so[1][0] + '~' + so[1][1]) + '순위' : '');
+    if (g || so) rows.push(['자리·속공', (g && /후열/.test(g.pos) || (so && so[0] === 'back') ? '후열' : '전열') + (spdTxt ? ' · 속공 ' + spdTxt : '') + (/속공템 X/.test(g ? g.tip : '') ? ' · <strong class="lose">속공 장비 금지</strong>' : '')]);
+    const ringTxt = rf ? ringName(rf[0]) + ' <span class="muted">(' + esc(rf[1]) + ')</span>' : g && /반지/.test(g.tip) ? esc((g.tip.match(/[^·,]*반지[^·,]*/) || [''])[0].trim()) : g && g.ring ? esc(g.ring) : noGear ? '없음' : '생존용 아무거나';
+    rows.push(['반지', ringTxt]);
+    if (g && g.tip) rows.push(['공략 지침', esc(g.tip)]);
+    if (note) rows.push(['주의', '<strong>' + esc(note) + '</strong>']);
+    return '<div class="pcard" style="opacity:.95"><div class="p-h"><div><b>' + esc(n) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">배정 제외 · 버퍼·토템 — 공략대로 세팅</span>' + setTag(c.id, n) + '</div></div>' +
+      '<table style="margin:6px 0 0;font-size:13px;border-collapse:collapse">' + rows.map(([k, v]) => '<tr><td class="muted" style="padding:2px 12px 2px 0;white-space:nowrap;vertical-align:top">' + k + '</td><td style="padding:2px 0">' + v + '</td></tr>').join('') + '</table></div>';
+  }).join('');
 }
 $('aRun').addEventListener('click', aRun);
 $('aPrio').addEventListener('change', () => { if (aLast) aRun(); });
