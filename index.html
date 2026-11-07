@@ -4131,7 +4131,10 @@ function benchHtml(c, A){
     const rows = [];
     if (noGear) rows.push(['장비', '<strong>아무것도 끼지 않음</strong> (반지·전용장비도 해제)']);
     else if (dm){
-      rows.push(['세트', dm.set === '토템용' ? '<strong>상관없음</strong> — 탱커용 아무 세트' : '<strong>' + esc(dm.set) + ' 4세트</strong>' + (SETS[dm.set] ? ' <span class="muted">(' + esc(SETS[dm.set][1]) + ')</span>' : '')]);
+      /* 공략이 '토템용'(세트 무관)이라도 확답을 줌: 막기 주옵이면 수문장(막기 30%), 받피감뿐이면 주술사, 그 외엔 가진 탱커 세트 */
+      const pick = dm.a.includes('막기 확률') ? '수문장' : dm.a.every(x => x === '받는 피해 감소') ? '주술사' : '';
+      rows.push(['세트', dm.set === '토템용' ? (pick ? '<strong>' + pick + ' 4세트</strong>' + (SETS[pick] ? ' <span class="muted">(' + esc(SETS[pick][1]) + ')</span>' : '') +
+          ' — 공략은 “세트 무관”. 주옵이 막기 세팅이라 막기 확률을 올려주는 ' + pick + '이 맞음 (없으면 가진 탱커 세트 아무거나)' : '<strong>가진 탱커 세트 아무거나</strong> — 공략이 세트 무관') : '<strong>' + esc(dm.set) + ' 4세트</strong>' + (SETS[dm.set] ? ' <span class="muted">(' + esc(SETS[dm.set][1]) + ')</span>' : '')]);
       rows.push(['무기 주옵', dm.w.map(esc).join(' · ')]);
       rows.push(['방어구 주옵', dm.a.map(esc).join(' · ')]);
       const all = dm.w.concat(dm.a);
