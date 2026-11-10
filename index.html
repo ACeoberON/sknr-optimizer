@@ -361,6 +361,7 @@ h1 .t{white-space:nowrap}
   <p class="note" style="margin-top:6px" id="sFoot"></p>
   <div class="row-actions" style="margin-top:10px"><button type="button" id="toGoal">내 스펙으로 확인하기 →</button><span class="note">지금 스탯을 넣으면 최고 대비 몇 %인지, 어디를 고칠지 알려 줍니다.</span></div>
   <div id="sOps" class="set-ops"></div>
+  <details id="sSena" style="margin-top:14px"><summary><strong>세나링크 길드 허브에 옮겨 적기</strong> <span class="muted" style="font-size:12px">— 덱 수정 화면 칸 이름 그대로</span></summary><div id="sSenaBody"></div></details>
 </section>
 <details class="card" id="tgtCard" style="margin-top:14px">
   <summary>고점 상세 — 줄 수 · 강화 횟수</summary>
@@ -4412,6 +4413,63 @@ function spdLine(c){
   return '<tr><td colspan="7" class="note" style="text-align:left;white-space:normal">' + t + '</td></tr>';
 }
 
+/* ── 세나링크 길드 허브 옮겨 적기 ── 세나링크 덱 수정 화면의 칸 이름(세트·무기 1·2·방어구 1·2·장신구·메모)에 맞춰 출력 */
+const SENA_MAIN = { c:'치명타 확률', d:'치명타 피해', w:'약점 공격 확률', '방':'방어력(%)', '막':'막기 확률', '받':'받는 피해 감소', '생':'생명력(%)', '공':'모든 공격력(%)' };
+const SENA_RING = { tb:'토벌의 반지', kw:'권능의 반지', rv:'부활의 반지', dot:'샐리맨더의 반지', sg:'토벌의 반지' };
+const SENA_CARVE = { crit:'치확+10', weak:'약확+12', sg:'공성+10%', dot:'출혈·도트', tb:'토벌', kw:'권능' };
+function senaRing(cv){
+  const [m, sub] = normRing(cv).split('+');
+  return { main: SENA_RING[m] || '토벌의 반지', carve: sub ? (SENA_CARVE[sub] || sub) : '' };
+}
+/* 공략 원문의 라우팅·초고점 줄 중 이 영웅 이름이 나오는 것 — 짧은 원문 그대로 */
+function senaRoute(c, name){
+  const sec = SECTIONS.find(s2 => s2.title.startsWith(c.g)); if (!sec) return [];
+  const out = [];
+  sec.body.split('\n').forEach(L => {
+    const m = L.match(/^-\s*라우팅[^:：]*[:：]\s*(.+)/) || L.match(/\*\*초 ?고점 디테일\*\*:?\s*(.+)/);
+    if (!m || !m[1].includes(name)) return;
+    const t = m[1].replace(/\*\*/g, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (!out.some(x => x === t) && !(out.length && /초 ?고점/.test(L))) out.push(t);
+  });
+  return out;
+}
+function senaBlock(c, safe){
+  const { U } = solveContent(c, GOAL_CARRY, GOAL_MAXENH, safe);
+  const sp = solveSpeed(c.id), plan = sp && sp.plan;
+  const rows = U.map(u => {
+    const name = u.name, spd = plan && plan[name] ? plan[name].base + plan[name].e : (guideRow(c, name) || {}).spd;
+    const warns = senaRoute(c, name);
+    let set, w, a, ring, memo;
+    if (u.skip || !u.pick){
+      const g = guideRow(c, name), dm = g && decodeMains(g.gear), noGear = g && /장비 X/.test(g.gear);
+      if (noGear) return { name, set:'(장비 없음)', w:['—','—'], a:['—','—'], ring:'없음', memo:'장비·반지·전용장비 모두 해제' + (spd ? ' · 속공 ' + spd : '') };
+      const pick = dm && dm.set === '토템용' ? (dm.a.includes('막기 확률') ? '수문장' : '주술사') : dm ? dm.set : (setOf(c.id, name) || ['—'])[0];
+      const ab = dm ? [...(g.gear.match(/((?:방|막|받|생|공)+)$/) || ['', ''])[1]] : [];
+      set = pick; w = ab.slice(0, 2).map(x => SENA_MAIN[x] || x); a = ab.slice(2).map(x => SENA_MAIN[x] || x);
+      const rf = (RING_FIX[c.id] || {})[name]; ring = rf ? senaRing(rf[0]).main : (g && /권능/.test(g.tip) ? '권능의 반지' : g && /출혈/.test(g.tip) ? '샐리맨더의 반지' : '불사의 반지');
+      memo = '버퍼·탱커 — 단단하게' + (spd ? ' · 속공 ' + spd : '') + (g && /속공템 X/.test(g.tip) ? ' · 속공 장비 금지' : '');
+      if (!w.length){ w = ['—','—']; a = ['—','—']; }
+      return { name, set, w, a, ring, memo };
+    }
+    const b = u.pick, r = senaRing(b.cv), x = setOf(c.id, name);
+    set = x ? x[0] : '복수자'; w = b.main.split('').map(k => SENA_MAIN[k]); a = ['모든 공격력(%)', '모든 공격력(%)'];
+    const qShow = !(safe ? !(c.forceQ || (u.cc.main && !b.qFree)) : qSpare(c, u, b));
+    memo = '마을 치확 ' + b.vc + ' · 치피 ' + (safe ? '최대한' : b.vd) + (qShow ? ' · 약확 ' + b.vq : ' · 약확 장비 X') +
+      (r.carve ? ' · 세공 ' + r.carve : '') + (spd ? ' · 속공 ' + spd : '') + (warns.length ? ' · ' + warns.join(' / ') : '');
+    return { name, set, w, a, ring: r.main, memo };
+  });
+  const td = v => '<td style="padding:4px 8px;border-top:1px solid var(--line, #ddd);vertical-align:top">' + v + '</td>';
+  const all = rows.map(r => r.name + ' | ' + r.set + ' | 무기 ' + r.w.join(' · ') + ' | 방어구 ' + r.a.join(' · ') + ' | ' + r.ring + ' | ' + r.memo).join('\n');
+  const rk = n0 => { const so = (SPD_ORDER[c.id] || {})[n0]; return so && so[1] ? so[1][0] : 9; };   // 같은 속공이면 공략 순위대로
+  const order = plan ? Object.entries(plan).sort((p, q) => (q[1].base + q[1].e) - (p[1].base + p[1].e) || rk(p[0]) - rk(q[0]) || (p[1].row === 'front' ? -1 : 1)).map(([n0]) => n0) : [];
+  return '<div class="scroll"><table style="font-size:12.5px;border-collapse:collapse;min-width:640px"><thead><tr><th>영웅</th><th>세트</th><th>무기 1 · 2</th><th>방어구 1 · 2</th><th>장신구</th><th>메모</th></tr></thead><tbody>' +
+    rows.map(r => '<tr>' + td('<strong>' + esc(r.name) + '</strong>') + td(esc(r.set)) + td(r.w.map(esc).join('<br>')) + td(r.a.map(esc).join('<br>')) + td(esc(r.ring)) +
+      td(esc(r.memo) + ' <button type="button" class="ghost" style="padding:2px 8px;font-size:12px" data-copy="' + esc(r.memo) + '">메모 복사</button>') + '</tr>').join('') +
+    '</tbody></table></div>' +
+    (order.length ? '<p class="note" style="margin:6px 0 0">세나링크 <strong>속공 순서</strong> 칸: ' + order.map(esc).join(' → ') + '</p>' : '') +
+    '<div class="row-actions" style="margin-top:6px"><button type="button" class="ghost" data-copy="' + esc(all) + '">이 표 전체 복사</button></div>';
+}
+
 function setRun(){
   PICK.sContent && PICK.sContent();
   const opt = SET_OPTS.find(x => x.id === $('sContent').value);
@@ -4448,6 +4506,12 @@ function setRun(){
     ' · ' + (safe ? '<strong>안전</strong> — 치확 99, 나머지는 치피' : '<strong>고점</strong> — 최고 기록용 배분');
 
   $('sOps').innerHTML = parts.map(c => (multi ? '<h3 style="margin:14px 0 6px">' + (ROUND_LABEL[c.id] || c.n) + '</h3>' : '') + setOps(c)).join('');
+  $('sSenaBody').innerHTML = parts.map(c => (multi ? '<h3 style="margin:14px 0 6px">' + (ROUND_LABEL[c.id] || c.n) + '</h3>' : '') + senaBlock(c, safe)).join('') +
+    '<p class="note" style="margin-top:8px">세나링크 길드 허브 → 공성전/강림 → 덱 수정 → 영웅별 <strong>장비 세팅</strong>에서 세트·무기·방어구·장신구를 고르고, <strong>메모</strong> 칸에 “메모 복사”한 줄을 붙여 넣으십시오. 세나링크 장신구 칸에는 치확·약확·공성 세공이 없어서 세공은 메모에 적힙니다.</p>';
+  $('sSenaBody').querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+    const t = b.dataset.copy, done = () => { const o0 = b.textContent; b.textContent = '복사됨'; setTimeout(() => { b.textContent = o0; }, 1200); };
+    try { navigator.clipboard.writeText(t).then(done, () => { prompt('복사하세요', t); }); } catch (e) { prompt('복사하세요', t); }
+  }));
   alignNotes($('sOps'));
 }
 $('sContent').addEventListener('input', setRun);
