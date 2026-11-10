@@ -1862,7 +1862,7 @@ const CONTENTS = [
   /* cbTo: 클로에 +27을 '계산에 넣는' 캐릭터. 버프 자체는 아군 전체지만, 리나·비스킷은 1라운드를 5턴 안에 넘겨야 해서
      클로에 위(1라 4턴) 전 평타부터 터져야 함 → 자기 힘으로 치확 100(영상 마을 89 + 세공 10). 사용자 확인 2026-11-11.
      나타 40·미호 73·클로에 73은 +27로 전투 100 */
-  { id:'tue', wmTeam:1.23, cb:27, cbTo:['나타','미호','클로에'], n:'화요일',              g:'화요일', tg:3, pl:8.5, sc:'siege', qb:54,
+  { id:'tue', wmTeam:1.23, cb:27, cbTo:['나타','미호','클로에'], forceC:['리나','비스킷','클로에'], n:'화요일',              g:'화요일', tg:3, pl:8.5, sc:'siege', qb:54,
     lu:[['나타',3,3,1,54],['미호',3,3,1,54],['비스킷',1,2,1,0],['클로에',3,0,1,0],['리나',0,0,1,0]] },
   { id:'wed', wmTeam:1.23,  n:'수요일',              g:'수요일', tg:3, pl:8.5, sc:'siege', qb:54,
     // 수요일: 공격력 상위 2명 = 나타·리나(선봉장 공공공공). 미호는 '리나보다 공 낮게'라 비스킷 버프를 받지 않음
@@ -2127,6 +2127,7 @@ function solveOne(c, k, opt, noW){
         if (p >= 100 + LINE.c && uc > UNIT_MIN) continue;
         if (q >= 100 + LINE.w && uw > UNIT_MIN) continue;
         if (opt.forceQ && q < 100) continue;         // 미스 = 딜 0 / 문턱 구조
+        if (opt.forceP && p < 99) continue;          // 콘텐츠가 지정한 '치확 100 필수' 캐릭터(화요일 리나·비스킷·클로에 — 1R 5턴 문턱, 클로에는 +27 포함 100)
         const mx = opt.maxEnh ?? 20;                 // 한 스탯에 몰 수 있는 강화 한계
         if (uc - UNIT_MIN > mx || ud - UNIT_MIN > mx || uw - UNIT_MIN > mx) continue;
         const r = opt.missZero
@@ -2179,7 +2180,7 @@ function solveContent(c, carry, maxEnh, safe){
     const share = gs[i] / 100;
     const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb && (!c.cbTo || c.cbTo.includes(name)) ? c.cb : 0) + teamFx(c, name).c, wm: wmAdd(ch.wm, c.wmTeam),
                  qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn, WM_OTHER[name] != null ? wmAdd(WM_OTHER[name], c.wmTeam) : null, SKL[name]), db: ((CD_BUFF[c.id] || {})[name] || 0) + teamFx(c, name).d, kwon: (KWON[c.id] || []).includes(name), rfix: ((RING_FIX[c.id] || {})[name] || [])[0] };
-    let cand = solveOne(cc, k, opt);
+    let cand = solveOne(cc, k, (c.forceC || []).includes(name) ? Object.assign({}, opt, { forceP: true }) : opt);
     /* 안전 모드의 약확은 둘 중 하나로만 낸다 — 99 이상으로 채우거나, 약확 줄을 빼고 '선택'.
        서브 딜러 중 약확이 쓸모 있는 캐릭터(배율 1.5 이상)는 두 안을 만들어 평균이 높은 쪽을 고른다. */
     const ref = (opt.missZero ? calcMiss(100, 300, 100, k, cc.H)
@@ -2860,7 +2861,7 @@ function setContent(id){
 $('gContent').value = ['sun','monb','tue','wed','thu','fri','sat'][new Date().getUTCDay()];
 function guessShare(c){
   if (SHARE[c.id]) return SHARE[c.id].slice();
-  const w = c.lu.map(([, up, dn]) => up + dn * 0.2);
+  const w = c.lu.map(([, up, dn, f]) => up + dn * 0.2 + (f && !(up + dn) ? 0.3 : 0));   // 평타만 치는 딜 대상(화요일 리나)도 0%가 되지 않게
   const s = w.reduce((a, b) => a + b, 0) || 1;
   return w.map(x => Math.round(x / s * 100));
 }
@@ -3659,6 +3660,10 @@ function evalAssign(A, state){
        평균만 보면 약확 50과 100이 비슷해도 판 단위 실패가 생기므로 목표 탭(forceQ)과 같은 기준을 배정에도 건다 */
     /* 파괴신 1R(r1a·r1b)은 제외 — 2026-11-02 실측 7판 모두 1R 피해가 한 자리까지 같았음(1,022,614) = 치명·약공이 매번 다 터짐.
        판정기에 없는 약확·치확 수급(편성 버프 추정)이 있다는 뜻이라, 여기서 약확 100을 다시 강제하면 장비만 낭비 */
+    if ((A.c.forceC || []).includes(ch.name)){                    // 콘텐츠 지정 '치확 100 필수'(화요일 리나·비스킷)
+      const cvv = CARVES[state.carve[i]] || [0, 0, 1], pc = s.vc + (ch.u.cc.pf || 0) + cvv[0];
+      pen += FORCE_W * Math.max(0, 99 - pc);
+    }
     if ((A.c.forceQ || EXPED(A.c.id)) && !['r1a', 'r1b'].includes(A.c.id)){
       const cvv = CARVES[state.carve[i]] || [0, 0, 1], q = s.vq + (ch.u.cc.qb || 0) + cvv[1], pc = s.vc + (ch.u.cc.pf || 0) + cvv[0];
       const w = ch.share >= 0.2 ? 1 : 0.3;
