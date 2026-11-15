@@ -3115,12 +3115,13 @@ function applyState(o){
   if (o.mine && typeof o.mine === 'object') { mine = o.mine; mineMigrate(); mPersist(); }
   if (o.trial && typeof o.trial === 'object') { trial = o.trial; trPersist(); }
   if (Array.isArray(o.presets)) { presets = o.presets; pPersist(); }
+  if (o.surv && typeof o.surv === 'object') { survMe = o.surv; survPersist(); }
   try {
     localStorage.setItem(GKEY, JSON.stringify(gear));
   } catch {}
   gRowsInit(); gRender(); goalRun(); cRowsInit(); pRender();
 }
-const stateBundle = () => ({ v: 2, gear, trans, mine, trial, presets });
+const stateBundle = () => ({ v: 2, gear, trans, mine, trial, presets, surv: survMe });
 
 /* ══════════ 장비 탭 ══════════ */
 const GKEY = 'sknr-judge-gear';
@@ -3853,22 +3854,61 @@ function atkSide(c, name){
   }
   return atkSideCache[c.id][name] || 0;
 }
-/* 생존 조건(방어력·생명력) — 공략이 '방어력 1,400 · 생명력 8,600 이상'처럼 정한 캐릭터.
-   방어구 1장 = 방어력 189 · 생명력 1,079 (주옵과 무관). 부옵 1줄(강화 1회 = 1줄): 생명력 +180 · 생명력% +5% · 방어력% +5% (2026-11-15 장비 화면 확인).
-   %는 장비를 뺀 캐릭터 기본값(잠재 포함)에 붙는다고 가정. 깡방어 줄 값은 미확인(0으로 계산).
-   기본값은 캐릭터 화면에서 역산 — 사람마다 초월·잠재가 다르니 다른 길드원은 값이 다를 수 있음 */
+/* 생존 조건(방어력·생명력) — 공략이 정한 캐릭터별 방어·생명.
+   필요 수치는 누구에게나 같고(보스가 때리는 세기), 사람마다 다른 건 캐릭터 기본값(초월·잠재) → 화면 숫자 한 번으로 역산해 그 사람 기준으로 맞춘다.
+   방어구 1장 = 방어 189 · 생명 1,079 (주옵 무관). 부옵 1줄: 생명 +180 · 깡방어 +30 · 생명%/방어% = 기본값 × 비율(실측 2026-11-15:
+   레이첼 기본 방어 990 → 방어% 1줄 33, 기본 생명 5,949 → 생명% 1줄 184 · 비스킷 방어% 1줄 34).
+   kind: min = 이상이어야 함(배정에 반영) · near = 이 근처(죽는 타이밍용 — 너무 단단해도 안 됨, 표시만) */
 const ARMOR_HD = { def: 189, hp: 1079 };
-const SURV_BASE = { '레이첼': { def: 990, hp: 5949, defLine: 33, hppLine: 184 } };   // hppLine = 생명력% 1줄 실측(2026-11-15: #51 생명% 1줄 끼고 9,011 — 기본값의 5%(297)가 아니라 184)   // defLine = 방어력% 1줄 실측(2026-11-15: #46 방어% 1줄 끼고 1,401 — 기본값의 5%(50)가 아니라 33 → %는 잠재 뺀 기본에 붙는 듯)   // 2026-11-15 사용자 화면: #49·#10·#29·#68 착용 방어 1,368 · 생명 8,287 − 방어구 2장 − #68 생명 1줄(180)
-const SURV_NEED = { r2d: { '레이첼': { def: 1400, hp: 8600 } } };   // 공략값. 2026-11-15 1,450 / 9,000 여유도 시험했으나 3인기 피격 시 권능은 그대로 터짐(피격 여부 = 운) → 공략값으로 복귀
-const SURV_MISS = 0.05;                     // 조건 못 맞추면 팀 −5%p 상당 + 모자란 만큼 더 (사실상 조건 우선)
-function survOf(name, pieces){
-  const b = SURV_BASE[name]; if (!b) return null;
-  let def = b.def, hp = b.hp;
+const SURV_RATIO = { def: 33 / 990, hp: 184 / 5949 };
+const SURV_BASE = { '레이첼': { def: 990, hp: 5949 } };   // 사용자 값이 없을 때 쓰는 기본(제작자 레이첼, 2026-11-15)
+const SURV_NEED = { r2d: {
+  '레이첼': { def: 1400, hp: 8600, kind: 'min', src: '래밍 공략 — 파괴신 3인기를 맞으면 이 값이어도 권능이 터질 수 있음(운)' },
+  '아일린': { def: 1457, hp: 9541, kind: 'near', src: '차토(디시) 고점 빌드 아일린 — 14턴 3인기·17턴 평타에 죽어야 해서 너무 단단하면 안 됨' },
+  '비스킷': { def: 1867, hp: 10189, kind: 'near', src: '차토(디시) 고점 빌드 비스킷(막기 0 · 받피감 26%) — 22턴 평타에 죽고 부활해야 함' } } };
+const SURV_NEAR = 0.03;                     // near: ±3% 안이면 OK
+const SURV_MISS = 0.05;                     // min 조건 못 맞추면 팀 −5%p 상당 + 모자란 만큼 더 (사실상 조건 우선)
+var survMe = {}; try { survMe = JSON.parse(localStorage.getItem('sknr_surv') || '{}') || {}; } catch (e) { survMe = {}; }
+const survPersist = () => { try { localStorage.setItem('sknr_surv', JSON.stringify(survMe)); } catch (e) {} };
+const survBase = n => (survMe[n] && survMe[n].def ? survMe[n] : null) || SURV_BASE[n] || null;
+/* 장비가 더하는 방어·생명 — %줄은 기본값 b에 비례 */
+function gearHD(pieces, b){
+  let def = 0, hp = 0, kd = 0, kh = 0;
   pieces.forEach(g => { if (!g) return;
     if (g.slot === 'ar'){ def += ARMOR_HD.def; hp += ARMOR_HD.hp; }
     (g.subs || []).forEach(([k, e]) => { const n = (e || 0) + 1;
-      if (k === 'hp') hp += 180 * n; else if (k === 'hpp') hp += b.hppLine ? b.hppLine * n : Math.round(0.05 * n * b.hp); else if (k === 'defp') def += b.defLine ? b.defLine * n : Math.round(0.05 * n * b.def); }); });
-  return { def, hp };
+      if (k === 'hp') hp += 180 * n; else if (k === 'def') def += 30 * n; else if (k === 'hpp') kh += n; else if (k === 'defp') kd += n; }); });
+  return { def, hp, kd, kh, add: b ? { def: def + Math.round(SURV_RATIO.def * b.def) * kd, hp: hp + Math.round(SURV_RATIO.hp * b.hp) * kh } : null };
+}
+function survOf(name, pieces){
+  const b = survBase(name); if (!b) return null;
+  const a = gearHD(pieces, b).add;
+  return { def: b.def + a.def, hp: b.hp + a.hp, mine: !!(survMe[name] && survMe[name].def) };
+}
+/* 화면 숫자 → 기본값 역산: 화면 = B + 고정분 + 줄수 × 비율 × B */
+function survSolve(name, pieces, sd, sh){
+  const g = gearHD(pieces, null);
+  return { def: Math.round((sd - g.def) / (1 + g.kd * SURV_RATIO.def)), hp: Math.round((sh - g.hp) / (1 + g.kh * SURV_RATIO.hp)), at: new Date().toISOString().slice(0, 10) };
+}
+/* 카드 표시 + 입력 칸. pieces 없으면(배정 제외 카드) 화면 숫자를 그대로 비교 */
+function survHtml(cid, name, pieces, rk, i){
+  const nd = (SURV_NEED[cid] || {})[name]; if (!nd) return '';
+  const near = nd.kind === 'near';
+  let sv = pieces ? survOf(name, pieces) : (survMe[name] && survMe[name].sdef ? { def: survMe[name].sdef, hp: survMe[name].shp, mine: true } : null);
+  const mark = (v, t) => { if (near){ const d = (v - t) / t; return Math.abs(d) <= SURV_NEAR ? 'win' : 'lose'; } return v >= t ? 'win' : 'lose'; };
+  const fmt = (v, t) => near ? '<strong class="' + mark(v, t) + '">' + v.toLocaleString() + '</strong> <span class="muted">(목표 ≈' + t.toLocaleString() + ', ' + (v >= t ? '+' : '') + (v - t).toLocaleString() + ')</span>'
+                             : '<strong class="' + mark(v, t) + '">' + v.toLocaleString() + '</strong>/' + t.toLocaleString();
+  const head = '<div class="note" style="margin:6px 0 0;padding:6px 10px;border:1px dashed var(--line);border-radius:8px">' +
+    '<strong>' + (near ? '생존 목표(근처)' : '생존 조건(이상)') + '</strong> ' +
+    (sv ? '방어 ' + fmt(sv.def, nd.def) + ' · 생명 ' + fmt(sv.hp, nd.hp) + (sv.mine ? '' : ' <span class="flat">— 추정(판정기 기본값). 내 화면 숫자를 넣으면 정확해짐</span>')
+        : '<span class="flat">아래에 내 화면 숫자를 넣으면 비교합니다</span>') +
+    (!near && sv && sv.mine && (sv.def < nd.def || sv.hp < nd.hp) ? '<br><strong class="lose">가진 장비로는 못 맞춥니다 — ' + [sv.def < nd.def ? '방어 ' + (nd.def - sv.def) : '', sv.hp < nd.hp ? '생명 ' + (nd.hp - sv.hp).toLocaleString() : ''].filter(Boolean).join(' · ') + ' 부족. 방어%·생명% 부옵 장비나 잠재가 더 필요합니다</strong>' : '') +
+    '<br><span class="muted" style="font-size:12px">' + esc(nd.src) + '</span>';
+  const inp = '<details style="margin-top:4px"' + (sv && sv.mine ? '' : ' open') + '><summary style="font-size:12px;cursor:pointer">' + (pieces ? '내 화면 방어·생명 입력 — 위 장비 4개를 낀 상태의 캐릭터 화면 숫자' : '내 화면 방어·생명 입력 (지금 낀 상태)') + '</summary>' +
+    '<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">방어 <input type="number" inputmode="numeric" data-svd style="width:80px"> 생명 <input type="number" inputmode="numeric" data-svh style="width:90px">' +
+    '<button type="button" data-svsave="' + esc(name) + '" data-ark="' + rk + '"' + (pieces ? ' data-svi="' + i + '"' : '') + '>저장</button>' +
+    (survMe[name] ? '<button type="button" data-svdel="' + esc(name) + '">지우기</button>' : '') + '</span></details>';
+  return head + inp + '</div>';
 }
 const FORCE_W = 0.01;                       // 전투 약확·치확 1 모자랄 때마다 팀 −1%p 상당(주딜 기준, 평타 요원은 0.3배)
 const ATK_MISS = 0.05;                      // 목표 줄 수를 1줄 못 맞출 때마다 팀 점수 −5%p 상당 (사실상 조건 우선)
@@ -3898,7 +3938,7 @@ function evalAssign(A, state){
       const w = ch.share >= 0.2 ? 1 : 0.3;
       pen += w * FORCE_W * (Math.max(0, 100 - q) + ((RAID1(A.c.id) || EXPED(A.c.id)) ? Math.max(0, 99 - pc) : 0));
     }
-    { const nd = (SURV_NEED[A.c.id] || {})[ch.name], sv = nd && survOf(ch.name, state.pieces[i]);
+    { const nd = (SURV_NEED[A.c.id] || {})[ch.name], sv = nd && nd.kind === 'min' && survOf(ch.name, state.pieces[i]);
       if (sv) pen += SURV_MISS * ((sv.def < nd.def ? 1 + (nd.def - sv.def) / 100 : 0) + (sv.hp < nd.hp ? 1 + (nd.hp - sv.hp) / 1000 : 0)); }
     const pv = (aPrev[A.c.id] || {})[ch.name];                     // 직전 결과 유지 가점 — 이득이 거의 없는 자리바꿈(동점 흔들림)으로 다른 캐릭터 장비가 바뀌지 않게
     if (pv && !(ADJ && (ADJ.reset || (!ADJ.keep && ADJ.cid === A.c.id && ADJ.name === ch.name)))) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
@@ -4178,10 +4218,7 @@ function aRound(c, rk){
           (isNew ? ' <strong class="flat">🔄 새로 끼기</strong>' : '') + '</div>' + gCard(g, true) + '</div>'; }).join('') + '</div></details>' +
       '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong>' +
         (() => { const cc = ch.u.cc || {}, cv = CARVES[state.carve[i]] || [0, 0], bp = s.vc + (cc.pf || 0) + cv[0], bq = s.vq + (cc.qb || 0) + cv[1];
-          const nd = (SURV_NEED[c.id] || {})[ch.name], sv = nd && survOf(ch.name, state.pieces[i]);
-          const hd = sv ? ' · <span title="장비 화면 기준 추정 — %는 캐릭터 기본값(잠재 포함)에 붙는다고 가정">방어 <strong class="' + (sv.def >= nd.def ? 'win' : 'lose') + '">' + sv.def.toLocaleString() + '</strong>/' + nd.def.toLocaleString() +
-            ' · 생명 <strong class="' + (sv.hp >= nd.hp ? 'win' : 'lose') + '">' + sv.hp.toLocaleString() + '</strong>/' + nd.hp.toLocaleString() + '</span>' : '';
-          return ' <span class="muted" title="전투 들어가서 = 마을 + 반지(뒷세공 포함) + 팀 버프">· 전투 치확 ' + Math.min(bp, 100) + (bp > 100 ? '(+' + (bp - 100) + ' 넘침)' : '') + ' / 약확 ' + Math.min(bq, 100) + '</span>' + hd; })() +
+          return ' <span class="muted" title="전투 들어가서 = 마을 + 반지(뒷세공 포함) + 팀 버프">· 전투 치확 ' + Math.min(bp, 100) + (bp > 100 ? '(+' + (bp - 100) + ' 넘침)' : '') + ' / 약확 ' + Math.min(bq, 100) + '</span>'; })() +
         ' · 최고 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
         ' <span class="muted">(' + (un && !un.neg ? '유효 ' + uEff.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span>' +
         (() => { const sc = spdCheck(c.id, ch.name, state.pieces[i]), v = spdSum(state.pieces[i]);
@@ -4196,6 +4233,7 @@ function aRound(c, rk){
         '<button type="button" data-ark="' + rk + '" data-atkd="-1" data-atkn="' + esc(ch.name) + '" title="부옵 공격력 줄을 1줄 줄입니다 — 깡공부터, 없으면 공%."' + ((atkOf(state.pieces[i]).lf + atkOf(state.pieces[i]).lp) ? '' : ' disabled') + '>공격력 −1줄</button>' +
         (atkGoal(c.id, ch.name) ? '<button type="button" data-ark="' + rk + '" data-atkd="0" data-atkn="' + esc(ch.name) + '">원래대로</button>' : '') +
         '<button type="button" data-ark="' + rk + '" data-asave="' + i + '">프리셋으로 저장</button></span></div>' +
+        survHtml(c.id, ch.name, state.pieces[i], rk, i) +
         '<!--ALT:' + rk + ':' + i + '-->' +
       (dead.length ? '<p class="note" style="margin:8px 0 0"><strong class="flat">ⓘ ' + dead.map(([t, v]) => t + ' ' + Math.round(v) + '줄').join(' · ') + '은 ' + esc(ch.name) + '에게 쓸모없습니다</strong>' + (dead.some(([t]) => t === '치확') ? ' — 이 콘텐츠에서는 패시브·버프·장신구로 치확이 이미 100%라, 치확 줄이 없는 장비(치피·약확·공%)도 이 캐릭터에겐 종결과 같습니다.' : ' — 전투 중 버프·장신구까지 합치면 약확이 이미 100%입니다.') + ' 지금은 속공 조건·남은 장비 때문에 들어갔습니다.</p>' : '') +
       cardWarns(c, ch.name).map(t => '<p class="note" style="margin:8px 0 0;padding:6px 8px;border-left:3px solid var(--lose, #c0392b);background:rgba(192,57,43,.07)"><strong class="lose">⚠ ' + t + '</strong></p>').join('') +
@@ -4304,6 +4342,22 @@ function aRun(){
       try { if (nc) window.scrollBy(0, nc.getBoundingClientRect().top - top0); } catch (e) {}
     }, 30);
   }));
+  box.querySelectorAll('[data-svsave]').forEach(b => b.addEventListener('click', () => {
+    const wrap = b.closest('details'), sd = +wrap.querySelector('[data-svd]').value, sh = +wrap.querySelector('[data-svh]').value, name = b.dataset.svsave;
+    if (!(sd > 300 && sh > 2000)){ b.textContent = '숫자를 확인하세요'; return; }
+    if (b.dataset.svi != null){                                    // 배정 카드: 그 장비 4개 기준으로 기본값 역산
+      const L = aLasts[+b.dataset.ark]; if (!L) return;
+      survMe[name] = survSolve(name, L.state.pieces[+b.dataset.svi], sd, sh);
+    } else survMe[name] = { sdef: sd, shp: sh, at: new Date().toISOString().slice(0, 10) };   // 배정 제외 카드: 화면 숫자 그대로
+    survPersist();
+    const card = b.closest('.pcard'), top0 = card ? card.getBoundingClientRect().top : 0;
+    ADJ = { cid: (aLasts[+b.dataset.ark] || {}).c?.id, name, reset: false, keep: true };
+    aAction = name + ' 내 화면 방어·생명 반영';
+    setTimeout(() => { try { aRun(); } finally { ADJ = null; }
+      const nb = box.querySelector('[data-svsave="' + name.replace(/["\\]/g, '\\$&') + '"]'), nc = nb && nb.closest('.pcard');
+      try { if (nc) window.scrollBy(0, nc.getBoundingClientRect().top - top0); } catch (e) {} }, 30);
+  }));
+  box.querySelectorAll('[data-svdel]').forEach(b => b.addEventListener('click', () => { delete survMe[b.dataset.svdel]; survPersist(); aRun(); }));
   box.querySelectorAll('[data-aring]').forEach(sel => sel.addEventListener('change', () => {
     const L = aLasts[+sel.dataset.ark]; if (!L) return;
     const name = sel.dataset.aring, cid = L.c.id, key = cid + '|' + name;
@@ -4369,12 +4423,12 @@ function cardWarns(c, name){
   return out;
 }
 const CARD_WARN = {
-  r2d: { '레이첼': '방어력 1,400 · 생명력 8,600 이상(공략) — 파괴신 3인기를 맞으면 1,450 · 9,000이어도 권능이 터짐(피격은 운, 상위 3판으로 거름). 판정기가 장비 부옵으로 추정, 아래 방어·생명 숫자. 기본값은 사용자 레이첼 기준이라 다른 사람은 캐릭터 화면에서 꼭 확인) · 파괴신 1스킬에 권능이 터지면 안 됨' },
+  r2d: { '레이첼': '방어력 1,400 · 생명력 8,600 이상(공략) — 카드 아래 \'생존 조건\'에 내 화면 숫자를 한 번 넣으면 내 기준으로 맞춥니다 · 파괴신 1스킬에 권능이 터지면 안 됨' },
   r1a: { '레긴': LOW_ATK('레긴'), '미호': LOW_ATK('미호'), '소교': '레긴·미호보다 공격력이 높아야 합니다(호접지몽 버프를 파스칼과 소교가 받도록).' },
   r1b: { '하연': LOW_ATK('하연'), '미호': LOW_ATK('미호'), '소교': '하연·미호보다 공격력이 높아야 합니다(호접지몽 버프를 파스칼과 소교가 받도록).' }
 };
 /* 배정 대상이 아닌 편성 인원(버퍼·토템) — 공략대로 세팅만 안내 */
-const BENCH_NOTE = { r2d:{ '비스킷':'수문장 방방받받 · 6부활 + 6불사 필수 · 막기 최대한' }, r2a:{ '비스킷':'출혈 반지 · 막기 최대한' }, r2b:{ '비스킷':'출혈 반지 · 막기 최대한' }, r2c:{ '비스킷':'출혈 반지 · 막기 최대한' }, r1a:{ '선란':'장비·반지·전용장비 전부 해제' }, r1b:{ '선란':'장비·반지·전용장비 전부 해제' } };
+const BENCH_NOTE = { r2d:{ '비스킷':'래밍: 수문장 방방받받·막기 최대 / 차토(실측 평균 +1.3%, 2026-11-15): 막기 0 · 받피감 26% · 속공 35↑ · 생명·방어는 아래 생존 목표 근처 — 6부활 + 6불사' }, r2a:{ '비스킷':'출혈 반지 · 막기 최대한' }, r2b:{ '비스킷':'출혈 반지 · 막기 최대한' }, r2c:{ '비스킷':'출혈 반지 · 막기 최대한' }, r1a:{ '선란':'장비·반지·전용장비 전부 해제' }, r1b:{ '선란':'장비·반지·전용장비 전부 해제' } };
 /* 공략 원문에서 그 캐릭터의 '장비 세팅 추천' 행(열/속공 · 세트·주옵 · 지침)과 '속공 이상적인 그림'의 숫자를 꺼냄 */
 function guideRow(c, name){
   const sec = SECTIONS.find(s2 => s2.title.startsWith(c.g)); if (!sec) return null;
@@ -4418,8 +4472,9 @@ function benchHtml(c, A){
     rows.push(['반지', ringTxt]);
     if (g && g.tip) rows.push(['공략 지침', esc(g.tip)]);
     if (note) rows.push(['주의', '<strong>' + esc(note) + '</strong>']);
+    const svb = survHtml(c.id, n, null, -1, -1);
     return '<div class="pcard" style="opacity:.95"><div class="p-h"><div>' + pic(n) + '<b>' + esc(n) + '</b><span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">배정 제외 · 버퍼·토템 — 공략대로 세팅</span>' + setTag(c.id, n) + '</div></div>' +
-      '<table style="margin:6px 0 0;font-size:13px;border-collapse:collapse">' + rows.map(([k, v]) => '<tr><td class="muted" style="padding:2px 12px 2px 0;white-space:nowrap;vertical-align:top">' + k + '</td><td style="padding:2px 0">' + v + '</td></tr>').join('') + '</table></div>';
+      '<table style="margin:6px 0 0;font-size:13px;border-collapse:collapse">' + rows.map(([k, v]) => '<tr><td class="muted" style="padding:2px 12px 2px 0;white-space:nowrap;vertical-align:top">' + k + '</td><td style="padding:2px 0">' + v + '</td></tr>').join('') + '</table>' + svb + '</div>';
   }).join('');
 }
 $('aRun').addEventListener('click', aRun);
@@ -4857,7 +4912,7 @@ try { sy = JSON.parse(localStorage.getItem(SYKEY) || 'null'); } catch (e) { sy =
 const syRawSet = Storage.prototype.setItem;
 const sySave = () => { try { sy ? syRawSet.call(localStorage, SYKEY, JSON.stringify(sy)) : localStorage.removeItem(SYKEY); } catch (e) {} };
 let syApplying = false, syTimer = 0, syBusy = false, syShowCode = false, syLastSrv = null;
-const SY_WATCH = [GKEY, TKEY, MKEY_MINE, TRKEY, PKEY];
+const SY_WATCH = [GKEY, TKEY, MKEY_MINE, TRKEY, PKEY, 'sknr_surv'];
 Storage.prototype.setItem = function (k, v){
   syRawSet.call(this, k, v);
   if (this === localStorage && sy && !syApplying && SY_WATCH.includes(k)){ sy.dirty = true; sySave(); syQueue(); }
