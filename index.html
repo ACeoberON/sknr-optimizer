@@ -3853,6 +3853,23 @@ function atkSide(c, name){
   }
   return atkSideCache[c.id][name] || 0;
 }
+/* 생존 조건(방어력·생명력) — 공략이 '방어력 1,400 · 생명력 8,600 이상'처럼 정한 캐릭터.
+   방어구 1장 = 방어력 189 · 생명력 1,079 (주옵과 무관). 부옵 1줄(강화 1회 = 1줄): 생명력 +180 · 생명력% +5% · 방어력% +5% (2026-11-15 장비 화면 확인).
+   %는 장비를 뺀 캐릭터 기본값(잠재 포함)에 붙는다고 가정. 깡방어 줄 값은 미확인(0으로 계산).
+   기본값은 캐릭터 화면에서 역산 — 사람마다 초월·잠재가 다르니 다른 길드원은 값이 다를 수 있음 */
+const ARMOR_HD = { def: 189, hp: 1079 };
+const SURV_BASE = { '레이첼': { def: 990, hp: 5949 } };   // 2026-11-15 사용자 화면: #49·#10·#29·#68 착용 방어 1,368 · 생명 8,287 − 방어구 2장 − #68 생명 1줄(180)
+const SURV_NEED = { r2d: { '레이첼': { def: 1400, hp: 8600 } } };
+const SURV_MISS = 0.05;                     // 조건 못 맞추면 팀 −5%p 상당 + 모자란 만큼 더 (사실상 조건 우선)
+function survOf(name, pieces){
+  const b = SURV_BASE[name]; if (!b) return null;
+  let def = b.def, hp = b.hp;
+  pieces.forEach(g => { if (!g) return;
+    if (g.slot === 'ar'){ def += ARMOR_HD.def; hp += ARMOR_HD.hp; }
+    (g.subs || []).forEach(([k, e]) => { const n = (e || 0) + 1;
+      if (k === 'hp') hp += 180 * n; else if (k === 'hpp') hp += Math.round(0.05 * n * b.hp); else if (k === 'defp') def += Math.round(0.05 * n * b.def); }); });
+  return { def, hp };
+}
 const FORCE_W = 0.01;                       // 전투 약확·치확 1 모자랄 때마다 팀 −1%p 상당(주딜 기준, 평타 요원은 0.3배)
 const ATK_MISS = 0.05;                      // 목표 줄 수를 1줄 못 맞출 때마다 팀 점수 −5%p 상당 (사실상 조건 우선)
 const ATK_OVER = 0.002;                     // 목표보다 더 움직이면 1줄당 −0.2%p — 한 번에 한 줄씩(장비 단위라 정확히 1줄이 안 될 때만 넘침)
@@ -3881,6 +3898,8 @@ function evalAssign(A, state){
       const w = ch.share >= 0.2 ? 1 : 0.3;
       pen += w * FORCE_W * (Math.max(0, 100 - q) + ((RAID1(A.c.id) || EXPED(A.c.id)) ? Math.max(0, 99 - pc) : 0));
     }
+    { const nd = (SURV_NEED[A.c.id] || {})[ch.name], sv = nd && survOf(ch.name, state.pieces[i]);
+      if (sv) pen += SURV_MISS * ((sv.def < nd.def ? 1 + (nd.def - sv.def) / 100 : 0) + (sv.hp < nd.hp ? 1 + (nd.hp - sv.hp) / 1000 : 0)); }
     const pv = (aPrev[A.c.id] || {})[ch.name];                     // 직전 결과 유지 가점 — 이득이 거의 없는 자리바꿈(동점 흔들림)으로 다른 캐릭터 장비가 바뀌지 않게
     if (pv && !(ADJ && (ADJ.reset || (!ADJ.keep && ADJ.cid === A.c.id && ADJ.name === ch.name)))) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
     { const a0 = atkOf(state.pieces[i]);
@@ -4159,7 +4178,10 @@ function aRound(c, rk){
           (isNew ? ' <strong class="flat">🔄 새로 끼기</strong>' : '') + '</div>' + gCard(g, true) + '</div>'; }).join('') + '</div></details>' +
       '<div class="p-foot"><span>마을 <strong>' + s.vc + ' / ' + s.vd + ' / ' + s.vq + '</strong>' +
         (() => { const cc = ch.u.cc || {}, cv = CARVES[state.carve[i]] || [0, 0], bp = s.vc + (cc.pf || 0) + cv[0], bq = s.vq + (cc.qb || 0) + cv[1];
-          return ' <span class="muted" title="전투 들어가서 = 마을 + 반지(뒷세공 포함) + 팀 버프">· 전투 치확 ' + Math.min(bp, 100) + (bp > 100 ? '(+' + (bp - 100) + ' 넘침)' : '') + ' / 약확 ' + Math.min(bq, 100) + '</span>'; })() +
+          const nd = (SURV_NEED[c.id] || {})[ch.name], sv = nd && survOf(ch.name, state.pieces[i]);
+          const hd = sv ? ' · <span title="장비 화면 기준 추정 — %는 캐릭터 기본값(잠재 포함)에 붙는다고 가정">방어 <strong class="' + (sv.def >= nd.def ? 'win' : 'lose') + '">' + sv.def.toLocaleString() + '</strong>/' + nd.def.toLocaleString() +
+            ' · 생명 <strong class="' + (sv.hp >= nd.hp ? 'win' : 'lose') + '">' + sv.hp.toLocaleString() + '</strong>/' + nd.hp.toLocaleString() + '</span>' : '';
+          return ' <span class="muted" title="전투 들어가서 = 마을 + 반지(뒷세공 포함) + 팀 버프">· 전투 치확 ' + Math.min(bp, 100) + (bp > 100 ? '(+' + (bp - 100) + ' 넘침)' : '') + ' / 약확 ' + Math.min(bq, 100) + '</span>' + hd; })() +
         ' · 최고 대비 <strong class="' + (ev.r >= 0.97 ? 'win' : ev.r >= 0.9 ? 'flat' : 'lose') + '">' + (ev.r * 100).toFixed(1) + '%</strong>' +
         ' <span class="muted">(' + (un && !un.neg ? '유효 ' + uEff.toFixed(0) + '/32 · ' : '') + '팀 −' + (Math.max(0, 1 - ev.T) * 100).toFixed(1) + '%p)</span>' +
         (() => { const sc = spdCheck(c.id, ch.name, state.pieces[i]), v = spdSum(state.pieces[i]);
@@ -4347,7 +4369,7 @@ function cardWarns(c, name){
   return out;
 }
 const CARD_WARN = {
-  r2d: { '레이첼': '방어력 1,400 · 생명력 8,600 이상 (생존 조건 — 판정기는 방어·생명을 계산하지 않음, 장비를 낀 뒤 캐릭터 화면에서 확인) · 파괴신 1스킬에 권능이 터지면 안 됨' },
+  r2d: { '레이첼': '방어력 1,400 · 생명력 8,600 이상 (생존 조건 — 판정기가 장비 부옵으로 추정해 맞춤, 아래 방어·생명 숫자. 기본값은 사용자 레이첼 기준이라 다른 사람은 캐릭터 화면에서 꼭 확인) · 파괴신 1스킬에 권능이 터지면 안 됨' },
   r1a: { '레긴': LOW_ATK('레긴'), '미호': LOW_ATK('미호'), '소교': '레긴·미호보다 공격력이 높아야 합니다(호접지몽 버프를 파스칼과 소교가 받도록).' },
   r1b: { '하연': LOW_ATK('하연'), '미호': LOW_ATK('미호'), '소교': '하연·미호보다 공격력이 높아야 합니다(호접지몽 버프를 파스칼과 소교가 받도록).' }
 };
