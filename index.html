@@ -2268,6 +2268,11 @@ const RING_FIX = {
 };
 const ringFixTag = (cid, name) => { const r = (RING_FIX[cid] || {})[name]; return r ? '<span class="set-tag" title="' + r[1] + '">' + (r[0].includes('dot') ? '출혈 고정' : '반지 고정 · ' + ringName(r[0])) + '</span>' : ''; };
 const ringOpts = cc => cc && cc.rfix ? [cc.rfix] : cc && cc.kwon ? ['kw'] : ['tb+crit', 'tb+weak', 'tb+sg'];
+/* 장비 맞추기: 내 반지에 뒷세공이 없으면 '세공 없음'으로 계산 — 콘텐츠·캐릭터별로 기억 (sknr_aring = { 'r2d|아일린': 'none' }) */
+var aRing = {}; try { aRing = JSON.parse(localStorage.getItem('sknr_aring') || '{}') || {}; } catch (e) { aRing = {}; }
+const aRingSave = () => { try { localStorage.setItem('sknr_aring', JSON.stringify(aRing)); } catch (e) {} };
+const noCarve = (cid, name) => aRing[cid + '|' + name] === 'none';
+const ringBase = k => normRing(k || 'tb').split('+')[0];
 /* 두 칸 선택(본체 / 세공) — 세공 칸은 본체를 뺀 나머지 */
 function ringPicker(attr, val){
   const v = normRing(val), [b, c] = v === 'auto' ? ['auto', ''] : v.split('+');
@@ -2373,7 +2378,7 @@ function solveContent(c, carry, maxEnh, safe){
     if (role === 'buff' || ((up + dn) === 0 && !optFlag)){ U.push({ name, skip:true }); return; }   // 딜 대상 표시(optFlag)면 평타만 쳐도 계산 — 1R 문턱 앞열, 화요일 리나(복수자 평타)
     const share = gs[i] / 100;
     const cc = { main: share >= 0.2, bc: ch.bc, bd: ch.bd, bq: ch.bq, pf: ch.pf + (c.cb && (!c.cbTo || c.cbTo.includes(name)) ? c.cb : 0) + teamFx(c, name).c, wm: wmAdd(ch.wm, c.wmTeam),
-                 qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn, WM_OTHER[name] != null ? wmAdd(WM_OTHER[name], c.wmTeam) : null, SKL[name]), db: ((CD_BUFF[c.id] || {})[name] || 0) + teamFx(c, name).d, kwon: (KWON[c.id] || []).includes(name), rfix: ((RING_FIX[c.id] || {})[name] || [])[0] };
+                 qb: (qbuff ?? c.qb) + (valOf(name, 'pq') || 0), H: dHits(c, up, dn, WM_OTHER[name] != null ? wmAdd(WM_OTHER[name], c.wmTeam) : null, SKL[name]), db: ((CD_BUFF[c.id] || {})[name] || 0) + teamFx(c, name).d, kwon: (KWON[c.id] || []).includes(name), rfix: noCarve(c.id, name) ? ringBase(((RING_FIX[c.id] || {})[name] || [])[0]) : ((RING_FIX[c.id] || {})[name] || [])[0] };
     let cand = solveOne(cc, k, (c.forceC || []).includes(name) || (c.forceQTo || []).includes(name) ? Object.assign({}, opt, (c.forceC || []).includes(name) ? { forceP: true } : {}, (c.forceQTo || []).includes(name) ? { forceQ: true } : {}) : opt);
     /* 안전 모드의 약확은 둘 중 하나로만 낸다 — 99 이상으로 채우거나, 약확 줄을 빼고 '선택'.
        서브 딜러 중 약확이 쓸모 있는 캐릭터(배율 1.5 이상)는 두 안을 만들어 평균이 높은 쪽을 고른다. */
@@ -4142,7 +4147,10 @@ function aRound(c, rk){
     (aPrevNext[c.id] || (aPrevNext[c.id] = {}))[ch.name] = { ids: nowIds, a: atkNow, r: ev.r };
     if (chg) aChg.push({ c, name: ch.name, n: nowIds.filter(x => !prevIds.includes(x)).length, a0: pv.a, a1: atkNow, r0: pv.r, r1: ev.r, prevIds, nowIds });
     return '<div class="pcard"' + (chg ? ' style="outline:2px solid var(--flat, #b8a040)"' : '') + '><div class="p-h"><div>' + pic(ch.name) + '<b>' + esc(ch.name) + '</b>' + (chg ? ' <span class="set-tag" style="background:var(--flat, #b8a040);color:#fff">장비 바뀜</span>' : '') + (atkFirstName(c, ch.name) ? ' <span class="set-tag">먼저</span>' : '') + '<span class="sub" style="font-size:11px;color:var(--ink-3);margin-left:6px">지분 ' + Math.round(ch.share * 100) + '%</span>' + setTag(c.id, ch.name) + '</div>' +
-        '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong></span></div>' +
+        '<span class="note" style="margin:0">장신구 <strong>' + ringName(state.carve[i]) + '</strong>' +
+          (ch.u.cc && ch.u.cc.kwon ? '' : ' <select data-ark="' + rk + '" data-aring="' + esc(ch.name) + '" title="내 반지에 뒷세공(두 번째 효과)이 없으면 \'세공 없음\'으로 바꾸세요 — 그 기준으로 장비를 다시 맞춥니다" style="width:auto;font-size:12px;padding:1px 4px">' +
+            '<option value=""' + (noCarve(c.id, ch.name) ? '' : ' selected') + '>뒷세공 있음</option><option value="none"' + (noCarve(c.id, ch.name) ? ' selected' : '') + '>뒷세공 없음</option></select>') +
+        '</span></div>' +
       '<details class="pp"' + (innerWidth > 600 || chg ? ' open' : '') + '><summary>장비 4개 보기 · ' + state.pieces[i].map(g => g ? esc(gTitle(g)).replace(/ (무기|방어구) /, ' ') : '빈 칸').join(', ') + '</summary>' +
       '<div class="p-pieces" style="margin-top:6px">' + ['무기 1','무기 2','방어구 1','방어구 2'].map((l, j) => {
         const g = state.pieces[i][j], grp = j < 2 ? [0, 1] : [2, 3];
@@ -4268,6 +4276,21 @@ function aRun(){
     setTimeout(() => {
       try { aRun(); } finally { ADJ = null; }
       const nb = box.querySelector('[data-atkd="' + b.dataset.atkd + '"][data-atkn="' + name.replace(/["\\]/g, '\\$&') + '"]'), nc = nb && nb.closest('.pcard');
+      try { if (nc) window.scrollBy(0, nc.getBoundingClientRect().top - top0); } catch (e) {}
+    }, 30);
+  }));
+  box.querySelectorAll('[data-aring]').forEach(sel => sel.addEventListener('change', () => {
+    const L = aLasts[+sel.dataset.ark]; if (!L) return;
+    const name = sel.dataset.aring, cid = L.c.id, key = cid + '|' + name;
+    if (sel.value === 'none') aRing[key] = 'none'; else delete aRing[key];
+    aRingSave();
+    ADJ = { cid, name, reset: false };
+    aAction = (RAID1(cid) ? '1R ' : (L.c.sc === 'raid' ? '2R ' : '')) + name + ' 반지 ' + (sel.value === 'none' ? '뒷세공 없음' : '뒷세공 있음');
+    const card = sel.closest('.pcard'), top0 = card ? card.getBoundingClientRect().top : 0;
+    sel.disabled = true;
+    setTimeout(() => {
+      try { aRun(); } finally { ADJ = null; }
+      const ns = box.querySelector('[data-aring="' + name.replace(/["\\]/g, '\\$&') + '"]'), nc = ns && ns.closest('.pcard');
       try { if (nc) window.scrollBy(0, nc.getBoundingClientRect().top - top0); } catch (e) {}
     }, 30);
   }));
