@@ -3882,7 +3882,7 @@ function evalAssign(A, state){
       pen += w * FORCE_W * (Math.max(0, 100 - q) + ((RAID1(A.c.id) || EXPED(A.c.id)) ? Math.max(0, 99 - pc) : 0));
     }
     const pv = (aPrev[A.c.id] || {})[ch.name];                     // 직전 결과 유지 가점 — 이득이 거의 없는 자리바꿈(동점 흔들림)으로 다른 캐릭터 장비가 바뀌지 않게
-    if (pv && !(ADJ && (ADJ.reset || (ADJ.cid === A.c.id && ADJ.name === ch.name)))) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
+    if (pv && !(ADJ && (ADJ.reset || (!ADJ.keep && ADJ.cid === A.c.id && ADJ.name === ch.name)))) pen -= STICK * state.pieces[i].filter(g => g && pv.ids.includes(g.id)).length;
     { const a0 = atkOf(state.pieces[i]);
       pen -= ATKP_V * (a0.lp + 0.4 * a0.lf);                           // 동점 정리: 치확·치피·약확이 같으면 공% 붙은 장비(판정기는 공격력 딜을 계산하지 않음)
       const side = atkSide(A.c, ch.name);                               // 공략 공격력 조건: 높아야 할 쪽은 공격력 줄 가점, 낮아야 할 쪽은 감점
@@ -4287,7 +4287,7 @@ function aRun(){
     const name = sel.dataset.aring, cid = L.c.id, key = cid + '|' + name;
     if (sel.value === 'none') aRing[key] = 'none'; else delete aRing[key];
     aRingSave();
-    ADJ = { cid, name, reset: false };
+    ADJ = { cid, name, reset: false, keep: true };   // 반지만 바뀜 — 거의 같은 장비끼리 맞바꾸지 않도록 직전 장비 유지 가점은 그대로
     aAction = (RAID1(cid) ? '1R ' : (L.c.sc === 'raid' ? '2R ' : '')) + name + ' 반지 ' + (sel.value === 'none' ? '뒷세공 없음' : '뒷세공 있음');
     const card = sel.closest('.pcard'), top0 = card ? card.getBoundingClientRect().top : 0;
     sel.disabled = true;
