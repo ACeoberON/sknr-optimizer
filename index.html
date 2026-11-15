@@ -3858,7 +3858,7 @@ function atkSide(c, name){
    %는 장비를 뺀 캐릭터 기본값(잠재 포함)에 붙는다고 가정. 깡방어 줄 값은 미확인(0으로 계산).
    기본값은 캐릭터 화면에서 역산 — 사람마다 초월·잠재가 다르니 다른 길드원은 값이 다를 수 있음 */
 const ARMOR_HD = { def: 189, hp: 1079 };
-const SURV_BASE = { '레이첼': { def: 990, hp: 5949, defLine: 33 } };   // defLine = 방어력% 1줄 실측(2026-11-15: #46 방어% 1줄 끼고 1,401 — 기본값의 5%(50)가 아니라 33 → %는 잠재 뺀 기본에 붙는 듯)   // 2026-11-15 사용자 화면: #49·#10·#29·#68 착용 방어 1,368 · 생명 8,287 − 방어구 2장 − #68 생명 1줄(180)
+const SURV_BASE = { '레이첼': { def: 990, hp: 5949, defLine: 33, hppLine: 184 } };   // hppLine = 생명력% 1줄 실측(2026-11-15: #51 생명% 1줄 끼고 9,011 — 기본값의 5%(297)가 아니라 184)   // defLine = 방어력% 1줄 실측(2026-11-15: #46 방어% 1줄 끼고 1,401 — 기본값의 5%(50)가 아니라 33 → %는 잠재 뺀 기본에 붙는 듯)   // 2026-11-15 사용자 화면: #49·#10·#29·#68 착용 방어 1,368 · 생명 8,287 − 방어구 2장 − #68 생명 1줄(180)
 const SURV_NEED = { r2d: { '레이첼': { def: 1450, hp: 9000 } } };   // 공략 1,400 / 8,600 — 2026-11-15 1,401 / 8,827에서 20턴 권능이 겨우 버티다 터짐 → 여유분(팀 −0.3%p)
 const SURV_MISS = 0.05;                     // 조건 못 맞추면 팀 −5%p 상당 + 모자란 만큼 더 (사실상 조건 우선)
 function survOf(name, pieces){
@@ -3867,7 +3867,7 @@ function survOf(name, pieces){
   pieces.forEach(g => { if (!g) return;
     if (g.slot === 'ar'){ def += ARMOR_HD.def; hp += ARMOR_HD.hp; }
     (g.subs || []).forEach(([k, e]) => { const n = (e || 0) + 1;
-      if (k === 'hp') hp += 180 * n; else if (k === 'hpp') hp += Math.round(0.05 * n * b.hp); else if (k === 'defp') def += b.defLine ? b.defLine * n : Math.round(0.05 * n * b.def); }); });
+      if (k === 'hp') hp += 180 * n; else if (k === 'hpp') hp += b.hppLine ? b.hppLine * n : Math.round(0.05 * n * b.hp); else if (k === 'defp') def += b.defLine ? b.defLine * n : Math.round(0.05 * n * b.def); }); });
   return { def, hp };
 }
 const FORCE_W = 0.01;                       // 전투 약확·치확 1 모자랄 때마다 팀 −1%p 상당(주딜 기준, 평타 요원은 0.3배)
