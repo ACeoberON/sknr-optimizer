@@ -3064,7 +3064,7 @@ function setContent(id){
   setRun(); goalRun(); gRender();
   if (typeof cRowsInit === 'function') cRowsInit();               // 초월 목록 순서(지금 편성 먼저)
 }
-$('gContent').value = ['sun','monb','tue','weds','thu','fri','sat'][new Date().getUTCDay()];
+$('gContent').value = ['sun','monb','tues','weds','thu','fri','sat'][new Date().getUTCDay()];
 function guessShare(c){
   if (SHARE[c.id]) return SHARE[c.id].slice();
   const w = c.lu.map(([, up, dn, f]) => up + dn * 0.2 + (f && !(up + dn) ? 0.3 : 0));   // 평타만 치는 딜 대상(화요일 리나)도 0%가 되지 않게
@@ -3116,12 +3116,14 @@ function applyState(o){
   if (o.trial && typeof o.trial === 'object') { trial = o.trial; trPersist(); }
   if (Array.isArray(o.presets)) { presets = o.presets; pPersist(); }
   if (o.surv && typeof o.surv === 'object') { survMe = o.surv; survPersist(); }
+  if (o.aring && typeof o.aring === 'object') { aRing = o.aring; aRingSave(); }
+  if (o.aopt && typeof o.aopt === 'object') { aOpt = o.aopt; aOptSave(); }
   try {
     localStorage.setItem(GKEY, JSON.stringify(gear));
   } catch {}
   gRowsInit(); gRender(); goalRun(); cRowsInit(); pRender();
 }
-const stateBundle = () => ({ v: 2, gear, trans, mine, trial, presets, surv: survMe });
+const stateBundle = () => ({ v: 2, gear, trans, mine, trial, presets, surv: survMe, aring: aRing, aopt: aOpt });
 
 /* ══════════ 장비 탭 ══════════ */
 const GKEY = 'sknr-judge-gear';
@@ -3864,8 +3866,8 @@ const SURV_RATIO = { def: 33 / 990, hp: 184 / 5949 };
 const SURV_BASE = { '레이첼': { def: 990, hp: 5949 } };   // 사용자 값이 없을 때 쓰는 기본(제작자 레이첼, 2026-11-15)
 const SURV_NEED = { r2d: {
   '레이첼': { def: 1400, hp: 8600, kind: 'min', src: '래밍 공략 — 파괴신 3인기를 맞으면 이 값이어도 권능이 터질 수 있음(운)' },
-  '아일린': { def: 1457, hp: 9541, kind: 'near', src: '차토(디시) 고점 빌드 아일린 — 14턴 3인기·17턴 평타에 죽어야 해서 너무 단단하면 안 됨' },
-  '비스킷': { def: 1867, hp: 10189, kind: 'near', src: '차토(디시) 고점 빌드 비스킷(막기 0 · 받피감 26%) — 22턴 평타에 죽고 부활해야 함' } } };
+  '아일린': { def: 1457, hp: 9541, kind: 'near', src: '차토(디시) 방식일 때만 — 14턴 3인기·17턴 평타에 죽어야 해서 너무 단단하면 안 됨. 래밍 방식이면 무시' },
+  '비스킷': { def: 1867, hp: 10189, kind: 'near', src: '차토(디시) 방식일 때만(막기 0 · 받피감 26%) — 22턴 평타에 죽고 부활해야 함. 래밍 방식(수문장 막기 최대)이면 무시' } } };
 const SURV_NEAR = 0.03;                     // near: ±3% 안이면 OK
 const SURV_MISS = 0.05;                     // min 조건 못 맞추면 팀 −5%p 상당 + 모자란 만큼 더 (사실상 조건 우선)
 var survMe = {}; try { survMe = JSON.parse(localStorage.getItem('sknr_surv') || '{}') || {}; } catch (e) { survMe = {}; }
@@ -3960,7 +3962,7 @@ function evalAssign(A, state){
 
 function optimizeAssign(c, excl, only, fixed){   // only: 이번에 고를 캐릭터 이름 Set(없으면 전원) · fixed: 이미 정한 캐릭터별 장비 {이름: [4칸]}
   const A = buildAssign(c), k = A.k;
-  const gear = (excl && excl.size) ? window.gear.filter(g => !excl.has(g.id)) : window.gear;   // 앞 라운드가 쓴 장비는 빼고
+  const gear = window.gear.filter(g => !(excl && excl.has(g.id)) && !(g.slot === 'ar' && g.main && g.main !== 'atkp'));   // 앞 라운드가 쓴 장비는 빼고, 받피감·막기 등 탱커 주옵 방어구는 딜러에게 주지 않음
 
 
   if (!A.chars.length) return { A, err: '이 콘텐츠에 배정할 딜러가 없습니다. 목표 탭에서 역할을 확인하십시오.' };
@@ -4610,7 +4612,7 @@ function gRender(){
 /* ══════════ 세팅 탭 — 한 화면 요약 ══════════ */
 SET_OPTS.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = optLabel(x); $('sContent').appendChild(o); });
 // 공성전은 09시(KST) 리셋 = UTC 자정 → UTC 요일이 곧 오늘의 공성전
-$('sContent').value = ['sun','monb','tue','weds','thu','fri','sat'][new Date().getUTCDay()];
+$('sContent').value = ['sun','monb','tues','weds','thu','fri','sat'][new Date().getUTCDay()];
 
 /* 스킬 순서 표시: [노랑]X = 순서 자유(협공) · [빨강 대체] = 쿨 안 돌 때 대체 · ↑ 메모 */
 /* 스킬 순서 → 칩 목록. 원문의 줄 구분은 영상 화면 배치일 뿐이라 버리고, 스킬 하나 = 칩 하나로 흘려 놓는다.
@@ -4912,7 +4914,7 @@ try { sy = JSON.parse(localStorage.getItem(SYKEY) || 'null'); } catch (e) { sy =
 const syRawSet = Storage.prototype.setItem;
 const sySave = () => { try { sy ? syRawSet.call(localStorage, SYKEY, JSON.stringify(sy)) : localStorage.removeItem(SYKEY); } catch (e) {} };
 let syApplying = false, syTimer = 0, syBusy = false, syShowCode = false, syLastSrv = null;
-const SY_WATCH = [GKEY, TKEY, MKEY_MINE, TRKEY, PKEY, 'sknr_surv'];
+const SY_WATCH = [GKEY, TKEY, MKEY_MINE, TRKEY, PKEY, 'sknr_surv', 'sknr_aring', 'sknr_aopt'];
 Storage.prototype.setItem = function (k, v){
   syRawSet.call(this, k, v);
   if (this === localStorage && sy && !syApplying && SY_WATCH.includes(k)){ sy.dirty = true; sySave(); syQueue(); }
@@ -5211,7 +5213,7 @@ goalRun(); cRowsInit(); gRowsInit(); pRender(); demoBtn();
    원래 select는 숨겨 두고 값의 기준으로 계속 쓴다(다른 코드가 .value를 바로 읽고 쓰므로).
    옆에 종류·세부 두 칸을 만들고, 각 화면을 그릴 때(setRun·goalRun·gRender) PICK[id]()로 두 칸을 원래 값에 맞춘다. */
 (() => {
-  const TODAY = ['sun','monb','tue','weds','thu','fri','sat'][new Date().getUTCDay()];
+  const TODAY = ['sun','monb','tues','weds','thu','fri','sat'][new Date().getUTCDay()];
   const fromSetOpt = o => {                       // '✓ 공성전 · 금요일' → ['공성전', '✓ 금요일']
     const t = o.textContent.trim(), ck = t.startsWith('✓'), n = t.replace(/^✓\s*/, '');
     const [c, ...r] = n.split(' · ');
